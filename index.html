@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Vendas Fiadas - Controle de Crédito</title>
-    <link rel="stylesheet" href="style.css?v=1.3.0">
+    <link rel="stylesheet" href="style.css?v=1.4.0">
 </head>
 <body>
     <!-- Tela de Login -->
@@ -56,32 +56,24 @@
         </header>
 
         <main>
-            <!-- Formulário para venda - cliente existente -->
+            <!-- Formulário para registrar venda -->
             <section class="card">
-                <h2>Venda para Cliente Cadastrado</h2>
-                <form id="addSaleExistingForm">
-                    <select id="selectExistingClient" required>
-                        <option value="">Selecione o cliente</option>
-                    </select>
-                    <input type="number" id="saleAmountExisting" placeholder="Valor (R$)" step="0.01" min="0.01" required>
-                    <input type="text" id="saleDescriptionExisting" placeholder="Descrição (opcional)">
-                    <button type="submit" class="btn btn-primary">+ Registrar Venda</button>
-                </form>
-            </section>
-
-            <!-- Formulário para novo cliente + venda -->
-            <section class="card">
-                <h2>Novo Cliente + Primeira Venda</h2>
+                <h2>Registrar Venda Fiada</h2>
                 <form id="addSaleForm">
-                    <input 
-                        type="text" 
-                        id="clientNameInput" 
-                        placeholder="Nome do novo cliente" 
-                        autocomplete="off"
-                        required>
+                    <select id="selectClient" required>
+                        <option value="">Selecione o cliente</option>
+                        <option value="__new__">+ Novo Cliente</option>
+                    </select>
+                    <div id="newClientField" style="display: none;">
+                        <input 
+                            type="text" 
+                            id="newClientName" 
+                            placeholder="Nome do novo cliente" 
+                            autocomplete="off">
+                    </div>
                     <input type="number" id="saleAmount" placeholder="Valor (R$)" step="0.01" min="0.01" required>
                     <input type="text" id="saleDescription" placeholder="Descrição (opcional)">
-                    <button type="submit" class="btn btn-success">+ Cadastrar e Registrar Venda</button>
+                    <button type="submit" class="btn btn-primary">+ Registrar Venda</button>
                 </form>
             </section>
 
@@ -187,6 +179,6 @@
     </div>
 
     <!-- Firebase SDK -->
-    <script type="module" src="app.js?v=1.3.0"></script>
+    <script type="module" src="app.js?v=1.4.0"></script>
 </body>
 </html>

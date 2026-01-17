@@ -226,8 +226,9 @@ const showLoginLink = document.getElementById('showLogin');
 
 // Elementos DOM - App
 const addSaleForm = document.getElementById('addSaleForm');
-const addSaleExistingForm = document.getElementById('addSaleExistingForm');
-const selectExistingClient = document.getElementById('selectExistingClient');
+const selectClient = document.getElementById('selectClient');
+const newClientField = document.getElementById('newClientField');
+const newClientName = document.getElementById('newClientName');
 const paymentForm = document.getElementById('paymentForm');
 const modalAddSaleForm = document.getElementById('modalAddSaleForm');
 const modalSaleAmountInput = document.getElementById('modalSaleAmount');
@@ -399,8 +400,9 @@ function updateClientsList() {
 function updateClientSelect() {
     const clients = Object.values(manager.clients);
     
-    if (selectExistingClient) {
-        selectExistingClient.innerHTML = '<option value="">Selecione o cliente</option>' + 
+    if (selectClient) {
+        selectClient.innerHTML = '<option value="">Selecione o cliente</option>' +
+            '<option value="__new__">+ Novo Cliente</option>' +
             clients
                 .sort((a, b) => a.name.localeCompare(b.name))
                 .map(client => `<option value="${client.id}">${sanitizeHTML(client.name)}</option>`)
@@ -612,50 +614,24 @@ if (showLoginLink) {
 }
 
 // Event Listeners - App
-// Venda para cliente existente
-addSaleExistingForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const clientId = selectExistingClient.value;
-    const amount = document.getElementById('saleAmountExisting').value;
-    const description = document.getElementById('saleDescriptionExisting').value.trim();
-    
-    // Validar valor
-    const numericAmount = parseFloat(amount);
-    if (isNaN(numericAmount) || numericAmount <= 0) {
-        showToast('Digite um valor válido e positivo para a venda.', 'error');
-        return;
-    }
-    
-    if (!clientId) {
-        showToast('Selecione um cliente.', 'error');
-        return;
-    }
-    
-    showLoader();
-    try {
-        await manager.addSale(clientId, amount, description);
-        hideLoader();
-        showToast('Venda registrada com sucesso!', 'success');
-        addSaleExistingForm.reset();
-    } catch (error) {
-        hideLoader();
-        if (IS_DEV) console.error('Erro ao registrar venda:', error);
-        showToast(getDatabaseErrorMessage(error, 'Erro ao registrar venda. Tente novamente.'), 'error');
+// Mostrar/ocultar campo de novo cliente
+selectClient.addEventListener('change', () => {
+    if (selectClient.value === '__new__') {
+        newClientField.style.display = 'block';
+        newClientName.required = true;
+    } else {
+        newClientField.style.display = 'none';
+        newClientName.required = false;
+        newClientName.value = '';
     }
 });
 
-// Novo cliente + primeira venda
+// Registrar venda
 addSaleForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const clientName = clientNameInput.value.trim();
+    const selectedValue = selectClient.value;
     const amount = document.getElementById('saleAmount').value;
     const description = document.getElementById('saleDescription').value.trim();
-    
-    // Validar nome
-    if (!clientName || clientName.length < 2) {
-        showToast('Digite o nome do cliente (mínimo 2 caracteres).', 'error');
-        return;
-    }
     
     // Validar valor
     const numericAmount = parseFloat(amount);
@@ -664,19 +640,27 @@ addSaleForm.addEventListener('submit', async (e) => {
         return;
     }
     
+    if (!selectedValue) {
+        showToast('Selecione um cliente ou adicione um novo.', 'error');
+        return;
+    }
+    
     showLoader();
     try {
-        // Procurar cliente existente pelo nome (case-insensitive)
-        let clientId = null;
-        const existingClient = Object.values(manager.clients).find(
-            c => c.name.toLowerCase() === clientName.toLowerCase()
-        );
+        let clientId;
         
-        if (existingClient) {
-            clientId = existingClient.id;
-        } else {
+        if (selectedValue === '__new__') {
             // Criar novo cliente
+            const clientName = newClientName.value.trim();
+            if (!clientName || clientName.length < 2) {
+                hideLoader();
+                showToast('Digite o nome do cliente (mínimo 2 caracteres).', 'error');
+                return;
+            }
             clientId = await manager.addClient(clientName);
+        } else {
+            // Cliente existente
+            clientId = selectedValue;
         }
         
         // Adicionar venda
@@ -684,6 +668,7 @@ addSaleForm.addEventListener('submit', async (e) => {
         hideLoader();
         showToast('Venda registrada com sucesso!', 'success');
         addSaleForm.reset();
+        newClientField.style.display = 'none';
     } catch (error) {
         hideLoader();
         if (IS_DEV) console.error('Erro ao registrar venda:', error);
