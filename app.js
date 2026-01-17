@@ -582,6 +582,9 @@ onAuthStateChanged(auth, (user) => {
         if (loginScreen) loginScreen.style.display = 'flex';
         if (appScreen) appScreen.style.display = 'none';
     }
+    // Remover classe loading e adicionar loaded após verificar autenticação
+    document.body.classList.remove('loading');
+    document.body.classList.add('loaded');
 });
 
 // Login com Email

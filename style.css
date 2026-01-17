@@ -25,6 +25,15 @@ body {
     padding: 1rem;
 }
 
+body.loading {
+    opacity: 0;
+    transition: opacity 0.2s ease-in;
+}
+
+body.loaded {
+    opacity: 1;
+}
+
 .container {
     max-width: 800px;
     margin: 0 auto;
@@ -437,6 +446,7 @@ input:focus, select:focus {
     font-weight: bold;
     cursor: pointer;
     line-height: 1;
+    margin-left: 1rem;
 }
 
 .close:hover {
@@ -454,6 +464,7 @@ input:focus, select:focus {
     align-items: center;
     gap: 0.75rem;
     margin-bottom: 1rem;
+    margin-right: 3rem;
 }
 
 .editable-name {
