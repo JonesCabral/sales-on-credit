@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Vendas Fiadas - Controle de Crédito</title>
-    <link rel="stylesheet" href="style.css?v=1.4.0">
+    <link rel="stylesheet" href="style.css?v=1.5.0">
 </head>
 <body>
     <!-- Tela de Login -->
@@ -60,16 +60,14 @@
             <section class="card">
                 <h2>Registrar Venda Fiada</h2>
                 <form id="addSaleForm">
-                    <select id="selectClient" required>
-                        <option value="">Selecione o cliente</option>
-                        <option value="__new__">+ Novo Cliente</option>
-                    </select>
-                    <div id="newClientField" style="display: none;">
+                    <div class="autocomplete-wrapper">
                         <input 
                             type="text" 
-                            id="newClientName" 
-                            placeholder="Nome do novo cliente" 
-                            autocomplete="off">
+                            id="clientSearch" 
+                            placeholder="Digite o nome do cliente ou adicione novo"
+                            autocomplete="off"
+                            required>
+                        <div id="clientSuggestions" class="suggestions-dropdown"></div>
                     </div>
                     <input type="number" id="saleAmount" placeholder="Valor (R$)" step="0.01" min="0.01" required>
                     <input type="text" id="saleDescription" placeholder="Descrição (opcional)">
@@ -179,6 +177,6 @@
     </div>
 
     <!-- Firebase SDK -->
-    <script type="module" src="app.js?v=1.4.0"></script>
+    <script type="module" src="app.js?v=1.5.0"></script>
 </body>
 </html>

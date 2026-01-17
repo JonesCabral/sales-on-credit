@@ -69,7 +69,6 @@ class SalesManager {
             this.clients = snapshot.val() || {};
             console.log('Dados carregados do Firebase:', this.clients);
             updateClientsList();
-            updateClientSelect();
         });
     }
 
@@ -226,9 +225,8 @@ const showLoginLink = document.getElementById('showLogin');
 
 // Elementos DOM - App
 const addSaleForm = document.getElementById('addSaleForm');
-const selectClient = document.getElementById('selectClient');
-const newClientField = document.getElementById('newClientField');
-const newClientName = document.getElementById('newClientName');
+const clientSearch = document.getElementById('clientSearch');
+const clientSuggestions = document.getElementById('clientSuggestions');
 const paymentForm = document.getElementById('paymentForm');
 const modalAddSaleForm = document.getElementById('modalAddSaleForm');
 const modalSaleAmountInput = document.getElementById('modalSaleAmount');
@@ -396,19 +394,6 @@ function updateClientsList() {
     }
 }
 
-// Atualizar select de clientes
-function updateClientSelect() {
-    const clients = Object.values(manager.clients);
-    
-    if (selectClient) {
-        selectClient.innerHTML = '<option value="">Selecione o cliente</option>' +
-            '<option value="__new__">+ Novo Cliente</option>' +
-            clients
-                .sort((a, b) => a.name.localeCompare(b.name))
-                .map(client => `<option value="${client.id}">${sanitizeHTML(client.name)}</option>`)
-                .join('');
-    }
-}
 
 // Abrir modal do cliente
 function openClientModal(clientId) {
@@ -614,24 +599,89 @@ if (showLoginLink) {
 }
 
 // Event Listeners - App
-// Mostrar/ocultar campo de novo cliente
-selectClient.addEventListener('change', () => {
-    if (selectClient.value === '__new__') {
-        newClientField.style.display = 'block';
-        newClientName.required = true;
-    } else {
-        newClientField.style.display = 'none';
-        newClientName.required = false;
-        newClientName.value = '';
-    }
-});
+let selectedClientId = null;
+
+// Busca de clientes com autocomplete
+if (clientSearch) {
+    clientSearch.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.trim().toLowerCase();
+        selectedClientId = null;
+        
+        if (searchTerm.length === 0) {
+            clientSuggestions.classList.remove('show');
+            return;
+        }
+        
+        const clients = Object.values(manager.clients);
+        const matches = clients.filter(client => 
+            client.name.toLowerCase().includes(searchTerm)
+        );
+        
+        if (matches.length === 0) {
+            // Nenhum cliente encontrado - sugerir criar novo
+            clientSuggestions.innerHTML = `
+                <div class="suggestion-item new-client" data-action="new">
+                    <div>➕ Criar novo cliente: "${sanitizeHTML(e.target.value.trim())}"</div>
+                </div>
+            `;
+        } else {
+            // Mostrar clientes encontrados
+            clientSuggestions.innerHTML = matches
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(client => {
+                    const debt = manager.getClientDebt(client.id);
+                    const debtText = debt > 0 ? `Débito: R$ ${formatCurrency(debt)}` : 'Sem débitos';
+                    return `
+                        <div class="suggestion-item" data-client-id="${client.id}">
+                            <div>${sanitizeHTML(client.name)}</div>
+                            <div class="client-debt-preview ${debt > 0 ? 'has-debt' : ''}">${debtText}</div>
+                        </div>
+                    `;
+                }).join('') + `
+                <div class="suggestion-item new-client" data-action="new">
+                    <div>➕ Criar novo cliente: "${sanitizeHTML(e.target.value.trim())}"</div>
+                </div>
+            `;
+        }
+        
+        clientSuggestions.classList.add('show');
+        
+        // Event listeners para sugestões
+        document.querySelectorAll('.suggestion-item').forEach(item => {
+            item.addEventListener('click', () => {
+                if (item.dataset.action === 'new') {
+                    selectedClientId = '__new__';
+                    clientSearch.value = e.target.value.trim();
+                } else {
+                    selectedClientId = item.dataset.clientId;
+                    const client = manager.clients[selectedClientId];
+                    clientSearch.value = client.name;
+                }
+                clientSuggestions.classList.remove('show');
+            });
+        });
+    });
+    
+    // Fechar sugestões ao clicar fora
+    document.addEventListener('click', (e) => {
+        if (!clientSearch.contains(e.target) && !clientSuggestions.contains(e.target)) {
+            clientSuggestions.classList.remove('show');
+        }
+    });
+}
 
 // Registrar venda
 addSaleForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const selectedValue = selectClient.value;
+    const clientName = clientSearch.value.trim();
     const amount = document.getElementById('saleAmount').value;
     const description = document.getElementById('saleDescription').value.trim();
+    
+    // Validar nome
+    if (!clientName || clientName.length < 2) {
+        showToast('Digite o nome do cliente (mínimo 2 caracteres).', 'error');
+        return;
+    }
     
     // Validar valor
     const numericAmount = parseFloat(amount);
@@ -640,27 +690,25 @@ addSaleForm.addEventListener('submit', async (e) => {
         return;
     }
     
-    if (!selectedValue) {
-        showToast('Selecione um cliente ou adicione um novo.', 'error');
-        return;
-    }
-    
     showLoader();
     try {
         let clientId;
         
-        if (selectedValue === '__new__') {
-            // Criar novo cliente
-            const clientName = newClientName.value.trim();
-            if (!clientName || clientName.length < 2) {
-                hideLoader();
-                showToast('Digite o nome do cliente (mínimo 2 caracteres).', 'error');
-                return;
+        if (selectedClientId === '__new__' || !selectedClientId) {
+            // Verificar se já existe cliente com esse nome
+            const existingClient = Object.values(manager.clients).find(
+                c => c.name.toLowerCase() === clientName.toLowerCase()
+            );
+            
+            if (existingClient) {
+                clientId = existingClient.id;
+            } else {
+                // Criar novo cliente
+                clientId = await manager.addClient(clientName);
             }
-            clientId = await manager.addClient(clientName);
         } else {
-            // Cliente existente
-            clientId = selectedValue;
+            // Cliente selecionado da lista
+            clientId = selectedClientId;
         }
         
         // Adicionar venda
@@ -668,7 +716,8 @@ addSaleForm.addEventListener('submit', async (e) => {
         hideLoader();
         showToast('Venda registrada com sucesso!', 'success');
         addSaleForm.reset();
-        newClientField.style.display = 'none';
+        selectedClientId = null;
+        clientSuggestions.classList.remove('show');
     } catch (error) {
         hideLoader();
         if (IS_DEV) console.error('Erro ao registrar venda:', error);
