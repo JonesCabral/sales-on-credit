@@ -658,20 +658,27 @@ input:focus, select:focus {
 /* Toast de Sucesso */
 .toast {
     position: fixed;
-    top: -100px;
+    top: 50%;
     left: 50%;
-    transform: translateX(-50%);
+    transform: translate(-50%, -50%) scale(0.8);
     background: var(--success-color);
     color: white;
-    padding: 1rem 2rem;
-    border-radius: 8px;
-    box-shadow: var(--shadow-lg);
+    padding: 1.5rem 2.5rem;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 1rem;
     z-index: 10000;
-    transition: top 0.4s ease;
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
     font-weight: 500;
+    font-size: 1.1rem;
+    opacity: 0;
+    pointer-events: none;
+    min-width: 300px;
+    max-width: 90%;
+    text-align: center;
+    justify-content: center;
 }
 
 .toast.toast-success {
@@ -683,7 +690,9 @@ input:focus, select:focus {
 }
 
 .toast.show {
-    top: 2rem;
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    pointer-events: auto;
 }
 
 .toast-icon {
