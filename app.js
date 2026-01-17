@@ -227,6 +227,7 @@ const showLoginLink = document.getElementById('showLogin');
 const addSaleForm = document.getElementById('addSaleForm');
 const clientSearch = document.getElementById('clientSearch');
 const clientSuggestions = document.getElementById('clientSuggestions');
+const searchClients = document.getElementById('searchClients');
 const paymentForm = document.getElementById('paymentForm');
 const modalAddSaleForm = document.getElementById('modalAddSaleForm');
 const modalSaleAmountInput = document.getElementById('modalSaleAmount');
@@ -338,6 +339,32 @@ function updateClientsList() {
     // Ordenar por débito (maior primeiro)
     clients.sort((a, b) => manager.getClientDebt(b.id) - manager.getClientDebt(a.id));
 
+    renderClientsList(clients);
+
+    // Atualizar totais
+    const totalDebt = manager.getTotalDebt();
+    const totalCredit = manager.getTotalCredit();
+    
+    document.getElementById('totalDebt').textContent = formatCurrency(totalDebt);
+    
+    const creditCard = document.getElementById('creditCard');
+    if (totalCredit > 0) {
+        creditCard.style.display = 'block';
+        document.getElementById('totalCredit').textContent = formatCurrency(totalCredit);
+    } else {
+        creditCard.style.display = 'none';
+    }
+}
+
+// Renderizar lista de clientes
+function renderClientsList(clients) {
+    const clientsListDiv = document.getElementById('clientsListDiv');
+    
+    if (clients.length === 0) {
+        clientsListDiv.innerHTML = '<p class="empty-message">Nenhum cliente encontrado.</p>';
+        return;
+    }
+    
     clientsListDiv.innerHTML = clients.map(client => {
         const debt = manager.getClientDebt(client.id);
         const salesCount = manager.getClientSalesCount(client.id);
@@ -599,6 +626,26 @@ if (showLoginLink) {
 }
 
 // Event Listeners - App
+// Busca de clientes na lista
+if (searchClients) {
+    searchClients.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.trim().toLowerCase();
+        const allClients = Object.values(manager.clients);
+        
+        if (searchTerm.length === 0) {
+            // Mostrar todos os clientes
+            const sorted = [...allClients].sort((a, b) => manager.getClientDebt(b.id) - manager.getClientDebt(a.id));
+            renderClientsList(sorted);
+        } else {
+            // Filtrar clientes pelo nome
+            const filtered = allClients.filter(client => 
+                client.name.toLowerCase().includes(searchTerm)
+            ).sort((a, b) => manager.getClientDebt(b.id) - manager.getClientDebt(a.id));
+            renderClientsList(filtered);
+        }
+    });
+}
+
 let selectedClientId = null;
 
 // Busca de clientes com autocomplete
