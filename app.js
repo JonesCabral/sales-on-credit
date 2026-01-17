@@ -650,10 +650,9 @@ addSaleForm.addEventListener('submit', async (e) => {
         showToast('Venda registrada com sucesso!', 'success');
         addSaleForm.reset();
     } catch (error) {
-            hideLoader();
-            if (IS_DEV) console.error('Erro ao criar conta:', error);
-            showToast(getDatabaseErrorMessage(error, 'Erro ao registrar venda. Tente novamente.'), 'error');
-        }
+        hideLoader();
+        if (IS_DEV) console.error('Erro ao registrar venda:', error);
+        showToast(getDatabaseErrorMessage(error, 'Erro ao registrar venda. Tente novamente.'), 'error');
     }
 });
 
