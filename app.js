@@ -190,7 +190,17 @@ class SalesManager {
 
     getTotalDebt() {
         return Object.keys(this.clients).reduce((total, clientId) => {
-            return total + this.getClientDebt(clientId);
+            const debt = this.getClientDebt(clientId);
+            // Somar apenas débitos positivos
+            return debt > 0 ? total + debt : total;
+        }, 0);
+    }
+
+    getTotalCredit() {
+        return Object.keys(this.clients).reduce((total, clientId) => {
+            const debt = this.getClientDebt(clientId);
+            // Somar apenas créditos (débitos negativos)
+            return debt < 0 ? total + Math.abs(debt) : total;
         }, 0);
     }
 
@@ -369,8 +379,19 @@ function updateClientsList() {
         });
     });
 
-    // Atualizar total
-    document.getElementById('totalDebt').textContent = formatCurrency(manager.getTotalDebt());
+    // Atualizar totais
+    const totalDebt = manager.getTotalDebt();
+    const totalCredit = manager.getTotalCredit();
+    
+    document.getElementById('totalDebt').textContent = formatCurrency(totalDebt);
+    
+    const creditSection = document.getElementById('totalCreditSection');
+    if (totalCredit > 0) {
+        creditSection.style.display = 'inline';
+        document.getElementById('totalCredit').textContent = formatCurrency(totalCredit);
+    } else {
+        creditSection.style.display = 'none';
+    }
 }
 
 // Atualizar select de clientes
