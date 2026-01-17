@@ -385,10 +385,32 @@ function updateClientsList() {
         return;
     }
 
+    // Aplicar filtros se existirem
+    const searchClients = document.getElementById('searchClients');
+    const filterDebtOnlyCheckbox = document.getElementById('filterDebtOnly');
+    const searchTerm = searchClients?.value.trim().toLowerCase() || '';
+    const showDebtOnly = filterDebtOnlyCheckbox?.checked || false;
+    
+    let filteredClients = [...clients];
+    
+    // Filtrar por nome se houver termo de busca
+    if (searchTerm.length > 0) {
+        filteredClients = filteredClients.filter(client => 
+            client.name.toLowerCase().includes(searchTerm)
+        );
+    }
+    
+    // Filtrar por dívida se checkbox estiver marcado
+    if (showDebtOnly) {
+        filteredClients = filteredClients.filter(client => 
+            manager.getClientDebt(client.id) > 0
+        );
+    }
+    
     // Ordenar por débito (maior primeiro)
-    clients.sort((a, b) => manager.getClientDebt(b.id) - manager.getClientDebt(a.id));
+    filteredClients.sort((a, b) => manager.getClientDebt(b.id) - manager.getClientDebt(a.id));
 
-    renderClientsList(clients);
+    renderClientsList(filteredClients);
 
     // Atualizar totais
     const totalDebt = manager.getTotalDebt();
@@ -677,22 +699,40 @@ if (showLoginLink) {
 // Event Listeners - App
 // Busca de clientes na lista
 if (searchClients) {
-    searchClients.addEventListener('input', (e) => {
-        const searchTerm = e.target.value.trim().toLowerCase();
-        const allClients = Object.values(manager.clients);
+    const filterDebtOnlyCheckbox = document.getElementById('filterDebtOnly');
+    
+    const applyFilters = () => {
+        const searchTerm = searchClients.value.trim().toLowerCase();
+        const showDebtOnly = filterDebtOnlyCheckbox?.checked || false;
+        let allClients = Object.values(manager.clients);
         
-        if (searchTerm.length === 0) {
-            // Mostrar todos os clientes
-            const sorted = [...allClients].sort((a, b) => manager.getClientDebt(b.id) - manager.getClientDebt(a.id));
-            renderClientsList(sorted);
-        } else {
-            // Filtrar clientes pelo nome
-            const filtered = allClients.filter(client => 
+        // Filtrar por nome se houver termo de busca
+        if (searchTerm.length > 0) {
+            allClients = allClients.filter(client => 
                 client.name.toLowerCase().includes(searchTerm)
-            ).sort((a, b) => manager.getClientDebt(b.id) - manager.getClientDebt(a.id));
-            renderClientsList(filtered);
+            );
         }
-    });
+        
+        // Filtrar por dívida se checkbox estiver marcado
+        if (showDebtOnly) {
+            allClients = allClients.filter(client => 
+                manager.getClientDebt(client.id) > 0
+            );
+        }
+        
+        // Ordenar por débito (maior primeiro)
+        const sorted = [...allClients].sort((a, b) => 
+            manager.getClientDebt(b.id) - manager.getClientDebt(a.id)
+        );
+        
+        renderClientsList(sorted);
+    };
+    
+    searchClients.addEventListener('input', applyFilters);
+    
+    if (filterDebtOnlyCheckbox) {
+        filterDebtOnlyCheckbox.addEventListener('change', applyFilters);
+    }
 }
 
 let selectedClientId = null;

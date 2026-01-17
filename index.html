@@ -92,12 +92,20 @@
                 <div class="section-header">
                     <h2>Adicionar Pagamento</h2>
                 </div>
-                <input 
-                    type="text" 
-                    id="searchClients" 
-                    placeholder="🔍 Buscar cliente por nome..."
-                    autocomplete="off"
-                    class="search-input">
+                <div class="filter-search-container">
+                    <input 
+                        type="text" 
+                        id="searchClients" 
+                        placeholder="🔍 Buscar cliente por nome..."
+                        autocomplete="off"
+                        class="search-input">
+                    <div class="filter-checkbox-container">
+                        <label class="filter-checkbox-label">
+                            <input type="checkbox" id="filterDebtOnly" checked>
+                            <span>Apenas com dívidas</span>
+                        </label>
+                    </div>
+                </div>
                 <div id="clientsListDiv" class="clients-list">
                     <p class="empty-message">Nenhum cliente cadastrado ainda.</p>
                 </div>
