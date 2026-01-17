@@ -190,7 +190,9 @@ class SalesManager {
 
     getTotalDebt() {
         return Object.keys(this.clients).reduce((total, clientId) => {
-            return total + this.getClientDebt(clientId);
+            const debt = this.getClientDebt(clientId);
+            // Only sum positive debts (actual debts, not credits)
+            return total + Math.max(0, debt);
         }, 0);
     }
 
