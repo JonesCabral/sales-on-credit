@@ -286,6 +286,7 @@ const modal = document.getElementById('clientModal');
 const closeModal = document.querySelector('.close');
 const deleteClientBtn = document.getElementById('deleteClient');
 const clearHistoryBtn = document.getElementById('clearHistory');
+const shareHistoryBtn = document.getElementById('shareHistory');
 const loader = document.getElementById('loader');
 const toast = document.getElementById('toast');
 const editNameForm = document.getElementById('editNameForm');
@@ -494,6 +495,116 @@ function renderClientsList(clients) {
 
 
 // Abrir modal do cliente
+// Função para compartilhar histórico do cliente
+function shareClientHistory(clientId) {
+    const client = manager.clients[clientId];
+    if (!client) return;
+
+    const debt = manager.getClientDebt(clientId);
+    const isCredit = debt < 0;
+    const isPaid = debt === 0;
+    const sales = client.sales || [];
+
+    // Ordenar por data (mais antiga primeiro para o histórico)
+    const sortedSales = [...sales].sort((a, b) => 
+        new Date(a.date) - new Date(b.date)
+    );
+
+    // Criar texto formatado
+    let message = `📋 *HISTÓRICO DE CONTA - ${client.name}*\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+    // Status da conta
+    if (isPaid) {
+        message += `✅ *Status:* Conta quitada\n`;
+        message += `💰 *Saldo:* R$ 0,00\n\n`;
+    } else if (isCredit) {
+        message += `✅ *Status:* Crédito a favor\n`;
+        message += `💰 *Crédito:* R$ ${formatCurrency(Math.abs(debt))}\n\n`;
+    } else {
+        message += `⚠️ *Status:* Pendente\n`;
+        message += `💰 *Débito total:* R$ ${formatCurrency(debt)}\n\n`;
+    }
+
+    // Histórico de transações
+    if (sales.length > 0) {
+        message += `📜 *HISTÓRICO DE TRANSAÇÕES*\n`;
+        message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+        sortedSales.forEach(sale => {
+            const date = formatDate(sale.date);
+            const type = sale.type === 'payment' ? '✅ Pagamento' : '🛒 Venda';
+            const amount = `R$ ${formatCurrency(sale.amount)}`;
+            
+            message += `${type}\n`;
+            message += `📅 ${date}\n`;
+            message += `💵 ${amount}\n`;
+            
+            if (sale.description) {
+                message += `📝 ${sale.description}\n`;
+            }
+            
+            message += `\n`;
+        });
+    } else {
+        message += `ℹ️ Nenhuma transação registrada.\n\n`;
+    }
+
+    message += `━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `Gerado em: ${new Date().toLocaleString('pt-BR')}\n`;
+    message += `\n_Fiado Fácil - Controle de vendas a crédito_`;
+
+    // Tentar usar Web Share API
+    if (navigator.share) {
+        navigator.share({
+            title: `Histórico - ${client.name}`,
+            text: message
+        }).then(() => {
+            showToast('Histórico compartilhado com sucesso!', 'success');
+        }).catch((error) => {
+            if (error.name !== 'AbortError') {
+                // Se falhar, copiar para clipboard
+                copyToClipboard(message);
+            }
+        });
+    } else {
+        // Fallback: copiar para clipboard
+        copyToClipboard(message);
+    }
+}
+
+// Função para copiar texto para clipboard
+function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('Histórico copiado para a área de transferência!', 'success');
+        }).catch(() => {
+            fallbackCopyToClipboard(text);
+        });
+    } else {
+        fallbackCopyToClipboard(text);
+    }
+}
+
+// Fallback para copiar para clipboard em navegadores antigos
+function fallbackCopyToClipboard(text) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.select();
+    
+    try {
+        document.execCommand('copy');
+        showToast('Histórico copiado para a área de transferência!', 'success');
+    } catch (err) {
+        showToast('Não foi possível copiar o histórico.', 'error');
+    }
+    
+    document.body.removeChild(textArea);
+}
+
 function openClientModal(clientId) {
     const client = manager.clients[clientId];
     if (!client) return;
@@ -979,6 +1090,28 @@ deleteClientBtn.addEventListener('click', async () => {
         }
     }
 });
+
+// Compartilhar histórico do cliente
+if (shareHistoryBtn) {
+    shareHistoryBtn.addEventListener('click', () => {
+        if (manager.currentClientId) {
+            shareClientHistory(manager.currentClientId);
+        } else {
+            showToast('Nenhum cliente selecionado.', 'error');
+        }
+    });
+}
+
+// Compartilhar histórico do cliente
+if (shareHistoryBtn) {
+    shareHistoryBtn.addEventListener('click', () => {
+        if (manager.currentClientId) {
+            shareClientHistory(manager.currentClientId);
+        } else {
+            showToast('Nenhum cliente selecionado.', 'error');
+        }
+    });
+}
 
 // Limpar histórico do cliente
 if (clearHistoryBtn) {
