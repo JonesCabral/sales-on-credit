@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendas Fiadas - Controle de Crédito</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Tela de Login -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-container">
+            <div class="login-header">
+                <div class="login-logo">📋</div>
+                <h1>Vendas Fiadas</h1>
+                <p>Controle de vendas a crédito</p>
+            </div>
+
+            <div id="emailTab" class="tab-content active">
+                <form id="loginForm">
+                    <input type="email" id="loginEmail" placeholder="Email" required>
+                    <input type="password" id="loginPassword" placeholder="Senha" required>
+                    <button type="submit" class="btn btn-primary">Entrar</button>
+                </form>
+                <p class="login-toggle">Não tem conta? <a href="#" id="showRegister">Cadastre-se grátis</a></p>
+            </div>
+
+            <div id="registerForm" class="tab-content" style="display: none;">
+                <form id="signupForm">
+                    <input type="email" id="signupEmail" placeholder="Email" required>
+                    <input type="password" id="signupPassword" placeholder="Senha (mín. 8 caracteres, 1 maiúscula, 1 número)" required minlength="8">
+                    <input type="password" id="signupPasswordConfirm" placeholder="Confirme a senha" required minlength="8">
+                    <button type="submit" class="btn btn-primary">Criar Conta</button>
+                </form>
+                <p class="login-toggle">Já tem conta? <a href="#" id="showLogin">Faça login</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Principal -->
+    <div id="appScreen" class="container" style="display: none;">
+        <header>
+            <div class="header-content">
+                <div>
+                    <h1>📋 Vendas Fiadas</h1>
+                    <p class="subtitle">Controle de vendas a crédito</p>
+                </div>
+                <div class="user-info">
+                    <span id="userEmail" class="user-email"></span>
+                    <button id="logoutBtn" class="btn btn-logout">Sair</button>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <!-- Formulário para adicionar cliente -->
+            <section class="card">
+                <h2>Adicionar Cliente</h2>
+                <form id="addClientForm">
+                    <input type="text" id="clientName" placeholder="Nome do cliente" required>
+                    <button type="submit" class="btn btn-primary">+ Adicionar Cliente</button>
+                </form>
+            </section>
+
+            <!-- Formulário para registrar venda -->
+            <section class="card">
+                <h2>Registrar Venda Fiada</h2>
+                <form id="addSaleForm">
+                    <select id="selectClient" required>
+                        <option value="">Selecione o cliente</option>
+                    </select>
+                    <input type="number" id="saleAmount" placeholder="Valor (R$)" step="0.01" min="0.01" required>
+                    <input type="text" id="saleDescription" placeholder="Descrição (opcional)">
+                    <button type="submit" class="btn btn-primary">+ Registrar Venda</button>
+                </form>
+            </section>
+
+            <!-- Lista de clientes com débitos -->
+            <section class="card">
+                <div class="section-header">
+                    <h2>Clientes com Débitos</h2>
+                    <div class="total-debt">
+                        Total geral: <strong>R$ <span id="totalDebt">0,00</span></strong>
+                    </div>
+                </div>
+                <div id="clientsList" class="clients-list">
+                    <p class="empty-message">Nenhum cliente cadastrado ainda.</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal para detalhes do cliente -->
+        <div id="clientModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                
+                <!-- Nome do cliente com edição inline -->
+                <div class="client-name-section">
+                    <h2 id="modalClientName" class="editable-name"></h2>
+                    <button id="editNameBtn" class="btn-edit-name" title="Editar nome">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                    </button>
+                </div>
+                
+                <!-- Formulário de edição (oculto por padrão) -->
+                <form id="editNameForm" class="edit-name-form" style="display: none;">
+                    <input type="text" id="editClientName" placeholder="Nome do cliente" required>
+                    <div class="edit-name-actions">
+                        <button type="submit" class="btn btn-primary btn-sm">✓ Salvar</button>
+                        <button type="button" id="cancelEditName" class="btn btn-secondary btn-sm">✕ Cancelar</button>
+                    </div>
+                </form>
+                
+                <div class="modal-debt">
+                    Débito total: <strong>R$ <span id="modalDebt">0,00</span></strong>
+                </div>
+
+                <h3>Adicionar Nova Venda</h3>
+                <form id="modalAddSaleForm">
+                    <input type="number" id="modalSaleAmount" placeholder="Valor da venda (R$)" step="0.01" min="0.01" required>
+                    <input type="text" id="modalSaleDescription" placeholder="Descrição (opcional)">
+                    <button type="submit" class="btn btn-primary">💵 Adicionar Venda</button>
+                </form>
+
+                <h3>Registrar Pagamento</h3>
+                <form id="paymentForm">
+                    <input type="number" id="paymentAmount" placeholder="Valor do pagamento (R$)" step="0.01" min="0.01" required>
+                    <button type="submit" class="btn btn-success">✓ Registrar Pagamento</button>
+                </form>
+
+                <h3>Histórico de Vendas</h3>
+                <div id="salesHistory" class="sales-history"></div>
+
+                <div class="modal-actions">
+                    <button id="clearHistory" class="btn btn-warning">🧹 Limpar Histórico</button>
+                    <button id="deleteClient" class="btn btn-danger">🗑️ Excluir Cliente</button>
+                </div>
+            </div>
+        </div>
+
+    <!-- Loader -->
+    <div id="loader" class="loader-overlay">
+        <div class="loader-spinner"></div>
+        <p class="loader-text">Salvando...</p>
+    </div>
+
+    <!-- Toast de Sucesso -->
+    <div id="toast" class="toast">
+        <span class="toast-icon">✓</span>
+        <span class="toast-message">Salvo com sucesso!</span>
+    </div>
+
+    <!-- Modal de Confirmação -->
+    <div id="confirmModal" class="confirm-modal">
+        <div class="confirm-modal-content">
+            <div class="confirm-modal-icon">⚠️</div>
+            <h3 id="confirmTitle">Confirmar Ação</h3>
+            <p id="confirmMessage">Tem certeza que deseja continuar?</p>
+            <div class="confirm-modal-actions">
+                <button id="confirmCancel" class="btn btn-secondary">Cancelar</button>
+                <button id="confirmOk" class="btn btn-danger">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module" src="app.js"></script>
+</body>
+</html>
