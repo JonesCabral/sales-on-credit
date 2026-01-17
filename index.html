@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Vendas Fiadas - Controle de Crédito</title>
-    <link rel="stylesheet" href="style.css?v=1.2.0">
+    <link rel="stylesheet" href="style.css?v=1.3.0">
 </head>
 <body>
     <!-- Tela de Login -->
@@ -56,21 +56,32 @@
         </header>
 
         <main>
-            <!-- Formulário para registrar venda -->
+            <!-- Formulário para venda - cliente existente -->
             <section class="card">
-                <h2>Registrar Venda Fiada</h2>
+                <h2>Venda para Cliente Cadastrado</h2>
+                <form id="addSaleExistingForm">
+                    <select id="selectExistingClient" required>
+                        <option value="">Selecione o cliente</option>
+                    </select>
+                    <input type="number" id="saleAmountExisting" placeholder="Valor (R$)" step="0.01" min="0.01" required>
+                    <input type="text" id="saleDescriptionExisting" placeholder="Descrição (opcional)">
+                    <button type="submit" class="btn btn-primary">+ Registrar Venda</button>
+                </form>
+            </section>
+
+            <!-- Formulário para novo cliente + venda -->
+            <section class="card">
+                <h2>Novo Cliente + Primeira Venda</h2>
                 <form id="addSaleForm">
                     <input 
                         type="text" 
                         id="clientNameInput" 
-                        list="clientsList" 
-                        placeholder="Nome do cliente" 
+                        placeholder="Nome do novo cliente" 
                         autocomplete="off"
                         required>
-                    <datalist id="clientsList"></datalist>
                     <input type="number" id="saleAmount" placeholder="Valor (R$)" step="0.01" min="0.01" required>
                     <input type="text" id="saleDescription" placeholder="Descrição (opcional)">
-                    <button type="submit" class="btn btn-primary">+ Registrar Venda</button>
+                    <button type="submit" class="btn btn-success">+ Cadastrar e Registrar Venda</button>
                 </form>
             </section>
 
@@ -176,6 +187,6 @@
     </div>
 
     <!-- Firebase SDK -->
-    <script type="module" src="app.js?v=1.2.0"></script>
+    <script type="module" src="app.js?v=1.3.0"></script>
 </body>
 </html>
