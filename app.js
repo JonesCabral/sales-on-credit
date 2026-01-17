@@ -225,14 +225,13 @@ const showRegisterLink = document.getElementById('showRegister');
 const showLoginLink = document.getElementById('showLogin');
 
 // Elementos DOM - App
-const addClientForm = document.getElementById('addClientForm');
 const addSaleForm = document.getElementById('addSaleForm');
 const paymentForm = document.getElementById('paymentForm');
 const modalAddSaleForm = document.getElementById('modalAddSaleForm');
 const modalSaleAmountInput = document.getElementById('modalSaleAmount');
 const modalSaleDescriptionInput = document.getElementById('modalSaleDescription');
-const clientsList = document.getElementById('clientsList');
-const selectClient = document.getElementById('selectClient');
+const clientsListElement = document.getElementById('clientsList');
+const clientNameInput = document.getElementById('clientNameInput');
 const modal = document.getElementById('clientModal');
 const closeModal = document.querySelector('.close');
 const deleteClientBtn = document.getElementById('deleteClient');
@@ -330,15 +329,16 @@ function updateClientsList() {
     safeLog('Atualizando lista de clientes...', manager.clients);
     const clients = Object.values(manager.clients);
     
+    const clientsListDiv = document.getElementById('clientsListDiv');
     if (clients.length === 0) {
-        clientsList.innerHTML = '<p class="empty-message">Nenhum cliente cadastrado ainda.</p>';
+        clientsListDiv.innerHTML = '<p class="empty-message">Nenhum cliente cadastrado ainda.</p>';
         return;
     }
 
     // Ordenar por débito (maior primeiro)
     clients.sort((a, b) => manager.getClientDebt(b.id) - manager.getClientDebt(a.id));
 
-    clientsList.innerHTML = clients.map(client => {
+    clientsListDiv.innerHTML = clients.map(client => {
         const debt = manager.getClientDebt(client.id);
         const salesCount = manager.getClientSalesCount(client.id);
         const isPaid = debt === 0;
@@ -394,14 +394,16 @@ function updateClientsList() {
     }
 }
 
-// Atualizar select de clientes
+// Atualizar datalist de clientes
 function updateClientSelect() {
     const clients = Object.values(manager.clients);
     
-    selectClient.innerHTML = '<option value="">Selecione o cliente</option>' + 
-        clients.map(client => `
-            <option value="${client.id}">${client.name}</option>
-        `).join('');
+    if (clientsListElement) {
+        clientsListElement.innerHTML = clients
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map(client => `<option value="${sanitizeHTML(client.name)}">`)
+            .join('');
+    }
 }
 
 // Abrir modal do cliente
@@ -608,30 +610,17 @@ if (showLoginLink) {
 }
 
 // Event Listeners - App
-addClientForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const name = document.getElementById('clientName').value.trim();
-    
-    if (name) {
-        showLoader();
-        try {
-            await manager.addClient(name);
-            hideLoader();
-            showToast('Cliente adicionado com sucesso!', 'success');
-            addClientForm.reset();
-        } catch (error) {
-            hideLoader();
-            console.error('Erro ao adicionar cliente:', error);
-            showToast(getDatabaseErrorMessage(error, 'Erro ao adicionar cliente. Tente novamente.'), 'error');
-        }
-    }
-});
-
 addSaleForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const clientId = selectClient.value;
+    const clientName = clientNameInput.value.trim();
     const amount = document.getElementById('saleAmount').value;
     const description = document.getElementById('saleDescription').value.trim();
+    
+    // Validar nome
+    if (!clientName || clientName.length < 2) {
+        showToast('Digite o nome do cliente (mínimo 2 caracteres).', 'error');
+        return;
+    }
     
     // Validar valor
     const numericAmount = parseFloat(amount);
@@ -640,14 +629,27 @@ addSaleForm.addEventListener('submit', async (e) => {
         return;
     }
     
-    if (clientId && amount) {
-        showLoader();
-        try {
-            await manager.addSale(clientId, amount, description);
-            hideLoader();
-            showToast('Venda registrada com sucesso!', 'success');
-            addSaleForm.reset();
-        } catch (error) {
+    showLoader();
+    try {
+        // Procurar cliente existente pelo nome (case-insensitive)
+        let clientId = null;
+        const existingClient = Object.values(manager.clients).find(
+            c => c.name.toLowerCase() === clientName.toLowerCase()
+        );
+        
+        if (existingClient) {
+            clientId = existingClient.id;
+        } else {
+            // Criar novo cliente
+            clientId = await manager.addClient(clientName);
+        }
+        
+        // Adicionar venda
+        await manager.addSale(clientId, amount, description);
+        hideLoader();
+        showToast('Venda registrada com sucesso!', 'success');
+        addSaleForm.reset();
+    } catch (error) {
             hideLoader();
             if (IS_DEV) console.error('Erro ao criar conta:', error);
             showToast(getDatabaseErrorMessage(error, 'Erro ao registrar venda. Tente novamente.'), 'error');

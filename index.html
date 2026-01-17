@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Vendas Fiadas - Controle de Crédito</title>
-    <link rel="stylesheet" href="style.css?v=1.1.0">
+    <link rel="stylesheet" href="style.css?v=1.2.0">
 </head>
 <body>
     <!-- Tela de Login -->
@@ -56,22 +56,18 @@
         </header>
 
         <main>
-            <!-- Formulário para adicionar cliente -->
-            <section class="card">
-                <h2>Adicionar Cliente</h2>
-                <form id="addClientForm">
-                    <input type="text" id="clientName" placeholder="Nome do cliente" required>
-                    <button type="submit" class="btn btn-primary">+ Adicionar Cliente</button>
-                </form>
-            </section>
-
             <!-- Formulário para registrar venda -->
             <section class="card">
                 <h2>Registrar Venda Fiada</h2>
                 <form id="addSaleForm">
-                    <select id="selectClient" required>
-                        <option value="">Selecione o cliente</option>
-                    </select>
+                    <input 
+                        type="text" 
+                        id="clientNameInput" 
+                        list="clientsList" 
+                        placeholder="Nome do cliente" 
+                        autocomplete="off"
+                        required>
+                    <datalist id="clientsList"></datalist>
                     <input type="number" id="saleAmount" placeholder="Valor (R$)" step="0.01" min="0.01" required>
                     <input type="text" id="saleDescription" placeholder="Descrição (opcional)">
                     <button type="submit" class="btn btn-primary">+ Registrar Venda</button>
@@ -95,7 +91,7 @@
                 <div class="section-header">
                     <h2>Clientes com Débitos</h2>
                 </div>
-                <div id="clientsList" class="clients-list">
+                <div id="clientsListDiv" class="clients-list">
                     <p class="empty-message">Nenhum cliente cadastrado ainda.</p>
                 </div>
             </section>
@@ -180,6 +176,6 @@
     </div>
 
     <!-- Firebase SDK -->
-    <script type="module" src="app.js?v=1.1.0"></script>
+    <script type="module" src="app.js?v=1.2.0"></script>
 </body>
 </html>
