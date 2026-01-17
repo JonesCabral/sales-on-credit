@@ -134,17 +134,17 @@
                     Débito total: <strong>R$ <span id="modalDebt">0,00</span></strong>
                 </div>
 
+                <h3>Registrar Pagamento</h3>
+                <form id="paymentForm">
+                    <input type="number" id="paymentAmount" placeholder="Valor do pagamento (R$)" step="0.01" min="0.01" required>
+                    <button type="submit" class="btn btn-success">✓ Registrar Pagamento</button>
+                </form>
+
                 <h3>Adicionar Nova Venda</h3>
                 <form id="modalAddSaleForm">
                     <input type="number" id="modalSaleAmount" placeholder="Valor da venda (R$)" step="0.01" min="0.01" required>
                     <input type="text" id="modalSaleDescription" placeholder="Descrição (opcional)">
                     <button type="submit" class="btn btn-primary">💵 Adicionar Venda</button>
-                </form>
-
-                <h3>Registrar Pagamento</h3>
-                <form id="paymentForm">
-                    <input type="number" id="paymentAmount" placeholder="Valor do pagamento (R$)" step="0.01" min="0.01" required>
-                    <button type="submit" class="btn btn-success">✓ Registrar Pagamento</button>
                 </form>
 
                 <h3>Histórico de Vendas</h3>
