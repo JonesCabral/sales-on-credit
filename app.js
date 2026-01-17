@@ -88,8 +88,21 @@ class SalesManager {
         }
         // Validar e sanitizar nome
         const sanitizedName = name.trim();
-        if (sanitizedName.length < 2 || sanitizedName.length > 100) {
-            throw new Error('Nome deve ter entre 2 e 100 caracteres');
+        if (!sanitizedName) {
+            throw new Error('Nome do cliente não pode estar vazio');
+        }
+        if (sanitizedName.length < 2) {
+            throw new Error('Nome deve ter pelo menos 2 caracteres');
+        }
+        if (sanitizedName.length > 100) {
+            throw new Error('Nome não pode ter mais de 100 caracteres');
+        }
+        // Verificar se já existe cliente com esse nome
+        const existingClient = Object.values(this.clients).find(
+            c => c.name.toLowerCase() === sanitizedName.toLowerCase()
+        );
+        if (existingClient) {
+            throw new Error('Já existe um cliente com este nome');
         }
         const id = Date.now().toString();
         this.clients[id] = {
@@ -104,16 +117,27 @@ class SalesManager {
     }
 
     async addSale(clientId, amount, description = '') {
-        if (!this.clients[clientId]) return false;
+        if (!this.clients[clientId]) {
+            throw new Error('Cliente não encontrado');
+        }
         
         // Validar valor
         const numericAmount = parseFloat(amount);
-        if (isNaN(numericAmount) || numericAmount <= 0 || numericAmount > 1000000) {
-            throw new Error('Valor inválido');
+        if (isNaN(numericAmount)) {
+            throw new Error('Valor da venda deve ser um número válido');
+        }
+        if (numericAmount <= 0) {
+            throw new Error('Valor da venda deve ser maior que zero');
+        }
+        if (numericAmount > 1000000) {
+            throw new Error('Valor da venda não pode ser maior que R$ 1.000.000,00');
         }
         
         // Validar e sanitizar descrição
-        const sanitizedDescription = description.trim().substring(0, 200);
+        const sanitizedDescription = description.trim();
+        if (sanitizedDescription.length > 200) {
+            throw new Error('Descrição não pode ter mais de 200 caracteres');
+        }
         
         // Garantir que sales existe
         if (!this.clients[clientId].sales) {
@@ -132,12 +156,20 @@ class SalesManager {
     }
 
     async addPayment(clientId, amount) {
-        if (!this.clients[clientId]) return false;
+        if (!this.clients[clientId]) {
+            throw new Error('Cliente não encontrado');
+        }
         
         // Validar valor
         const numericAmount = parseFloat(amount);
-        if (isNaN(numericAmount) || numericAmount <= 0 || numericAmount > 1000000) {
-            throw new Error('Valor inválido');
+        if (isNaN(numericAmount)) {
+            throw new Error('Valor do pagamento deve ser um número válido');
+        }
+        if (numericAmount <= 0) {
+            throw new Error('Valor do pagamento deve ser maior que zero');
+        }
+        if (numericAmount > 1000000) {
+            throw new Error('Valor do pagamento não pode ser maior que R$ 1.000.000,00');
         }
         
         // Garantir que sales existe
@@ -168,9 +200,26 @@ class SalesManager {
     }
 
     async updateClientName(clientId, newName) {
-        if (!this.clients[clientId]) throw new Error('Cliente não encontrado');
+        if (!this.clients[clientId]) {
+            throw new Error('Cliente não encontrado');
+        }
         const name = (newName || '').trim();
-        if (!name || name.length < 2) throw new Error('Nome inválido');
+        if (!name) {
+            throw new Error('Nome do cliente não pode estar vazio');
+        }
+        if (name.length < 2) {
+            throw new Error('Nome deve ter pelo menos 2 caracteres');
+        }
+        if (name.length > 100) {
+            throw new Error('Nome não pode ter mais de 100 caracteres');
+        }
+        // Verificar se já existe outro cliente com esse nome
+        const existingClient = Object.values(this.clients).find(
+            c => c.id !== clientId && c.name.toLowerCase() === name.toLowerCase()
+        );
+        if (existingClient) {
+            throw new Error('Já existe um cliente com este nome');
+        }
         this.clients[clientId].name = name;
         await this.saveData();
         return true;
@@ -724,16 +773,55 @@ addSaleForm.addEventListener('submit', async (e) => {
     const amount = document.getElementById('saleAmount').value;
     const description = document.getElementById('saleDescription').value.trim();
     
-    // Validar nome
-    if (!clientName || clientName.length < 2) {
-        showToast('Digite o nome do cliente (mínimo 2 caracteres).', 'error');
+    // Validar nome do cliente
+    if (!clientName) {
+        showToast('Por favor, digite o nome do cliente.', 'error');
+        clientSearch.focus();
         return;
     }
     
-    // Validar valor
+    if (clientName.length < 2) {
+        showToast('O nome do cliente deve ter pelo menos 2 caracteres.', 'error');
+        clientSearch.focus();
+        return;
+    }
+    
+    if (clientName.length > 100) {
+        showToast('O nome do cliente não pode ter mais de 100 caracteres.', 'error');
+        clientSearch.focus();
+        return;
+    }
+    
+    // Validar valor da venda
+    if (!amount || amount.trim() === '') {
+        showToast('Por favor, digite o valor da venda.', 'error');
+        document.getElementById('saleAmount').focus();
+        return;
+    }
+    
     const numericAmount = parseFloat(amount);
-    if (isNaN(numericAmount) || numericAmount <= 0) {
-        showToast('Digite um valor válido e positivo para a venda.', 'error');
+    if (isNaN(numericAmount)) {
+        showToast('O valor da venda deve ser um número válido.', 'error');
+        document.getElementById('saleAmount').focus();
+        return;
+    }
+    
+    if (numericAmount <= 0) {
+        showToast('O valor da venda deve ser maior que zero.', 'error');
+        document.getElementById('saleAmount').focus();
+        return;
+    }
+    
+    if (numericAmount > 1000000) {
+        showToast('O valor da venda não pode ser maior que R$ 1.000.000,00.', 'error');
+        document.getElementById('saleAmount').focus();
+        return;
+    }
+    
+    // Validar descrição (opcional, mas se fornecida, validar tamanho)
+    if (description.length > 200) {
+        showToast('A descrição não pode ter mais de 200 caracteres.', 'error');
+        document.getElementById('saleDescription').focus();
         return;
     }
     
@@ -776,25 +864,49 @@ paymentForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const amount = document.getElementById('paymentAmount').value;
     
-    // Validar valor
-    const numericAmount = parseFloat(amount);
-    if (isNaN(numericAmount) || numericAmount <= 0) {
-        showToast('Digite um valor válido e positivo para o pagamento.', 'error');
+    // Validar se há cliente selecionado
+    if (!manager.currentClientId) {
+        showToast('Nenhum cliente selecionado.', 'error');
         return;
     }
     
-    if (manager.currentClientId && amount) {
-        showLoader();
-        try {
-            await manager.addPayment(manager.currentClientId, amount);
-            hideLoader();
-            showToast('Pagamento registrado com sucesso!', 'success');
-            openClientModal(manager.currentClientId); // Reabrir para atualizar
-        } catch (error) {
-            hideLoader();
-            console.error('Erro ao registrar pagamento:', error);
-            showToast(getDatabaseErrorMessage(error, 'Erro ao registrar pagamento. Tente novamente.'), 'error');
-        }
+    // Validar valor do pagamento
+    if (!amount || amount.trim() === '') {
+        showToast('Por favor, digite o valor do pagamento.', 'error');
+        document.getElementById('paymentAmount').focus();
+        return;
+    }
+    
+    const numericAmount = parseFloat(amount);
+    if (isNaN(numericAmount)) {
+        showToast('O valor do pagamento deve ser um número válido.', 'error');
+        document.getElementById('paymentAmount').focus();
+        return;
+    }
+    
+    if (numericAmount <= 0) {
+        showToast('O valor do pagamento deve ser maior que zero.', 'error');
+        document.getElementById('paymentAmount').focus();
+        return;
+    }
+    
+    if (numericAmount > 1000000) {
+        showToast('O valor do pagamento não pode ser maior que R$ 1.000.000,00.', 'error');
+        document.getElementById('paymentAmount').focus();
+        return;
+    }
+    
+    showLoader();
+    try {
+        await manager.addPayment(manager.currentClientId, numericAmount);
+        hideLoader();
+        showToast('Pagamento registrado com sucesso!', 'success');
+        paymentForm.reset();
+        openClientModal(manager.currentClientId); // Reabrir para atualizar
+    } catch (error) {
+        hideLoader();
+        console.error('Erro ao registrar pagamento:', error);
+        showToast(getDatabaseErrorMessage(error, 'Erro ao registrar pagamento. Tente novamente.'), 'error');
     }
 });
 
@@ -840,7 +952,6 @@ if (clearHistoryBtn) {
                     showToast('Histórico limpo com sucesso!', 'success');
                     openClientModal(manager.currentClientId); // Reabrir para atualizar
                     updateClientsList();
-                    updateClientSelect();
                 } catch (error) {
                     hideLoader();
                     console.error('Erro ao limpar histórico:', error);
@@ -858,15 +969,42 @@ if (modalAddSaleForm) {
         const amount = modalSaleAmountInput?.value;
         const description = (modalSaleDescriptionInput?.value || '').trim();
         
-        // Validar valor
-        const numericAmount = parseFloat(amount);
-        if (isNaN(numericAmount) || numericAmount <= 0) {
-            showToast('Digite um valor válido e positivo para a venda.', 'error');
+        // Validar se há cliente selecionado
+        if (!manager.currentClientId) {
+            showToast('Nenhum cliente selecionado.', 'error');
             return;
         }
         
-        if (!manager.currentClientId) {
-            showToast('Nenhum cliente selecionado.', 'error');
+        // Validar valor da venda
+        if (!amount || amount.trim() === '') {
+            showToast('Por favor, digite o valor da venda.', 'error');
+            modalSaleAmountInput.focus();
+            return;
+        }
+        
+        const numericAmount = parseFloat(amount);
+        if (isNaN(numericAmount)) {
+            showToast('O valor da venda deve ser um número válido.', 'error');
+            modalSaleAmountInput.focus();
+            return;
+        }
+        
+        if (numericAmount <= 0) {
+            showToast('O valor da venda deve ser maior que zero.', 'error');
+            modalSaleAmountInput.focus();
+            return;
+        }
+        
+        if (numericAmount > 1000000) {
+            showToast('O valor da venda não pode ser maior que R$ 1.000.000,00.', 'error');
+            modalSaleAmountInput.focus();
+            return;
+        }
+        
+        // Validar descrição (opcional, mas se fornecida, validar tamanho)
+        if (description.length > 200) {
+            showToast('A descrição não pode ter mais de 200 caracteres.', 'error');
+            modalSaleDescriptionInput.focus();
             return;
         }
         
@@ -878,7 +1016,6 @@ if (modalAddSaleForm) {
             modalAddSaleForm.reset();
             openClientModal(manager.currentClientId); // Reabrir para atualizar
             updateClientsList();
-            updateClientSelect();
         } catch (error) {
             hideLoader();
             console.error('Erro ao registrar venda:', error);
@@ -912,14 +1049,50 @@ if (editNameForm) {
     editNameForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const newName = (editClientNameInput?.value || '').trim();
+        
+        // Validar se há cliente selecionado
         if (!manager.currentClientId) {
             showToast('Nenhum cliente selecionado.', 'error');
             return;
         }
-        if (!newName || newName.length < 2) {
-            showToast('Informe um nome válido.', 'error');
+        
+        // Validar nome
+        if (!newName) {
+            showToast('Por favor, digite o nome do cliente.', 'error');
+            editClientNameInput.focus();
             return;
         }
+        
+        if (newName.length < 2) {
+            showToast('O nome do cliente deve ter pelo menos 2 caracteres.', 'error');
+            editClientNameInput.focus();
+            return;
+        }
+        
+        if (newName.length > 100) {
+            showToast('O nome do cliente não pode ter mais de 100 caracteres.', 'error');
+            editClientNameInput.focus();
+            return;
+        }
+        
+        // Verificar se o nome é diferente do atual
+        const currentName = manager.clients[manager.currentClientId]?.name;
+        if (newName === currentName) {
+            showToast('O novo nome é igual ao nome atual.', 'error');
+            editClientNameInput.focus();
+            return;
+        }
+        
+        // Verificar se já existe outro cliente com esse nome
+        const existingClient = Object.values(manager.clients).find(
+            c => c.id !== manager.currentClientId && c.name.toLowerCase() === newName.toLowerCase()
+        );
+        if (existingClient) {
+            showToast('Já existe um cliente com este nome.', 'error');
+            editClientNameInput.focus();
+            return;
+        }
+        
         showLoader();
         try {
             await manager.updateClientName(manager.currentClientId, newName);
@@ -930,7 +1103,6 @@ if (editNameForm) {
             document.querySelector('.client-name-section').style.display = 'flex';
             openClientModal(manager.currentClientId);
             updateClientsList();
-            updateClientSelect();
         } catch (error) {
             hideLoader();
             console.error('Erro ao atualizar nome:', error);
