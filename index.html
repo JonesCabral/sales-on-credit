@@ -78,16 +78,22 @@
                 </form>
             </section>
 
+            <!-- Cards de Totais -->
+            <div class="totals-container">
+                <div class="total-card debt-card">
+                    <div class="total-label">Total a Receber</div>
+                    <div class="total-value">R$ <span id="totalDebt">0,00</span></div>
+                </div>
+                <div class="total-card credit-card" id="creditCard" style="display: none;">
+                    <div class="total-label">Crédito dos Clientes</div>
+                    <div class="total-value">R$ <span id="totalCredit">0,00</span></div>
+                </div>
+            </div>
+
             <!-- Lista de clientes com débitos -->
             <section class="card">
                 <div class="section-header">
                     <h2>Clientes com Débitos</h2>
-                    <div class="total-debt">
-                        Total a receber: <strong>R$ <span id="totalDebt">0,00</span></strong>
-                        <span id="totalCreditSection" style="display: none; margin-left: 15px; color: #16a34a;">
-                            | Crédito: <strong>R$ <span id="totalCredit">0,00</span></strong>
-                        </span>
-                    </div>
                 </div>
                 <div id="clientsList" class="clients-list">
                     <p class="empty-message">Nenhum cliente cadastrado ainda.</p>

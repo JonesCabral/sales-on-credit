@@ -385,12 +385,12 @@ function updateClientsList() {
     
     document.getElementById('totalDebt').textContent = formatCurrency(totalDebt);
     
-    const creditSection = document.getElementById('totalCreditSection');
+    const creditCard = document.getElementById('creditCard');
     if (totalCredit > 0) {
-        creditSection.style.display = 'inline';
+        creditCard.style.display = 'block';
         document.getElementById('totalCredit').textContent = formatCurrency(totalCredit);
     } else {
-        creditSection.style.display = 'none';
+        creditCard.style.display = 'none';
     }
 }
 
