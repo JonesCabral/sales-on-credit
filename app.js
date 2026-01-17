@@ -703,21 +703,24 @@ if (searchClients) {
     
     const applyFilters = () => {
         const searchTerm = searchClients.value.trim().toLowerCase();
-        const showDebtOnly = filterDebtOnlyCheckbox?.checked || false;
         let allClients = Object.values(manager.clients);
         
-        // Filtrar por nome se houver termo de busca
+        // Se houver busca por nome, desativar filtro de dívida
         if (searchTerm.length > 0) {
+            if (filterDebtOnlyCheckbox) {
+                filterDebtOnlyCheckbox.checked = false;
+            }
             allClients = allClients.filter(client => 
                 client.name.toLowerCase().includes(searchTerm)
             );
-        }
-        
-        // Filtrar por dívida se checkbox estiver marcado
-        if (showDebtOnly) {
-            allClients = allClients.filter(client => 
-                manager.getClientDebt(client.id) > 0
-            );
+        } else {
+            // Sem busca: aplicar filtro de dívida se checkbox estiver marcado
+            const showDebtOnly = filterDebtOnlyCheckbox?.checked || false;
+            if (showDebtOnly) {
+                allClients = allClients.filter(client => 
+                    manager.getClientDebt(client.id) > 0
+                );
+            }
         }
         
         // Ordenar por débito (maior primeiro)
