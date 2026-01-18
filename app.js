@@ -333,6 +333,12 @@ class SalesManager {
             s.type === 'sale' && (s.isNote || s.amount === 0)
         );
     }
+
+    getClientsWithUnpricedNotes() {
+        return Object.values(this.clients).filter(client => 
+            this.hasUnpricedNotes(client.id)
+        );
+    }
 }
 
 // Inicializar gerenciador
@@ -382,7 +388,11 @@ const editSaleDescription = document.getElementById('editSaleDescription');
 const editSaleType = document.getElementById('editSaleType');
 const closeEditSaleModal = document.getElementById('closeEditSaleModal');
 const cancelEditSale = document.getElementById('cancelEditSale');
+const unpricedNotesAlert = document.getElementById('unpricedNotesAlert');
+const unpricedNotesMessage = document.getElementById('unpricedNotesMessage');
+const closeAlertBtn = document.getElementById('closeAlert');
 let currentEditingSaleId = null;
+let alertDismissed = false;
 
 // Funções de UI
 function showLoader(message = 'Processando...') {
@@ -521,6 +531,25 @@ function updateClientsList() {
         document.getElementById('totalCredit').textContent = formatCurrency(totalCredit);
     } else {
         creditCard.style.display = 'none';
+    }
+
+    // Atualizar aviso de anotações pendentes
+    updateUnpricedNotesAlert();
+}
+
+// Atualizar aviso de anotações pendentes
+function updateUnpricedNotesAlert() {
+    if (alertDismissed || !unpricedNotesAlert) return;
+    
+    const clientsWithNotes = manager.getClientsWithUnpricedNotes();
+    
+    if (clientsWithNotes.length > 0) {
+        const count = clientsWithNotes.length;
+        const plural = count > 1;
+        unpricedNotesMessage.textContent = `${plural ? 'Você tem' : 'Você tem'} ${count} cliente${plural ? 's' : ''} com anotações de produtos sem preço.`;
+        unpricedNotesAlert.style.display = 'flex';
+    } else {
+        unpricedNotesAlert.style.display = 'none';
     }
 }
 
@@ -962,6 +991,16 @@ if (logoutBtn) {
 
 
 // Event Listeners - App
+// Fechar aviso de anotações pendentes
+if (closeAlertBtn) {
+    closeAlertBtn.addEventListener('click', () => {
+        alertDismissed = true;
+        if (unpricedNotesAlert) {
+            unpricedNotesAlert.style.display = 'none';
+        }
+    });
+}
+
 // Checkbox "apenas anotar produto" - desabilitar campo de valor
 if (justNoteProductCheckbox && saleAmountInput && saleDescriptionInput) {
     justNoteProductCheckbox.addEventListener('change', (e) => {
