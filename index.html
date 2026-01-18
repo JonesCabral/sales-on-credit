@@ -191,6 +191,24 @@
         </div>
     </div>
 
+    <!-- Modal de Edição de Venda -->
+    <div id="editSaleModal" class="modal">
+        <div class="modal-content modal-content-small">
+            <span id="closeEditSaleModal" class="close">&times;</span>
+            <h2>Editar <span id="editSaleType">Item</span></h2>
+            <form id="editSaleForm">
+                <input type="number" id="editSaleAmount" placeholder="Valor (R$)" step="0.01" min="0.01" required>
+                <div id="editSaleDescriptionWrapper">
+                    <input type="text" id="editSaleDescription" placeholder="Descrição (opcional)">
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">✓ Salvar</button>
+                    <button type="button" id="cancelEditSale" class="btn btn-secondary">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Firebase SDK -->
     <script type="module" src="app.js?v=1.6.0"></script>
 </body>

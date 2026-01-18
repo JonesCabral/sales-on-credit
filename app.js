@@ -225,6 +225,62 @@ class SalesManager {
         return true;
     }
 
+    async deleteSaleItem(clientId, saleId) {
+        if (!this.clients[clientId]) {
+            throw new Error('Cliente não encontrado');
+        }
+        if (!this.clients[clientId].sales) {
+            throw new Error('Histórico vazio');
+        }
+        const saleIndex = this.clients[clientId].sales.findIndex(s => s.id === saleId);
+        if (saleIndex === -1) {
+            throw new Error('Item não encontrado no histórico');
+        }
+        this.clients[clientId].sales.splice(saleIndex, 1);
+        await this.saveData();
+        return true;
+    }
+
+    async updateSaleItem(clientId, saleId, amount, description) {
+        if (!this.clients[clientId]) {
+            throw new Error('Cliente não encontrado');
+        }
+        if (!this.clients[clientId].sales) {
+            throw new Error('Histórico vazio');
+        }
+        const sale = this.clients[clientId].sales.find(s => s.id === saleId);
+        if (!sale) {
+            throw new Error('Item não encontrado no histórico');
+        }
+        
+        // Validar valor
+        const numericAmount = parseFloat(amount);
+        if (isNaN(numericAmount)) {
+            throw new Error('Valor deve ser um número válido');
+        }
+        if (numericAmount <= 0) {
+            throw new Error('Valor deve ser maior que zero');
+        }
+        if (numericAmount > 1000000) {
+            throw new Error('Valor não pode ser maior que R$ 1.000.000,00');
+        }
+        
+        // Validar e sanitizar descrição (apenas para vendas)
+        const sanitizedDescription = (description || '').trim();
+        if (sanitizedDescription.length > 200) {
+            throw new Error('Descrição não pode ter mais de 200 caracteres');
+        }
+        
+        sale.amount = numericAmount;
+        if (sale.type === 'sale') {
+            sale.description = sanitizedDescription;
+        }
+        sale.editedAt = new Date().toISOString();
+        
+        await this.saveData();
+        return true;
+    }
+
     getClientDebt(clientId) {
         if (!this.clients[clientId]) return 0;
         if (!this.clients[clientId].sales || this.clients[clientId].sales.length === 0) return 0;
@@ -295,6 +351,14 @@ const confirmTitle = document.getElementById('confirmTitle');
 const confirmMessage = document.getElementById('confirmMessage');
 const confirmOkBtn = document.getElementById('confirmOk');
 const confirmCancelBtn = document.getElementById('confirmCancel');
+const editSaleModal = document.getElementById('editSaleModal');
+const editSaleForm = document.getElementById('editSaleForm');
+const editSaleAmount = document.getElementById('editSaleAmount');
+const editSaleDescription = document.getElementById('editSaleDescription');
+const editSaleType = document.getElementById('editSaleType');
+const closeEditSaleModal = document.getElementById('closeEditSaleModal');
+const cancelEditSale = document.getElementById('cancelEditSale');
+let currentEditingSaleId = null;
 
 // Funções de UI
 function showLoader() {
@@ -646,14 +710,45 @@ function openClientModal(clientId) {
 
         salesHistory.innerHTML = sortedSales.map(sale => `
             <div class="sale-item ${sale.type === 'payment' ? 'payment-item' : ''}">
-                <div class="sale-date">${formatDate(sale.date)}</div>
-                <div class="sale-amount">
-                    ${sale.type === 'payment' ? '✓ Pagamento: ' : 'Venda: '}
-                    R$ ${formatCurrency(sale.amount)}
+                <div class="sale-info">
+                    <div class="sale-date">${formatDate(sale.date)}${sale.editedAt ? ' <span class="edited-badge">(editado)</span>' : ''}</div>
+                    <div class="sale-amount">
+                        ${sale.type === 'payment' ? '✓ Pagamento: ' : 'Venda: '}
+                        R$ ${formatCurrency(sale.amount)}
+                    </div>
+                    ${sale.description ? `<div class="sale-description">${sanitizeHTML(sale.description)}</div>` : ''}
                 </div>
-                ${sale.description ? `<div class="sale-description">${sanitizeHTML(sale.description)}</div>` : ''}
+                <div class="sale-actions">
+                    <button class="btn-icon btn-edit-sale" data-sale-id="${sale.id}" title="Editar">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                    </button>
+                    <button class="btn-icon btn-delete-sale" data-sale-id="${sale.id}" title="Excluir">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
         `).join('');
+        
+        // Adicionar event listeners para botões de editar e excluir
+        document.querySelectorAll('.btn-edit-sale').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openEditSaleModal(btn.dataset.saleId);
+            });
+        });
+        
+        document.querySelectorAll('.btn-delete-sale').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                await deleteSaleItem(btn.dataset.saleId);
+            });
+        });
     }
 
     modal.style.display = 'block';
@@ -674,6 +769,76 @@ function closeClientModal() {
     const nameSection = document.querySelector('.client-name-section');
     if (nameSection) {
         nameSection.style.display = 'flex';
+    }
+}
+
+// Abrir modal de edição de venda
+function openEditSaleModal(saleId) {
+    if (!manager.currentClientId) return;
+    
+    const client = manager.clients[manager.currentClientId];
+    if (!client || !client.sales) return;
+    
+    const sale = client.sales.find(s => s.id === saleId);
+    if (!sale) return;
+    
+    currentEditingSaleId = saleId;
+    editSaleAmount.value = sale.amount;
+    editSaleType.textContent = sale.type === 'payment' ? 'Pagamento' : 'Venda';
+    
+    if (sale.type === 'sale') {
+        editSaleDescription.value = sale.description || '';
+        editSaleDescription.parentElement.style.display = 'block';
+    } else {
+        editSaleDescription.value = '';
+        editSaleDescription.parentElement.style.display = 'none';
+    }
+    
+    if (editSaleModal) {
+        editSaleModal.style.display = 'block';
+    }
+}
+
+// Fechar modal de edição de venda
+function closeEditSaleModalFunc() {
+    if (editSaleModal) {
+        editSaleModal.style.display = 'none';
+    }
+    currentEditingSaleId = null;
+    if (editSaleForm) {
+        editSaleForm.reset();
+    }
+}
+
+// Deletar item do histórico
+async function deleteSaleItem(saleId) {
+    if (!manager.currentClientId) return;
+    
+    const client = manager.clients[manager.currentClientId];
+    if (!client || !client.sales) return;
+    
+    const sale = client.sales.find(s => s.id === saleId);
+    if (!sale) return;
+    
+    const type = sale.type === 'payment' ? 'pagamento' : 'venda';
+    const confirmed = await showConfirm(
+        'Excluir Item',
+        `Tem certeza que deseja excluir este ${type} de R$ ${formatCurrency(sale.amount)}?`
+    );
+    
+    if (!confirmed) return;
+    
+    showLoader();
+    try {
+        await manager.deleteSaleItem(manager.currentClientId, saleId);
+        hideLoader();
+        showToast('Item excluído com sucesso!', 'success');
+        openClientModal(manager.currentClientId);
+        updateClientsList();
+    } catch (error) {
+        hideLoader();
+        console.error('Erro ao excluir item:', error);
+        showToast(getDatabaseErrorMessage(error, 'Erro ao excluir item. Tente novamente.'), 'error');
     }
 }
 
@@ -1215,6 +1380,85 @@ if (editNameForm) {
             hideLoader();
             console.error('Erro ao atualizar nome:', error);
             showToast(getDatabaseErrorMessage(error, 'Erro ao atualizar nome. Tente novamente.'), 'error');
+        }
+    });
+}
+
+// Event listeners para modal de edição de venda
+if (closeEditSaleModal) {
+    closeEditSaleModal.addEventListener('click', closeEditSaleModalFunc);
+}
+
+if (cancelEditSale) {
+    cancelEditSale.addEventListener('click', closeEditSaleModalFunc);
+}
+
+if (editSaleForm) {
+    editSaleForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        if (!manager.currentClientId || !currentEditingSaleId) {
+            showToast('Erro ao editar item.', 'error');
+            return;
+        }
+        
+        const amount = editSaleAmount.value;
+        const description = editSaleDescription.value.trim();
+        
+        // Validar valor
+        if (!amount || amount.trim() === '') {
+            showToast('Por favor, digite o valor.', 'error');
+            editSaleAmount.focus();
+            return;
+        }
+        
+        const numericAmount = parseFloat(amount);
+        if (isNaN(numericAmount)) {
+            showToast('O valor deve ser um número válido.', 'error');
+            editSaleAmount.focus();
+            return;
+        }
+        
+        if (numericAmount <= 0) {
+            showToast('O valor deve ser maior que zero.', 'error');
+            editSaleAmount.focus();
+            return;
+        }
+        
+        if (numericAmount > 1000000) {
+            showToast('O valor não pode ser maior que R$ 1.000.000,00.', 'error');
+            editSaleAmount.focus();
+            return;
+        }
+        
+        // Validar descrição (apenas se o campo estiver visível)
+        if (editSaleDescription.parentElement.style.display !== 'none' && description.length > 200) {
+            showToast('A descrição não pode ter mais de 200 caracteres.', 'error');
+            editSaleDescription.focus();
+            return;
+        }
+        
+        showLoader();
+        try {
+            await manager.updateSaleItem(manager.currentClientId, currentEditingSaleId, numericAmount, description);
+            hideLoader();
+            showToast('Item atualizado com sucesso!', 'success');
+            closeEditSaleModalFunc();
+            openClientModal(manager.currentClientId);
+            updateClientsList();
+        } catch (error) {
+            hideLoader();
+            console.error('Erro ao atualizar item:', error);
+            showToast(getDatabaseErrorMessage(error, error.message || 'Erro ao atualizar item. Tente novamente.'), 'error');
+        }
+    });
+}
+
+// Fechar modal de edição ao clicar fora
+if (editSaleModal) {
+    window.addEventListener('click', (e) => {
+        if (e.target === editSaleModal) {
+            closeEditSaleModalFunc();
         }
     });
 }

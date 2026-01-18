@@ -568,6 +568,14 @@ input:focus, select:focus {
     background: var(--background);
     border-radius: 6px;
     border-left: 4px solid var(--primary-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.sale-info {
+    flex: 1;
 }
 
 .payment-item {
@@ -580,6 +588,12 @@ input:focus, select:focus {
     margin-bottom: 0.25rem;
 }
 
+.edited-badge {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
 .sale-amount {
     font-weight: 600;
     font-size: 1.1rem;
@@ -589,6 +603,44 @@ input:focus, select:focus {
     font-size: 0.9rem;
     color: var(--text-secondary);
     margin-top: 0.25rem;
+}
+
+.sale-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.btn-icon {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-icon:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.btn-edit-sale:hover {
+    color: var(--primary-color);
+    background: rgba(37, 99, 235, 0.1);
+}
+
+.btn-delete-sale:hover {
+    color: var(--danger-color);
+    background: rgba(220, 38, 38, 0.1);
+}
+
+.btn-icon svg {
+    width: 16px;
+    height: 16px;
 }
 
 .modal-actions {
@@ -603,6 +655,28 @@ input:focus, select:focus {
 .modal-actions .btn {
     flex: 1;
     min-width: 150px;
+}
+
+/* Modal de edição pequeno */
+.modal-content-small {
+    max-width: 450px;
+}
+
+.modal-content-small h2 {
+    margin-bottom: 1.5rem;
+    font-size: 1.4rem;
+}
+
+.modal-content-small form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.modal-content-small .modal-actions {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
 }
 
 /* Modal de Confirmação */
@@ -807,6 +881,18 @@ input:focus, select:focus {
 
     .login-header h1 {
         font-size: 1.5rem;
+    }
+
+    /* Histórico de vendas em mobile */
+    .sale-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .sale-actions {
+        align-self: flex-end;
+        width: 100%;
+        justify-content: flex-end;
     }
 }
 
