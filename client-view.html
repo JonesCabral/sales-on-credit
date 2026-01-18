@@ -409,10 +409,14 @@
         }
 
         // Função para mostrar erro
-        function showError() {
+        function showError(message = '') {
             loadingScreen.style.display = 'none';
             contentScreen.style.display = 'none';
             errorScreen.style.display = 'block';
+            
+            if (message) {
+                console.error('Erro:', message);
+            }
         }
 
         // Carregar dados do cliente
@@ -422,19 +426,33 @@
             const userId = urlParams.get('u');
             const clientId = urlParams.get('c');
 
+            console.log('URL Parameters:', { userId, clientId });
+
             if (!userId || !clientId) {
-                showError();
+                showError('Parâmetros inválidos na URL');
                 return;
             }
 
             // Listener em tempo real
             const clientRef = ref(database, `users/${userId}/clients/${clientId}`);
+            console.log('Tentando acessar:', `users/${userId}/clients/${clientId}`);
+            
             onValue(clientRef, (snapshot) => {
+                console.log('Snapshot recebido:', snapshot.exists());
                 const clientData = snapshot.val();
+                console.log('Client Data:', clientData);
+                
+                if (!clientData) {
+                    showError('Cliente não encontrado');
+                    return;
+                }
+                
                 updateUI(clientData);
             }, (error) => {
                 console.error('Erro ao carregar dados:', error);
-                showError();
+                console.error('Código do erro:', error.code);
+                console.error('Mensagem:', error.message);
+                showError('Erro: ' + error.message);
             });
         }
 
