@@ -688,8 +688,7 @@ function shareClientHistory(clientId) {
     if (navigator.share) {
         navigator.share({
             title: `Conta - ${client.name}`,
-            text: message,
-            url: clientUrl
+            text: message
         }).then(() => {
             showToast('Link compartilhado com sucesso!', 'success');
         }).catch((error) => {
