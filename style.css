@@ -402,12 +402,30 @@ input:focus, select:focus, textarea:focus {
     border-radius: 8px;
     border: 2px solid var(--border-color);
     cursor: pointer;
-    transition: border-color 0.2s, transform 0.2s;
+    transition: border-color 0.2s, transform 0.2s, background-color 0.2s;
 }
 
 .client-item:hover {
     border-color: var(--primary-color);
     transform: translateX(5px);
+}
+
+.client-item.has-notes {
+    background: linear-gradient(135deg, #fef3c7 0%, #fef9e7 100%);
+    border-color: #f59e0b;
+    border-left-width: 4px;
+}
+
+.client-item.has-notes:hover {
+    border-color: #d97706;
+    background: linear-gradient(135deg, #fde68a 0%, #fef3c7 100%);
+}
+
+.note-indicator {
+    display: inline-block;
+    margin-left: 0.5rem;
+    font-size: 1rem;
+    cursor: help;
 }
 
 .client-info {

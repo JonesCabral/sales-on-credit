@@ -325,6 +325,14 @@ class SalesManager {
         if (!this.clients[clientId].sales) return 0;
         return this.clients[clientId].sales.filter(s => s.type === 'sale').length;
     }
+
+    hasUnpricedNotes(clientId) {
+        if (!this.clients[clientId]) return false;
+        if (!this.clients[clientId].sales) return false;
+        return this.clients[clientId].sales.some(s => 
+            s.type === 'sale' && (s.isNote || s.amount === 0)
+        );
+    }
 }
 
 // Inicializar gerenciador
@@ -531,10 +539,12 @@ function renderClientsList(clients) {
         const isPaid = debt === 0;
         const isCredit = debt < 0;
         const displayValue = Math.abs(debt);
+        const hasNotes = manager.hasUnpricedNotes(client.id);
 
         let statusClass = '';
         let statusIcon = '';
         let label = 'Débito: ';
+        let noteIndicator = '';
         
         if (isPaid) {
             statusClass = 'paid';
@@ -545,10 +555,14 @@ function renderClientsList(clients) {
             label = 'Crédito: ';
         }
 
+        if (hasNotes) {
+            noteIndicator = '<span class="note-indicator" title="Tem itens não contabilizados">📝</span>';
+        }
+
         return `
-            <div class="client-item" data-client-id="${sanitizeHTML(client.id)}">
+            <div class="client-item ${hasNotes ? 'has-notes' : ''}" data-client-id="${sanitizeHTML(client.id)}">
                 <div class="client-info">
-                    <div class="client-name">${sanitizeHTML(client.name)}</div>
+                    <div class="client-name">${sanitizeHTML(client.name)} ${noteIndicator}</div>
                     <div class="client-sales">${salesCount} venda${salesCount !== 1 ? 's' : ''} fiada${salesCount !== 1 ? 's' : ''}</div>
                 </div>
                 <div class="client-debt ${statusClass}">
