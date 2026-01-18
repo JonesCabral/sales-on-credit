@@ -121,13 +121,13 @@ class SalesManager {
             throw new Error('Cliente não encontrado');
         }
         
-        // Validar valor
-        const numericAmount = parseFloat(amount);
+        // Validar valor (pode ser 0 para anotações de produtos)
+        const numericAmount = parseFloat(amount) || 0;
         if (isNaN(numericAmount)) {
             throw new Error('Valor da venda deve ser um número válido');
         }
-        if (numericAmount <= 0) {
-            throw new Error('Valor da venda deve ser maior que zero');
+        if (numericAmount < 0) {
+            throw new Error('Valor da venda não pode ser negativo');
         }
         if (numericAmount > 1000000) {
             throw new Error('Valor da venda não pode ser maior que R$ 1.000.000,00');
@@ -137,6 +137,11 @@ class SalesManager {
         const sanitizedDescription = description.trim();
         if (sanitizedDescription.length > 200) {
             throw new Error('Descrição não pode ter mais de 200 caracteres');
+        }
+        
+        // Se o valor é 0, a descrição é obrigatória
+        if (numericAmount === 0 && !sanitizedDescription) {
+            throw new Error('Para anotações sem valor, a descrição do produto é obrigatória');
         }
         
         // Garantir que sales existe
@@ -149,6 +154,7 @@ class SalesManager {
             amount: numericAmount,
             description: sanitizedDescription,
             type: 'sale',
+            isNote: numericAmount === 0,
             date: new Date().toISOString()
         });
         await this.saveData();
@@ -253,13 +259,13 @@ class SalesManager {
             throw new Error('Item não encontrado no histórico');
         }
         
-        // Validar valor
-        const numericAmount = parseFloat(amount);
+        // Validar valor (pode ser 0 para anotações)
+        const numericAmount = parseFloat(amount) || 0;
         if (isNaN(numericAmount)) {
             throw new Error('Valor deve ser um número válido');
         }
-        if (numericAmount <= 0) {
-            throw new Error('Valor deve ser maior que zero');
+        if (numericAmount < 0) {
+            throw new Error('Valor não pode ser negativo');
         }
         if (numericAmount > 1000000) {
             throw new Error('Valor não pode ser maior que R$ 1.000.000,00');
@@ -271,9 +277,15 @@ class SalesManager {
             throw new Error('Descrição não pode ter mais de 200 caracteres');
         }
         
+        // Se o valor é 0, a descrição é obrigatória
+        if (numericAmount === 0 && !sanitizedDescription && sale.type === 'sale') {
+            throw new Error('Para anotações sem valor, a descrição do produto é obrigatória');
+        }
+        
         sale.amount = numericAmount;
         if (sale.type === 'sale') {
             sale.description = sanitizedDescription;
+            sale.isNote = numericAmount === 0;
         }
         sale.editedAt = new Date().toISOString();
         
@@ -334,6 +346,10 @@ const paymentForm = document.getElementById('paymentForm');
 const modalAddSaleForm = document.getElementById('modalAddSaleForm');
 const modalSaleAmountInput = document.getElementById('modalSaleAmount');
 const modalSaleDescriptionInput = document.getElementById('modalSaleDescription');
+const justNoteProductCheckbox = document.getElementById('justNoteProduct');
+const modalJustNoteProductCheckbox = document.getElementById('modalJustNoteProduct');
+const saleAmountInput = document.getElementById('saleAmount');
+const saleDescriptionInput = document.getElementById('saleDescription');
 const clientNameInput = document.getElementById('clientNameInput');
 const modal = document.getElementById('clientModal');
 const closeModal = document.querySelector('.close');
@@ -712,13 +728,28 @@ function openClientModal(clientId) {
             new Date(b.date) - new Date(a.date)
         );
 
-        salesHistory.innerHTML = sortedSales.map(sale => `
-            <div class="sale-item ${sale.type === 'payment' ? 'payment-item' : ''}">
+        salesHistory.innerHTML = sortedSales.map(sale => {
+            const isNote = sale.isNote || (sale.type === 'sale' && sale.amount === 0);
+            let saleTypeLabel = '';
+            let saleAmountText = '';
+            
+            if (sale.type === 'payment') {
+                saleTypeLabel = '✓ Pagamento:';
+                saleAmountText = `R$ ${formatCurrency(sale.amount)}`;
+            } else if (isNote) {
+                saleTypeLabel = '📝 Anotação:';
+                saleAmountText = '<span class="note-badge">Sem valor</span>';
+            } else {
+                saleTypeLabel = 'Venda:';
+                saleAmountText = `R$ ${formatCurrency(sale.amount)}`;
+            }
+            
+            return `
+            <div class="sale-item ${sale.type === 'payment' ? 'payment-item' : ''} ${isNote ? 'note-item' : ''}">
                 <div class="sale-info">
                     <div class="sale-date">${formatDate(sale.date)}${sale.editedAt ? ' <span class="edited-badge">(editado)</span>' : ''}</div>
                     <div class="sale-amount">
-                        ${sale.type === 'payment' ? '✓ Pagamento: ' : 'Venda: '}
-                        R$ ${formatCurrency(sale.amount)}
+                        ${saleTypeLabel} ${saleAmountText}
                     </div>
                     ${sale.description ? `<div class="sale-description">${sanitizeHTML(sale.description)}</div>` : ''}
                 </div>
@@ -737,7 +768,8 @@ function openClientModal(clientId) {
                     </button>
                 </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
         
         // Adicionar event listeners para botões de editar e excluir
         document.querySelectorAll('.btn-edit-sale').forEach(btn => {
@@ -909,6 +941,42 @@ if (logoutBtn) {
 
 
 // Event Listeners - App
+// Checkbox "apenas anotar produto" - desabilitar campo de valor
+if (justNoteProductCheckbox && saleAmountInput && saleDescriptionInput) {
+    justNoteProductCheckbox.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            saleAmountInput.disabled = true;
+            saleAmountInput.required = false;
+            saleAmountInput.value = '';
+            saleDescriptionInput.placeholder = 'Descrição do produto (obrigatório)';
+            saleDescriptionInput.required = true;
+        } else {
+            saleAmountInput.disabled = false;
+            saleAmountInput.required = true;
+            saleDescriptionInput.placeholder = 'Descrição ou produto (opcional)';
+            saleDescriptionInput.required = false;
+        }
+    });
+}
+
+// Checkbox "apenas anotar produto" no modal
+if (modalJustNoteProductCheckbox && modalSaleAmountInput && modalSaleDescriptionInput) {
+    modalJustNoteProductCheckbox.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            modalSaleAmountInput.disabled = true;
+            modalSaleAmountInput.required = false;
+            modalSaleAmountInput.value = '';
+            modalSaleDescriptionInput.placeholder = 'Descrição do produto (obrigatório)';
+            modalSaleDescriptionInput.required = true;
+        } else {
+            modalSaleAmountInput.disabled = false;
+            modalSaleAmountInput.required = true;
+            modalSaleDescriptionInput.placeholder = 'Descrição ou produto (opcional)';
+            modalSaleDescriptionInput.required = false;
+        }
+    });
+}
+
 // Busca de clientes na lista
 if (searchClients) {
     const filterDebtOnlyCheckbox = document.getElementById('filterDebtOnly');
@@ -1027,6 +1095,7 @@ addSaleForm.addEventListener('submit', async (e) => {
     const clientName = clientSearch.value.trim();
     const amount = document.getElementById('saleAmount').value;
     const description = document.getElementById('saleDescription').value.trim();
+    const isJustNote = justNoteProductCheckbox?.checked || false;
     
     // Validar nome do cliente
     if (!clientName) {
@@ -1047,30 +1116,42 @@ addSaleForm.addEventListener('submit', async (e) => {
         return;
     }
     
-    // Validar valor da venda
-    if (!amount || amount.trim() === '') {
-        showToast('Por favor, digite o valor da venda.', 'error');
-        document.getElementById('saleAmount').focus();
-        return;
-    }
+    let numericAmount = 0;
     
-    const numericAmount = parseFloat(amount);
-    if (isNaN(numericAmount)) {
-        showToast('O valor da venda deve ser um número válido.', 'error');
-        document.getElementById('saleAmount').focus();
-        return;
-    }
-    
-    if (numericAmount <= 0) {
-        showToast('O valor da venda deve ser maior que zero.', 'error');
-        document.getElementById('saleAmount').focus();
-        return;
-    }
-    
-    if (numericAmount > 1000000) {
-        showToast('O valor da venda não pode ser maior que R$ 1.000.000,00.', 'error');
-        document.getElementById('saleAmount').focus();
-        return;
+    // Se for apenas anotação, valor é 0 e descrição obrigatória
+    if (isJustNote) {
+        numericAmount = 0;
+        if (!description) {
+            showToast('Para anotações, a descrição do produto é obrigatória.', 'error');
+            document.getElementById('saleDescription').focus();
+            return;
+        }
+    } else {
+        // Validar valor da venda
+        if (!amount || amount.trim() === '') {
+            showToast('Por favor, digite o valor da venda.', 'error');
+            document.getElementById('saleAmount').focus();
+            return;
+        }
+        
+        numericAmount = parseFloat(amount);
+        if (isNaN(numericAmount)) {
+            showToast('O valor da venda deve ser um número válido.', 'error');
+            document.getElementById('saleAmount').focus();
+            return;
+        }
+        
+        if (numericAmount <= 0) {
+            showToast('O valor da venda deve ser maior que zero.', 'error');
+            document.getElementById('saleAmount').focus();
+            return;
+        }
+        
+        if (numericAmount > 1000000) {
+            showToast('O valor da venda não pode ser maior que R$ 1.000.000,00.', 'error');
+            document.getElementById('saleAmount').focus();
+            return;
+        }
     }
     
     // Validar descrição (opcional, mas se fornecida, validar tamanho)
@@ -1245,6 +1326,7 @@ if (modalAddSaleForm) {
         e.preventDefault();
         const amount = modalSaleAmountInput?.value;
         const description = (modalSaleDescriptionInput?.value || '').trim();
+        const isJustNote = modalJustNoteProductCheckbox?.checked || false;
         
         // Validar se há cliente selecionado
         if (!manager.currentClientId) {
@@ -1252,30 +1334,23 @@ if (modalAddSaleForm) {
             return;
         }
         
-        // Validar valor da venda
-        if (!amount || amount.trim() === '') {
-            showToast('Por favor, digite o valor da venda.', 'error');
-            modalSaleAmountInput.focus();
-            return;
-        }
+        let numericAmount = 0;
         
-        const numericAmount = parseFloat(amount);
-        if (isNaN(numericAmount)) {
-            showToast('O valor da venda deve ser um número válido.', 'error');
-            modalSaleAmountInput.focus();
-            return;
-        }
-        
-        if (numericAmount <= 0) {
-            showToast('O valor da venda deve ser maior que zero.', 'error');
-            modalSaleAmountInput.focus();
-            return;
-        }
-        
-        if (numericAmount > 1000000) {
-            showToast('O valor da venda não pode ser maior que R$ 1.000.000,00.', 'error');
-            modalSaleAmountInput.focus();
-            return;
+        // Se for apenas anotação, valor é 0 e descrição obrigatória
+        if (isJustNote) {
+            numericAmount = 0;
+            if (!description) {
+                showToast('Para anotações, a descrição do produto é obrigatória.', 'error');
+                modalSaleDescriptionInput.focus();
+                return;
+            }
+        } else {
+            // Validar valor da venda
+            if (!amount || amount.trim() === '') {
+                showToast('Por favor, digite o valor da venda.', 'error');
+                modalSaleAmountInput.focus();
+                return;
+            }
         }
         
         // Validar descrição (opcional, mas se fornecida, validar tamanho)

@@ -189,6 +189,36 @@ form {
     gap: 0.75rem;
 }
 
+/* Checkbox Label */
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: var(--background);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.checkbox-label:hover {
+    background: #e2e8f0;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--primary-color);
+}
+
+.checkbox-label span {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
 /* Autocomplete */
 .autocomplete-wrapper {
     position: relative;
@@ -584,6 +614,21 @@ input:focus, select:focus {
 
 .payment-item {
     border-left-color: var(--success-color);
+}
+
+.note-item {
+    border-left-color: #f59e0b;
+    background: #fef3c7;
+}
+
+.note-badge {
+    display: inline-block;
+    background: #f59e0b;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
 }
 
 .sale-date {
