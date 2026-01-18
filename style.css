@@ -192,17 +192,21 @@ form {
 /* Autocomplete */
 .autocomplete-wrapper {
     position: relative;
+    width: 100%;
+}
+
+.autocomplete-wrapper input {
+    width: 100%;
 }
 
 .suggestions-dropdown {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 4px);
     left: 0;
     right: 0;
     background: white;
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    margin-top: 4px;
     max-height: 200px;
     overflow-y: auto;
     box-shadow: var(--shadow-lg);
