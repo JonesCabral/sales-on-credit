@@ -1473,6 +1473,15 @@ if (modalAddSaleForm) {
                 modalSaleAmountInput.focus();
                 return;
             }
+            
+            // Converter para número
+            numericAmount = parseFloat(amount);
+            
+            if (isNaN(numericAmount) || numericAmount <= 0) {
+                showToast('Por favor, digite um valor válido maior que zero.', 'error');
+                modalSaleAmountInput.focus();
+                return;
+            }
         }
         
         // Validar descrição (opcional, mas se fornecida, validar tamanho)
