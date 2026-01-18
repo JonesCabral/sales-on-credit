@@ -1088,10 +1088,17 @@ if (modalJustNoteProductCheckbox && modalSaleAmountInput && modalSaleDescription
 // Busca de clientes na lista
 if (searchClients) {
     const filterDebtOnlyCheckbox = document.getElementById('filterDebtOnly');
+    const filterArchivedCheckbox = document.getElementById('filterArchived');
     
     const applyFilters = () => {
         const searchTerm = searchClients.value.trim().toLowerCase();
         let allClients = Object.values(manager.clients);
+        
+        // Filtrar clientes arquivados (exceto se checkbox "Mostrar arquivados" estiver marcado)
+        const showArchived = filterArchivedCheckbox?.checked || false;
+        if (!showArchived) {
+            allClients = allClients.filter(client => !client.archived);
+        }
         
         // Se houver busca por nome, desativar filtro de dívida
         if (searchTerm.length > 0) {
@@ -1125,7 +1132,6 @@ if (searchClients) {
         filterDebtOnlyCheckbox.addEventListener('change', applyFilters);
     }
     
-    const filterArchivedCheckbox = document.getElementById('filterArchived');
     if (filterArchivedCheckbox) {
         filterArchivedCheckbox.addEventListener('change', applyFilters);
     }
