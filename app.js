@@ -361,7 +361,11 @@ const cancelEditSale = document.getElementById('cancelEditSale');
 let currentEditingSaleId = null;
 
 // Funções de UI
-function showLoader() {
+function showLoader(message = 'Processando...') {
+    const loaderText = document.querySelector('.loader-text');
+    if (loaderText) {
+        loaderText.textContent = message;
+    }
     loader.classList.add('active');
 }
 
@@ -828,7 +832,7 @@ async function deleteSaleItem(saleId) {
     
     if (!confirmed) return;
     
-    showLoader();
+    showLoader('Excluindo...');
     try {
         await manager.deleteSaleItem(manager.currentClientId, saleId);
         hideLoader();
@@ -867,7 +871,7 @@ if (loginForm) {
         const email = document.getElementById('loginEmail').value;
         const password = document.getElementById('loginPassword').value;
         
-        showLoader();
+        showLoader('Entrando...');
         try {
             await signInWithEmailAndPassword(auth, email, password);
             hideLoader();
@@ -1076,7 +1080,7 @@ addSaleForm.addEventListener('submit', async (e) => {
         return;
     }
     
-    showLoader();
+    showLoader('Salvando...');
     try {
         let clientId;
         
@@ -1147,7 +1151,7 @@ paymentForm.addEventListener('submit', async (e) => {
         return;
     }
     
-    showLoader();
+    showLoader('Salvando...');
     try {
         await manager.addPayment(manager.currentClientId, numericAmount);
         hideLoader();
@@ -1170,7 +1174,7 @@ deleteClientBtn.addEventListener('click', async () => {
         );
         
         if (confirmed) {
-            showLoader();
+            showLoader('Excluindo...');
             try {
                 await manager.deleteClient(manager.currentClientId);
                 hideLoader();
@@ -1218,7 +1222,7 @@ if (clearHistoryBtn) {
             );
             
             if (confirmed) {
-                showLoader();
+                showLoader('Limpando...');
                 try {
                     await manager.clearClientHistory(manager.currentClientId);
                     hideLoader();
@@ -1281,7 +1285,7 @@ if (modalAddSaleForm) {
             return;
         }
         
-        showLoader();
+        showLoader('Salvando...');
         try {
             await manager.addSale(manager.currentClientId, numericAmount, description);
             hideLoader();
@@ -1366,7 +1370,7 @@ if (editNameForm) {
             return;
         }
         
-        showLoader();
+        showLoader('Salvando...');
         try {
             await manager.updateClientName(manager.currentClientId, newName);
             hideLoader();
@@ -1438,7 +1442,7 @@ if (editSaleForm) {
             return;
         }
         
-        showLoader();
+        showLoader('Salvando...');
         try {
             await manager.updateSaleItem(manager.currentClientId, currentEditingSaleId, numericAmount, description);
             hideLoader();
