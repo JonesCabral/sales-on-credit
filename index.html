@@ -59,7 +59,7 @@
                         <div id="clientSuggestions" class="suggestions-dropdown"></div>
                     </div>
                     <input type="number" id="saleAmount" placeholder="Valor (R$)" step="0.01" min="0.01" required>
-                    <input type="text" id="saleDescription" placeholder="Descrição ou produto (opcional)">
+                    <textarea id="saleDescription" placeholder="Descrição ou produto (opcional)" rows="3"></textarea>
                     <label class="checkbox-label">
                         <input type="checkbox" id="justNoteProduct">
                         <span>📝 Apenas anotar produto (sem valor)</span>
@@ -144,7 +144,7 @@
                 <h3>Adicionar Nova Venda</h3>
                 <form id="modalAddSaleForm">
                     <input type="number" id="modalSaleAmount" placeholder="Valor da venda (R$)" step="0.01" min="0.01" required>
-                    <input type="text" id="modalSaleDescription" placeholder="Descrição ou produto (opcional)">
+                    <textarea id="modalSaleDescription" placeholder="Descrição ou produto (opcional)" rows="3"></textarea>
                     <label class="checkbox-label">
                         <input type="checkbox" id="modalJustNoteProduct">
                         <span>📝 Apenas anotar produto (sem valor)</span>
@@ -207,7 +207,7 @@
             <form id="editSaleForm">
                 <input type="number" id="editSaleAmount" placeholder="Valor (R$)" step="0.01" min="0.01" required>
                 <div id="editSaleDescriptionWrapper">
-                    <input type="text" id="editSaleDescription" placeholder="Descrição (opcional)">
+                    <textarea id="editSaleDescription" placeholder="Descrição (opcional)" rows="3"></textarea>
                 </div>
                 <div class="modal-actions">
                     <button type="submit" class="btn btn-primary">✓ Salvar</button>

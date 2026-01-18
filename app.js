@@ -428,6 +428,13 @@ function showConfirm(title, message) {
         confirmCancelBtn.addEventListener('click', handleCancel);
     });
 }
+
+function formatDescription(text) {
+    // Sanitizar e preservar quebras de linha convertendo \n para <br>
+    const sanitized = sanitizeHTML(text);
+    return sanitized.replace(/\n/g, '<br>');
+}
+
 function getDatabaseErrorMessage(error, fallback) {
     const code = error?.code || '';
     const message = error?.message || '';
@@ -751,7 +758,7 @@ function openClientModal(clientId) {
                     <div class="sale-amount">
                         ${saleTypeLabel} ${saleAmountText}
                     </div>
-                    ${sale.description ? `<div class="sale-description">${sanitizeHTML(sale.description)}</div>` : ''}
+                    ${sale.description ? `<div class="sale-description">${formatDescription(sale.description)}</div>` : ''}
                 </div>
                 <div class="sale-actions">
                     <button class="btn-icon btn-edit-sale" data-sale-id="${sale.id}" title="Editar">

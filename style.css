@@ -283,13 +283,19 @@ form {
     color: var(--danger-color);
 }
 
-input, select {
+input, select, textarea {
     padding: 0.75rem;
     border: 2px solid var(--border-color);
     border-radius: 8px;
     font-size: 1rem;
     font-family: inherit;
     transition: border-color 0.2s;
+}
+
+textarea {
+    resize: vertical;
+    min-height: 80px;
+    line-height: 1.5;
 }
 
 .filter-search-container {
@@ -329,7 +335,7 @@ input, select {
     color: var(--primary-color);
 }
 
-input:focus, select:focus {
+input:focus, select:focus, textarea:focus {
     outline: none;
     border-color: var(--primary-color);
 }
@@ -652,6 +658,9 @@ input:focus, select:focus {
     font-size: 0.9rem;
     color: var(--text-secondary);
     margin-top: 0.25rem;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    line-height: 1.5;
 }
 
 .sale-actions {
