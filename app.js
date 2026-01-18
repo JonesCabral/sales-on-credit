@@ -1,7 +1,7 @@
 // Importar Firebase
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getDatabase, ref, set, get, remove, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
 // Configuração do Firebase
 const firebaseConfig = {
@@ -266,11 +266,8 @@ const manager = new SalesManager();
 const loginScreen = document.getElementById('loginScreen');
 const appScreen = document.getElementById('appScreen');
 const loginForm = document.getElementById('loginForm');
-const signupForm = document.getElementById('signupForm');
 const logoutBtn = document.getElementById('logoutBtn');
 const userEmailSpan = document.getElementById('userEmail');
-const showRegisterLink = document.getElementById('showRegister');
-const showLoginLink = document.getElementById('showLogin');
 
 // Elementos DOM - App
 const addSaleForm = document.getElementById('addSaleForm');
@@ -727,59 +724,6 @@ if (loginForm) {
     });
 }
 
-// Cadastro com Email
-if (signupForm) {
-    signupForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = document.getElementById('signupEmail').value;
-        const password = document.getElementById('signupPassword').value;
-        const passwordConfirm = document.getElementById('signupPasswordConfirm').value;
-        
-        // Validar se as senhas coincidem
-        if (password !== passwordConfirm) {
-            showToast('As senhas não coincidem. Tente novamente.', 'error');
-            return;
-        }
-        
-        // Validar força da senha
-        if (password.length < 8) {
-            showToast('Senha deve ter pelo menos 8 caracteres.', 'error');
-            return;
-        }
-        if (!/[A-Z]/.test(password)) {
-            showToast('Senha deve conter pelo menos uma letra maiúscula.', 'error');
-            return;
-        }
-        if (!/[0-9]/.test(password)) {
-            showToast('Senha deve conter pelo menos um número.', 'error');
-            return;
-        }
-        
-        showLoader();
-        try {
-            await createUserWithEmailAndPassword(auth, email, password);
-            hideLoader();
-            showToast('Conta criada com sucesso!', 'success');
-        } catch (error) {
-            hideLoader();
-            console.error('Erro no cadastro:', error);
-            let message = 'Erro ao criar conta.';
-            if (error.code === 'auth/email-already-in-use') {
-                message = 'Este email já está em uso.';
-            } else if (error.code === 'auth/weak-password') {
-                message = 'Senha muito fraca. Use pelo menos 6 caracteres.';
-            } else if (error.code === 'auth/operation-not-allowed') {
-                message = 'Autenticação não configurada. Ative Email/Password no Firebase Console.';
-            } else if (error.code === 'auth/invalid-email') {
-                message = 'Email inválido.';
-            } else if (error.code === 'auth/network-request-failed') {
-                message = 'Sem conexão. Verifique sua internet.';
-            }
-            showToast(message, 'error');
-        }
-    });
-}
-
 // Logout
 if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
@@ -793,22 +737,7 @@ if (logoutBtn) {
     });
 }
 
-// Toggle entre login e cadastro
-if (showRegisterLink) {
-    showRegisterLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        document.getElementById('emailTab').style.display = 'none';
-        document.getElementById('registerForm').style.display = 'block';
-    });
-}
 
-if (showLoginLink) {
-    showLoginLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        document.getElementById('registerForm').style.display = 'none';
-        document.getElementById('emailTab').style.display = 'block';
-    });
-}
 
 // Event Listeners - App
 // Busca de clientes na lista
