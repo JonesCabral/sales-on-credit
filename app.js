@@ -109,7 +109,8 @@ class SalesManager {
             id,
             name: sanitizedName,
             sales: [],
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            archived: false
         };
         safeLog('Adicionando cliente:', sanitizedName);
         await this.saveData();
@@ -247,6 +248,26 @@ class SalesManager {
         return true;
     }
 
+    async archiveClient(clientId) {
+        if (!this.clients[clientId]) {
+            throw new Error('Cliente não encontrado');
+        }
+        this.clients[clientId].archived = true;
+        this.clients[clientId].archivedAt = new Date().toISOString();
+        await this.saveData();
+        return true;
+    }
+
+    async unarchiveClient(clientId) {
+        if (!this.clients[clientId]) {
+            throw new Error('Cliente não encontrado');
+        }
+        this.clients[clientId].archived = false;
+        delete this.clients[clientId].archivedAt;
+        await this.saveData();
+        return true;
+    }
+
     async updateSaleItem(clientId, saleId, amount, description) {
         if (!this.clients[clientId]) {
             throw new Error('Cliente não encontrado');
@@ -306,6 +327,8 @@ class SalesManager {
 
     getTotalDebt() {
         return Object.keys(this.clients).reduce((total, clientId) => {
+            // Excluir clientes arquivados do cálculo
+            if (this.clients[clientId].archived) return total;
             const debt = this.getClientDebt(clientId);
             // Somar apenas débitos positivos
             return debt > 0 ? total + debt : total;
@@ -314,6 +337,8 @@ class SalesManager {
 
     getTotalCredit() {
         return Object.keys(this.clients).reduce((total, clientId) => {
+            // Excluir clientes arquivados do cálculo
+            if (this.clients[clientId].archived) return total;
             const debt = this.getClientDebt(clientId);
             // Somar apenas créditos (débitos negativos)
             return debt < 0 ? total + Math.abs(debt) : total;
@@ -368,6 +393,7 @@ const clientNameInput = document.getElementById('clientNameInput');
 const modal = document.getElementById('clientModal');
 const closeModal = document.querySelector('.close');
 const deleteClientBtn = document.getElementById('deleteClient');
+const archiveClientBtn = document.getElementById('archiveClient');
 const clearHistoryBtn = document.getElementById('clearHistory');
 const shareHistoryBtn = document.getElementById('shareHistory');
 const loader = document.getElementById('loader');
@@ -500,6 +526,13 @@ function updateClientsList() {
     
     let filteredClients = [...clients];
     
+    // Excluir clientes arquivados por padrão
+    const filterArchivedCheckbox = document.getElementById('filterArchived');
+    const showArchived = filterArchivedCheckbox?.checked || false;
+    if (!showArchived) {
+        filteredClients = filteredClients.filter(client => !client.archived);
+    }
+    
     // Filtrar por nome se houver termo de busca
     if (searchTerm.length > 0) {
         filteredClients = filteredClients.filter(client => 
@@ -588,10 +621,12 @@ function renderClientsList(clients) {
             noteIndicator = '<span class="note-indicator" title="Tem itens não contabilizados">📝</span>';
         }
 
+        const archivedIndicator = client.archived ? '<span class="archived-badge" title="Cliente arquivado">📦 Arquivado</span>' : '';
+        
         return `
-            <div class="client-item ${hasNotes ? 'has-notes' : ''}" data-client-id="${sanitizeHTML(client.id)}">
+            <div class="client-item ${hasNotes ? 'has-notes' : ''} ${client.archived ? 'archived' : ''}" data-client-id="${sanitizeHTML(client.id)}">
                 <div class="client-info">
-                    <div class="client-name">${sanitizeHTML(client.name)} ${noteIndicator}</div>
+                    <div class="client-name">${sanitizeHTML(client.name)} ${noteIndicator} ${archivedIndicator}</div>
                     <div class="client-sales">${salesCount} venda${salesCount !== 1 ? 's' : ''} fiada${salesCount !== 1 ? 's' : ''}</div>
                 </div>
                 <div class="client-debt ${statusClass}">
@@ -836,6 +871,19 @@ function openClientModal(clientId) {
             });
         });
     }
+    
+    // Atualizar texto do botão de arquivar baseado no estado
+    if (archiveClientBtn) {
+        if (client.archived) {
+            archiveClientBtn.innerHTML = '📂 Desarquivar Cliente';
+            archiveClientBtn.classList.remove('btn-secondary');
+            archiveClientBtn.classList.add('btn-success');
+        } else {
+            archiveClientBtn.innerHTML = '📦 Arquivar Cliente';
+            archiveClientBtn.classList.remove('btn-success');
+            archiveClientBtn.classList.add('btn-secondary');
+        }
+    }
 
     modal.style.display = 'block';
 }
@@ -1075,6 +1123,11 @@ if (searchClients) {
     
     if (filterDebtOnlyCheckbox) {
         filterDebtOnlyCheckbox.addEventListener('change', applyFilters);
+    }
+    
+    const filterArchivedCheckbox = document.getElementById('filterArchived');
+    if (filterArchivedCheckbox) {
+        filterArchivedCheckbox.addEventListener('change', applyFilters);
     }
 }
 
@@ -1329,6 +1382,44 @@ deleteClientBtn.addEventListener('click', async () => {
         }
     }
 });
+
+// Arquivar/Desarquivar cliente
+if (archiveClientBtn) {
+    archiveClientBtn.addEventListener('click', async () => {
+        if (manager.currentClientId) {
+            const client = manager.clients[manager.currentClientId];
+            const isArchived = client.archived || false;
+            const action = isArchived ? 'desarquivar' : 'arquivar';
+            const actionTitle = isArchived ? 'Desarquivar Cliente' : 'Arquivar Cliente';
+            
+            const confirmed = await showConfirm(
+                actionTitle,
+                isArchived 
+                    ? `Tem certeza que deseja desarquivar ${client.name}? O cliente voltará a aparecer na lista principal e seus débitos serão contabilizados no balanço geral.`
+                    : `Tem certeza que deseja arquivar ${client.name}? O cliente será ocultado da lista principal e seus débitos não serão contabilizados no balanço geral.`
+            );
+            
+            if (confirmed) {
+                showLoader(isArchived ? 'Desarquivando...' : 'Arquivando...');
+                try {
+                    if (isArchived) {
+                        await manager.unarchiveClient(manager.currentClientId);
+                        showToast('Cliente desarquivado com sucesso!', 'success');
+                    } else {
+                        await manager.archiveClient(manager.currentClientId);
+                        showToast('Cliente arquivado com sucesso!', 'success');
+                    }
+                    hideLoader();
+                    closeClientModal();
+                } catch (error) {
+                    hideLoader();
+                    console.error(`Erro ao ${action} cliente:`, error);
+                    showToast(getDatabaseErrorMessage(error, `Erro ao ${action} cliente. Tente novamente.`), 'error');
+                }
+            }
+        }
+    });
+}
 
 // Compartilhar histórico do cliente
 if (shareHistoryBtn) {

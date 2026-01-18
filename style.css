@@ -370,6 +370,8 @@ textarea {
 .filter-checkbox-container {
     display: flex;
     align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
 }
 
 .filter-checkbox-label {
@@ -481,6 +483,30 @@ input:focus, select:focus, textarea:focus {
 .client-item.has-notes:hover {
     border-color: #d97706;
     background: linear-gradient(135deg, #fde68a 0%, #fef3c7 100%);
+}
+
+.client-item.archived {
+    opacity: 0.6;
+    background: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.client-item.archived:hover {
+    opacity: 0.8;
+    background: #e5e7eb;
+    border-color: #6b7280;
+}
+
+.archived-badge {
+    display: inline-block;
+    background: #6b7280;
+    color: white;
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+    margin-left: 0.5rem;
+    vertical-align: middle;
 }
 
 .note-indicator {
