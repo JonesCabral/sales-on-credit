@@ -17,13 +17,9 @@ As regras abaixo permitem que qualquer pessoa com o link correto (userId + clien
   "rules": {
     "users": {
       "$userId": {
+        ".write": "auth != null && auth.uid == $userId",
         "clients": {
-          ".read": true,
-          ".write": "auth != null && auth.uid == $userId",
-          "$clientId": {
-            ".read": true,
-            ".write": "auth != null && auth.uid == $userId"
-          }
+          ".read": true
         }
       }
     }
