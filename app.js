@@ -674,18 +674,15 @@ function shareClientHistory(clientId) {
     const baseUrl = window.location.origin + window.location.pathname.replace('index.html', '');
     const clientUrl = `${baseUrl}client-view.html?u=${encodeURIComponent(manager.userId)}&c=${encodeURIComponent(clientId)}`;
 
-    // Status da conta
-    let statusText = '';
+    // Mensagem para compartilhar (educada e breve)
+    let message = '';
     if (isPaid) {
-        statusText = '✅ Conta quitada - R$ 0,00';
+        message = `Olá! 😊\n\nSua conta está em dia! Obrigado pela confiança.\n\n🔗 Acompanhe seu histórico:\n${clientUrl}`;
     } else if (isCredit) {
-        statusText = `💚 Crédito a favor - R$ ${formatCurrency(Math.abs(debt))}`;
+        message = `Olá! 😊\n\nVocê tem um crédito de R$ ${formatCurrency(Math.abs(debt))} a favor.\n\n🔗 Veja os detalhes:\n${clientUrl}`;
     } else {
-        statusText = `💰 Saldo devedor - R$ ${formatCurrency(debt)}`;
+        message = `Olá! 😊\n\nVocê tem um saldo pendente de R$ ${formatCurrency(debt)}.\n\nQuando puder, ficarei grato se conseguir regularizar.\n\n🔗 Acompanhe sua conta:\n${clientUrl}\n\nObrigado pela compreensão!`;
     }
-
-    // Mensagem para compartilhar
-    const message = `📋 *${client.name}*\n\n${statusText}\n\n🔗 Acompanhe sua conta em tempo real:\n${clientUrl}\n\n_Fiado Fácil - Controle de vendas a crédito_`;
 
     // Tentar usar Web Share API
     if (navigator.share) {
