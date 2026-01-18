@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minha Conta - Fiado Fácil</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #2563eb;
+            --success-color: #16a34a;
+            --danger-color: #dc2626;
+            --background: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: var(--background);
+            color: var(--text-primary);
+            line-height: 1.6;
+            padding: 1rem;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem 1.5rem;
+            background: linear-gradient(135deg, var(--primary-color), #1d4ed8);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header .subtitle {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow);
+        }
+
+        .status-card {
+            text-align: center;
+            padding: 2rem 1.5rem;
+        }
+
+        .status-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .status-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .status-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .status-value.debt {
+            color: var(--danger-color);
+        }
+
+        .status-value.credit {
+            color: var(--success-color);
+        }
+
+        .status-value.paid {
+            color: var(--text-secondary);
+        }
+
+        .status-text {
+            font-size: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .transaction-item {
+            border-left: 3px solid var(--border-color);
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: var(--background);
+            border-radius: 8px;
+        }
+
+        .transaction-item.sale {
+            border-left-color: var(--danger-color);
+        }
+
+        .transaction-item.payment {
+            border-left-color: var(--success-color);
+        }
+
+        .transaction-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .transaction-type {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .transaction-amount {
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .transaction-amount.sale {
+            color: var(--danger-color);
+        }
+
+        .transaction-amount.payment {
+            color: var(--success-color);
+        }
+
+        .transaction-date {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.3rem;
+        }
+
+        .transaction-description {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+
+        .error {
+            background: #fee;
+            color: var(--danger-color);
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .refresh-info {
+            text-align: center;
+            padding: 1rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .refresh-icon {
+            display: inline-block;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .footer {
+            text-align: center;
+            padding: 2rem 1rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .spinner {
+            border: 3px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 3px solid var(--primary-color);
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 Minha Conta</h1>
+            <p class="subtitle">Acompanhe suas compras e pagamentos</p>
+        </div>
+
+        <div id="loadingScreen" class="loading">
+            <div class="spinner"></div>
+            <p>Carregando informações...</p>
+        </div>
+
+        <div id="errorScreen" style="display: none;">
+            <div class="card error">
+                <p>❌ Não foi possível carregar as informações.</p>
+                <p style="margin-top: 0.5rem; font-size: 0.9rem;">Verifique se o link está correto.</p>
+            </div>
+        </div>
+
+        <div id="contentScreen" style="display: none;">
+            <!-- Status da Conta -->
+            <div class="card status-card">
+                <div class="status-icon" id="statusIcon">💰</div>
+                <div class="status-label">Saldo Atual</div>
+                <div class="status-value" id="statusValue">R$ 0,00</div>
+                <div class="status-text" id="statusText">Calculando...</div>
+            </div>
+
+            <!-- Histórico de Transações -->
+            <div class="card">
+                <h2 class="section-title">📜 Histórico de Transações</h2>
+                <div id="transactionsList">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <p>Nenhuma transação registrada</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="refresh-info">
+                <span class="refresh-icon">🔄</span> Atualização automática em tempo real
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Fiado Fácil - Controle de vendas a crédito</p>
+        </div>
+    </div>
+
+    <script type="module">
+        // Importar Firebase
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+        // Configuração do Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyAmtxBsBUy67kuk50M25SPNl6AOhYFeDuY",
+            authDomain: "vendas-fiadas.firebaseapp.com",
+            databaseURL: "https://vendas-fiadas-default-rtdb.firebaseio.com",
+            projectId: "vendas-fiadas",
+            storageBucket: "vendas-fiadas.firebasestorage.app",
+            messagingSenderId: "893268626644",
+            appId: "1:893268626644:web:4f9237500db5de98177f41",
+            measurementId: "G-GVRNJBMTKC"
+        };
+
+        // Inicializar Firebase
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        // Elementos DOM
+        const loadingScreen = document.getElementById('loadingScreen');
+        const errorScreen = document.getElementById('errorScreen');
+        const contentScreen = document.getElementById('contentScreen');
+        const statusIcon = document.getElementById('statusIcon');
+        const statusValue = document.getElementById('statusValue');
+        const statusText = document.getElementById('statusText');
+        const transactionsList = document.getElementById('transactionsList');
+
+        // Função para formatar moeda
+        function formatCurrency(value) {
+            return value.toFixed(2).replace('.', ',');
+        }
+
+        // Função para formatar data
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // Função para calcular débito do cliente
+        function calculateDebt(sales) {
+            if (!sales || sales.length === 0) return 0;
+            return sales.reduce((total, sale) => {
+                if (sale.type === 'payment') {
+                    return total - sale.amount;
+                } else {
+                    return total + sale.amount;
+                }
+            }, 0);
+        }
+
+        // Função para atualizar a interface
+        function updateUI(clientData) {
+            if (!clientData) {
+                showError();
+                return;
+            }
+
+            const debt = calculateDebt(clientData.sales || []);
+            const isCredit = debt < 0;
+            const isPaid = debt === 0;
+
+            // Atualizar status
+            if (isPaid) {
+                statusIcon.textContent = '✅';
+                statusValue.textContent = 'R$ 0,00';
+                statusValue.className = 'status-value paid';
+                statusText.textContent = 'Sua conta está quitada!';
+            } else if (isCredit) {
+                statusIcon.textContent = '💚';
+                statusValue.textContent = `R$ ${formatCurrency(Math.abs(debt))}`;
+                statusValue.className = 'status-value credit';
+                statusText.textContent = 'Você tem crédito a favor!';
+            } else {
+                statusIcon.textContent = '💰';
+                statusValue.textContent = `R$ ${formatCurrency(debt)}`;
+                statusValue.className = 'status-value debt';
+                statusText.textContent = 'Saldo devedor';
+            }
+
+            // Atualizar histórico de transações
+            const sales = clientData.sales || [];
+            if (sales.length === 0) {
+                transactionsList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <p>Nenhuma transação registrada</p>
+                    </div>
+                `;
+            } else {
+                // Ordenar por data (mais recente primeiro)
+                const sortedSales = [...sales].sort((a, b) => 
+                    new Date(b.date) - new Date(a.date)
+                );
+
+                transactionsList.innerHTML = sortedSales.map(sale => {
+                    const isPayment = sale.type === 'payment';
+                    const icon = isPayment ? '✅' : '🛒';
+                    const typeText = isPayment ? 'Pagamento' : 'Venda';
+                    const typeClass = isPayment ? 'payment' : 'sale';
+
+                    return `
+                        <div class="transaction-item ${typeClass}">
+                            <div class="transaction-header">
+                                <span class="transaction-type">${icon} ${typeText}</span>
+                                <span class="transaction-amount ${typeClass}">R$ ${formatCurrency(sale.amount)}</span>
+                            </div>
+                            <div class="transaction-date">📅 ${formatDate(sale.date)}</div>
+                            ${sale.description ? `<div class="transaction-description">📝 ${sale.description}</div>` : ''}
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // Mostrar conteúdo
+            loadingScreen.style.display = 'none';
+            errorScreen.style.display = 'none';
+            contentScreen.style.display = 'block';
+        }
+
+        // Função para mostrar erro
+        function showError() {
+            loadingScreen.style.display = 'none';
+            contentScreen.style.display = 'none';
+            errorScreen.style.display = 'block';
+        }
+
+        // Carregar dados do cliente
+        function loadClientData() {
+            // Obter parâmetros da URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const userId = urlParams.get('u');
+            const clientId = urlParams.get('c');
+
+            if (!userId || !clientId) {
+                showError();
+                return;
+            }
+
+            // Listener em tempo real
+            const clientRef = ref(database, `users/${userId}/clients/${clientId}`);
+            onValue(clientRef, (snapshot) => {
+                const clientData = snapshot.val();
+                updateUI(clientData);
+            }, (error) => {
+                console.error('Erro ao carregar dados:', error);
+                showError();
+            });
+        }
+
+        // Inicializar
+        loadClientData();
+    </script>
+</body>
+</html>

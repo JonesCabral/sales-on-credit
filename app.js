@@ -669,64 +669,32 @@ function shareClientHistory(clientId) {
     const debt = manager.getClientDebt(clientId);
     const isCredit = debt < 0;
     const isPaid = debt === 0;
-    const sales = client.sales || [];
 
-    // Ordenar por data (mais antiga primeiro para o histórico)
-    const sortedSales = [...sales].sort((a, b) => 
-        new Date(a.date) - new Date(b.date)
-    );
-
-    // Criar texto formatado
-    let message = `📋 *HISTÓRICO DE CONTA - ${client.name}*\n`;
-    message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+    // Gerar link para a página do cliente
+    const baseUrl = window.location.origin + window.location.pathname.replace('index.html', '');
+    const clientUrl = `${baseUrl}client-view.html?u=${encodeURIComponent(manager.userId)}&c=${encodeURIComponent(clientId)}`;
 
     // Status da conta
+    let statusText = '';
     if (isPaid) {
-        message += `✅ *Status:* Conta quitada\n`;
-        message += `💰 *Saldo:* R$ 0,00\n\n`;
+        statusText = '✅ Conta quitada - R$ 0,00';
     } else if (isCredit) {
-        message += `✅ *Status:* Crédito a favor\n`;
-        message += `💰 *Crédito:* R$ ${formatCurrency(Math.abs(debt))}\n\n`;
+        statusText = `💚 Crédito a favor - R$ ${formatCurrency(Math.abs(debt))}`;
     } else {
-        message += `⚠️ *Status:* Pendente\n`;
-        message += `💰 *Débito total:* R$ ${formatCurrency(debt)}\n\n`;
+        statusText = `💰 Saldo devedor - R$ ${formatCurrency(debt)}`;
     }
 
-    // Histórico de transações
-    if (sales.length > 0) {
-        message += `📜 *HISTÓRICO DE TRANSAÇÕES*\n`;
-        message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
-
-        sortedSales.forEach(sale => {
-            const date = formatDate(sale.date);
-            const type = sale.type === 'payment' ? '✅ Pagamento' : '🛒 Venda';
-            const amount = `R$ ${formatCurrency(sale.amount)}`;
-            
-            message += `${type}\n`;
-            message += `📅 ${date}\n`;
-            message += `💵 ${amount}\n`;
-            
-            if (sale.description) {
-                message += `📝 ${sale.description}\n`;
-            }
-            
-            message += `\n`;
-        });
-    } else {
-        message += `ℹ️ Nenhuma transação registrada.\n\n`;
-    }
-
-    message += `━━━━━━━━━━━━━━━━━━━━\n`;
-    message += `Gerado em: ${new Date().toLocaleString('pt-BR')}\n`;
-    message += `\n_Fiado Fácil - Controle de vendas a crédito_`;
+    // Mensagem para compartilhar
+    const message = `📋 *${client.name}*\n\n${statusText}\n\n🔗 Acompanhe sua conta em tempo real:\n${clientUrl}\n\n_Fiado Fácil - Controle de vendas a crédito_`;
 
     // Tentar usar Web Share API
     if (navigator.share) {
         navigator.share({
-            title: `Histórico - ${client.name}`,
-            text: message
+            title: `Conta - ${client.name}`,
+            text: message,
+            url: clientUrl
         }).then(() => {
-            showToast('Histórico compartilhado com sucesso!', 'success');
+            showToast('Link compartilhado com sucesso!', 'success');
         }).catch((error) => {
             if (error.name !== 'AbortError') {
                 // Se falhar, copiar para clipboard
