@@ -20,6 +20,20 @@ const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 const auth = getAuth(app);
 
+// Versão da aplicação
+const APP_VERSION = '1.8.0';
+
+// Verificar e sincronizar versão
+(function checkVersion() {
+    const storedVersion = localStorage.getItem('appVersion');
+    if (storedVersion && storedVersion !== APP_VERSION) {
+        console.log(`Atualizando de v${storedVersion} para v${APP_VERSION}`);
+        localStorage.setItem('appVersion', APP_VERSION);
+    } else if (!storedVersion) {
+        localStorage.setItem('appVersion', APP_VERSION);
+    }
+})();
+
 // Variável global para armazenar o usuário atual
 let currentUser = null;
 
@@ -1687,5 +1701,53 @@ window.addEventListener('click', (e) => {
         closeClientModal();
     }
 });
+
+// Verificar periodicamente por atualizações (a cada 5 minutos)
+setInterval(() => {
+    fetch(window.location.href, { 
+        method: 'HEAD',
+        cache: 'no-cache'
+    }).then(response => {
+        const lastModified = response.headers.get('Last-Modified');
+        const storedLastModified = sessionStorage.getItem('pageLastModified');
+        
+        if (storedLastModified && lastModified && storedLastModified !== lastModified) {
+            // Nova versão detectada
+            const shouldReload = confirm(
+                'Uma nova versão do aplicativo está disponível. Deseja atualizar agora?\n\n' +
+                'Recomendamos atualizar para obter as últimas correções e melhorias.'
+            );
+            
+            if (shouldReload) {
+                // Limpar cache e recarregar
+                if ('caches' in window) {
+                    caches.keys().then(names => {
+                        names.forEach(name => caches.delete(name));
+                    }).finally(() => {
+                        window.location.reload(true);
+                    });
+                } else {
+                    window.location.reload(true);
+                }
+            }
+        }
+        
+        if (lastModified) {
+            sessionStorage.setItem('pageLastModified', lastModified);
+        }
+    }).catch(() => {
+        // Ignorar erros de rede silenciosamente
+    });
+}, 5 * 60 * 1000); // 5 minutos
+
+// Armazenar timestamp inicial
+fetch(window.location.href, { method: 'HEAD', cache: 'no-cache' })
+    .then(response => {
+        const lastModified = response.headers.get('Last-Modified');
+        if (lastModified) {
+            sessionStorage.setItem('pageLastModified', lastModified);
+        }
+    })
+    .catch(() => {});
 
 // Inicializar (os dados serão carregados automaticamente pelo listener do Firebase)

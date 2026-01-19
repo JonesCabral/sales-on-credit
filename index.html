@@ -7,7 +7,45 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Vivi Variedades</title>
-    <link rel="stylesheet" href="style.css?v=1.7.0">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css?v=1.8.0">
+    <script>
+        // Cache busting - força reload em caso de versão antiga
+        (function() {
+            const CURRENT_VERSION = '1.8.0';
+            const storedVersion = localStorage.getItem('appVersion');
+            
+            if (storedVersion !== CURRENT_VERSION) {
+                console.log('Nova versão detectada. Limpando cache...');
+                
+                // Limpar service workers se existirem
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                        for(let registration of registrations) {
+                            registration.unregister();
+                        }
+                    });
+                }
+                
+                // Limpar cache do navegador
+                if ('caches' in window) {
+                    caches.keys().then(function(names) {
+                        for (let name of names) {
+                            caches.delete(name);
+                        }
+                    });
+                }
+                
+                // Atualizar versão armazenada
+                localStorage.setItem('appVersion', CURRENT_VERSION);
+                
+                // Forçar reload se não for a primeira visita
+                if (storedVersion) {
+                    window.location.reload(true);
+                }
+            }
+        })();
+    </script>
 </head>
 <body class="loading">
     <!-- Tela de Login -->
@@ -232,6 +270,6 @@
     </div>
 
     <!-- Firebase SDK -->
-    <script type="module" src="app.js?v=1.7.0"></script>
+    <script type="module" src="app.js?v=1.8.0"></script>
 </body>
 </html>
