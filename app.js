@@ -1750,4 +1750,32 @@ fetch(window.location.href, { method: 'HEAD', cache: 'no-cache' })
     })
     .catch(() => {});
 
+// Função para esconder loading screen
+function hideLoadingScreen() {
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (loadingScreen) {
+        loadingScreen.classList.add('hidden');
+        document.body.classList.remove('loading');
+        document.body.classList.add('loaded');
+        setTimeout(() => {
+            loadingScreen.style.display = 'none';
+        }, 300);
+    }
+}
+
+// Esconder loading screen quando a página estiver totalmente carregada
+if (document.readyState === 'complete') {
+    hideLoadingScreen();
+} else {
+    window.addEventListener('load', hideLoadingScreen);
+}
+
+// Fallback: esconder loading após 3 segundos se ainda estiver visível
+setTimeout(() => {
+    if (document.getElementById('loadingScreen') && !document.getElementById('loadingScreen').classList.contains('hidden')) {
+        console.log('Loading timeout - forçando esconder loading screen');
+        hideLoadingScreen();
+    }
+}, 3000);
+
 // Inicializar (os dados serão carregados automaticamente pelo listener do Firebase)
