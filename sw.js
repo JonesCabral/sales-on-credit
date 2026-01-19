@@ -1,11 +1,11 @@
 const CACHE_NAME = 'vivi-variedades-v1.8.0';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/client-view.html',
-  '/style.css',
-  '/app.js',
-  '/manifest.json'
+  './',
+  './index.html',
+  './client-view.html',
+  './style.css',
+  './app.js',
+  './manifest.json'
 ];
 
 // Install Service Worker

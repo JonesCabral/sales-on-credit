@@ -1,10 +1,9 @@
 {
-    "id": "/",
     "name": "Vivi Variedades - Controle de Vendas",
     "short_name": "Vivi Variedades",
     "description": "Sistema de controle de vendas fiadas",
-    "start_url": "/",
-    "scope": "/",
+    "start_url": "./index.html",
+    "scope": "./",
     "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#2563eb",
@@ -28,6 +27,5 @@
             "type": "image/svg+xml",
             "purpose": "maskable"
         }
-    ],
-    "version": "1.8.0"
+    ]
 }
