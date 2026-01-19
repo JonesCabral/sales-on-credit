@@ -526,10 +526,14 @@ function updateClientsList() {
     
     let filteredClients = [...clients];
     
-    // Excluir clientes arquivados por padrão
+    // Filtrar clientes por status de arquivado
     const filterArchivedCheckbox = document.getElementById('filterArchived');
     const showArchived = filterArchivedCheckbox?.checked || false;
-    if (!showArchived) {
+    if (showArchived) {
+        // Quando marcado, mostrar APENAS clientes arquivados
+        filteredClients = filteredClients.filter(client => client.archived);
+    } else {
+        // Quando desmarcado, mostrar apenas clientes não arquivados
         filteredClients = filteredClients.filter(client => !client.archived);
     }
     
@@ -1058,9 +1062,13 @@ if (searchClients) {
         const searchTerm = searchClients.value.trim().toLowerCase();
         let allClients = Object.values(manager.clients);
         
-        // Filtrar clientes arquivados (exceto se checkbox "Mostrar arquivados" estiver marcado)
+        // Filtrar clientes por status de arquivado
         const showArchived = filterArchivedCheckbox?.checked || false;
-        if (!showArchived) {
+        if (showArchived) {
+            // Quando marcado, mostrar APENAS clientes arquivados
+            allClients = allClients.filter(client => client.archived);
+        } else {
+            // Quando desmarcado, mostrar apenas clientes não arquivados
             allClients = allClients.filter(client => !client.archived);
         }
         
