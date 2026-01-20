@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <meta name="theme-color" content="#2563eb">
     <title>Minha Conta - Vivi Variedades</title>
     <style>
@@ -229,6 +229,81 @@
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+
+        /* Responsividade Mobile */
+        @media (max-width: 600px) {
+            body {
+                padding: 0.75rem;
+            }
+
+            .header {
+                padding: 1.5rem 1rem;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .card {
+                padding: 1.25rem;
+            }
+
+            .status-card {
+                padding: 1.5rem 1rem;
+            }
+
+            .status-value {
+                font-size: 2rem;
+            }
+        }
+
+        @media (max-width: 400px) {
+            body {
+                padding: 0.5rem;
+                font-size: 0.95rem;
+            }
+
+            .header {
+                padding: 1.25rem 0.875rem;
+            }
+
+            .header h1 {
+                font-size: 1.25rem;
+            }
+
+            .card {
+                padding: 1rem;
+            }
+
+            .status-value {
+                font-size: 1.75rem;
+            }
+
+            .status-icon {
+                font-size: 2.5rem;
+            }
+        }
+
+        /* Landscape Mobile */
+        @media (max-height: 500px) and (orientation: landscape) {
+            .header {
+                padding: 1rem;
+                margin-bottom: 1rem;
+            }
+
+            .status-card {
+                padding: 1rem;
+            }
+
+            .status-icon {
+                font-size: 2rem;
+                margin-bottom: 0.5rem;
+            }
+
+            .status-value {
+                font-size: 1.75rem;
+            }
         }
     </style>
 </head>
