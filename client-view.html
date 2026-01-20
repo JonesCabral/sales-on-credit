@@ -510,13 +510,15 @@
             if (!isPaid && !isCredit) {
                 pixDiv.innerHTML = `
                     <h2 class=\"section-title\">💳 Pagamento via PIX</h2>
-                    <div style=\"display: flex; flex-wrap: wrap; align-items: center; gap: 1.5rem;\">
-                        <div style=\"flex: 1 1 220px; min-width: 180px;\">
-                            <span id=\"pixKeyText\" style=\"word-break: break-all; background: #f9fafb; padding: 1rem; border-radius: 8px; display: block; margin-bottom: 0.5rem;\">${pixKey}</span>
-                            <button id=\"copyPixBtn\" style=\"margin-bottom: 0.5rem; padding: 0.25rem 0.75rem; border-radius: 6px; border: none; background: #2563eb; color: #fff; cursor: pointer;\">Copiar</button>
+                    <div style=\"display: flex; flex-wrap: wrap; align-items: center; gap: 1.5rem; justify-content: center;\">
+                        <div style=\"flex: 1 1 220px; min-width: 180px; max-width: 320px;\">
+                            <div style=\"background: #f9fafb; padding: 0.75rem 1rem; border-radius: 8px; font-family: monospace; font-size: 0.98rem; overflow-x: auto; white-space: nowrap; margin-bottom: 0.5rem;\">
+                                <span id=\"pixKeyText\">${pixKey}</span>
+                            </div>
+                            <button id=\"copyPixBtn\" style=\"margin-bottom: 0.5rem; padding: 0.25rem 0.75rem; border-radius: 6px; border: none; background: #2563eb; color: #fff; cursor: pointer;\">Copiar chave</button>
                             <div style=\"font-size: 0.95rem; color: #64748b;\">Copie a chave acima ou use o QR Code ao lado no app do seu banco.</div>
                         </div>
-                        <div id=\"pixQrCode\" style=\"min-width: 120px;\"></div>
+                        <div id=\"pixQrCode\" style=\"min-width: 120px; margin: 0 auto;\"></div>
                     </div>
                 `;
                 setTimeout(() => {
@@ -525,7 +527,7 @@
                         btn.onclick = function() {
                             navigator.clipboard.writeText(pixKey);
                             btn.textContent = 'Copiado!';
-                            setTimeout(() => btn.textContent = 'Copiar', 1500);
+                            setTimeout(() => btn.textContent = 'Copiar chave', 1500);
                         };
                     }
                     // Gerar QR Code
