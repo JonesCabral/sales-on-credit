@@ -192,7 +192,7 @@
                     <div class="filter-checkbox-container">
                         <label class="filter-checkbox-label">
                             <input type="checkbox" id="filterDebtOnly" checked>
-                            <span>Apenas com dívidas</span>
+                            <span>💰 Apenas com dívidas</span>
                         </label>
                         <label class="filter-checkbox-label">
                             <input type="checkbox" id="filterUnpriced">
@@ -200,7 +200,7 @@
                         </label>
                         <label class="filter-checkbox-label">
                             <input type="checkbox" id="filterArchived">
-                            <span>Mostrar arquivados</span>
+                            <span>📦 Mostrar arquivados</span>
                         </label>
                     </div>
                 </div>
@@ -259,15 +259,12 @@
 
                 <div class="history-header">
                     <h3>Histórico de Vendas</h3>
-                    <button id="shareHistory" class="btn btn-share" title="Compartilhar histórico">
+                    <button id="shareHistory" class="btn btn-share" title="Fazer cobrança">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="18" cy="5" r="3"/>
-                            <circle cx="6" cy="12" r="3"/>
-                            <circle cx="18" cy="19" r="3"/>
-                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                            <line x1="12" y1="1" x2="12" y2="23"/>
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
                         </svg>
-                        Compartilhar
+                        Fazer cobrança
                     </button>
                 </div>
                 <div id="salesHistory" class="sales-history"></div>
@@ -311,9 +308,11 @@
             <span id="closeEditSaleModal" class="close">&times;</span>
             <h2>Editar <span id="editSaleType">Item</span></h2>
             <form id="editSaleForm">
+                <label for="editSaleAmount">Valor (R$)</label>
                 <input type="number" id="editSaleAmount" placeholder="Valor (R$)" step="0.01" min="0.01" required>
                 <div id="editSaleDescriptionWrapper">
-                    <textarea id="editSaleDescription" placeholder="Descrição (opcional)" rows="3"></textarea>
+                    <label for="editSaleDescription">Descrição ou produto (opcional)</label>
+                    <textarea id="editSaleDescription" placeholder="Descrição ou produto (opcional)" rows="3"></textarea>
                 </div>
                 <div class="modal-actions">
                     <button type="submit" class="btn btn-primary">✓ Salvar</button>
