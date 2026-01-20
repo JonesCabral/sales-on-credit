@@ -346,6 +346,16 @@
                 </div>
             </div>
 
+            <!-- Pagamento PIX -->
+            <div id="pixPaymentDiv" class="card" style="display: none;">
+                <h2 class="section-title">💳 Pagamento via PIX</h2>
+                <div style="word-break: break-all; background: #f9fafb; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                    <span id="pixKeyText">00020126580014BR.GOV.BCB.PIX013617f7af49-8c45-42b3-af8d-08ced311b87f5204000053039865802BR5919Jones Vieira Cabral6009SAO PAULO621405108GFi9k39TN63044602</span>
+                    <button id="copyPixBtn" style="margin-left: 0.5rem; padding: 0.25rem 0.75rem; border-radius: 6px; border: none; background: #2563eb; color: #fff; cursor: pointer;">Copiar</button>
+                </div>
+                <div style="font-size: 0.95rem; color: #64748b;">Copie a chave acima e cole no app do seu banco para pagar.</div>
+            </div>
+
             <div class="refresh-info">
                 <span class="refresh-icon">🔄</span> Atualização automática em tempo real
             </div>
@@ -482,6 +492,40 @@
             loadingScreen.style.display = 'none';
             errorScreen.style.display = 'none';
             contentScreen.style.display = 'block';
+
+            // Exibir chave PIX se houver dívida
+            const pixKey = '00020126580014BR.GOV.BCB.PIX013617f7af49-8c45-42b3-af8d-08ced311b87f5204000053039865802BR5919Jones Vieira Cabral6009SAO PAULO621405108GFi9k39TN63044602';
+            let pixDiv = document.getElementById('pixPaymentDiv');
+            if (!pixDiv) {
+                pixDiv = document.createElement('div');
+                pixDiv.id = 'pixPaymentDiv';
+                pixDiv.className = 'card';
+                const contentScreenDiv = document.getElementById('contentScreen');
+                contentScreenDiv.insertBefore(pixDiv, contentScreenDiv.children[1]);
+            }
+            if (!isPaid && !isCredit) {
+                pixDiv.innerHTML = `
+                    <h2 class="section-title">💳 Pagamento via PIX</h2>
+                    <div style="word-break: break-all; background: #f9fafb; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                        <span id="pixKeyText">${pixKey}</span>
+                        <button id="copyPixBtn" style="margin-left: 0.5rem; padding: 0.25rem 0.75rem; border-radius: 6px; border: none; background: #2563eb; color: #fff; cursor: pointer;">Copiar</button>
+                    </div>
+                    <div style="font-size: 0.95rem; color: #64748b;">Copie a chave acima e cole no app do seu banco para pagar.</div>
+                `;
+                setTimeout(() => {
+                    const btn = document.getElementById('copyPixBtn');
+                    if (btn) {
+                        btn.onclick = function() {
+                            navigator.clipboard.writeText(pixKey);
+                            btn.textContent = 'Copiado!';
+                            setTimeout(() => btn.textContent = 'Copiar', 1500);
+                        };
+                    }
+                }, 100);
+                pixDiv.style.display = 'block';
+            } else {
+                pixDiv.style.display = 'none';
+            }
         }
 
         // Função para mostrar erro
