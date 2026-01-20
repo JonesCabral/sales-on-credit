@@ -34,6 +34,19 @@ const APP_VERSION = '1.8.0';
     } else if (!storedVersion) {
         localStorage.setItem('appVersion', APP_VERSION);
     }
+    
+    // Exibir versão na interface
+    document.addEventListener('DOMContentLoaded', () => {
+        const appVersionElement = document.getElementById('appVersion');
+        const loginVersionElement = document.getElementById('loginVersion');
+        
+        if (appVersionElement) {
+            appVersionElement.textContent = `v${APP_VERSION}`;
+        }
+        if (loginVersionElement) {
+            loginVersionElement.textContent = `Versão ${APP_VERSION}`;
+        }
+    });
 })();
 
 // Variável global para armazenar o usuário atual

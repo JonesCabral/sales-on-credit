@@ -205,6 +205,29 @@ header h1 {
     flex-wrap: wrap;
 }
 
+.version-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    font-size: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    vertical-align: middle;
+}
+
+.login-version {
+    display: block;
+    text-align: center;
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    opacity: 0.7;
+}
+
 .beta-badge {
     display: inline-block;
     background: linear-gradient(135deg, #f59e0b, #d97706);
