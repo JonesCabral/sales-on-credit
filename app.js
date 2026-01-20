@@ -1062,10 +1062,38 @@ if (logoutBtn) {
 // Event Listeners - App
 // Fechar aviso de anotações pendentes
 if (closeAlertBtn) {
-    closeAlertBtn.addEventListener('click', () => {
+    closeAlertBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // Evita que o clique no botão fechar acione o alerta
         alertDismissed = true;
         if (unpricedNotesAlert) {
             unpricedNotesAlert.style.display = 'none';
+        }
+    });
+}
+
+// Clicar no alerta para ativar filtro de produtos sem preço
+if (unpricedNotesAlert) {
+    unpricedNotesAlert.addEventListener('click', (e) => {
+        // Ignorar se clicou no botão de fechar
+        if (e.target.id === 'closeAlert' || e.target.closest('#closeAlert')) {
+            return;
+        }
+        
+        // Ativar o filtro de produtos sem preço
+        const filterUnpricedCheckbox = document.getElementById('filterUnpriced');
+        if (filterUnpricedCheckbox) {
+            filterUnpricedCheckbox.checked = true;
+            
+            // Disparar evento de change para aplicar o filtro
+            filterUnpricedCheckbox.dispatchEvent(new Event('change'));
+            
+            // Scroll suave até a lista de clientes
+            const clientsSection = document.querySelector('#clientsListDiv');
+            if (clientsSection) {
+                clientsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+            
+            showToast('Mostrando apenas clientes com produtos sem preço', 'success');
         }
     });
 }

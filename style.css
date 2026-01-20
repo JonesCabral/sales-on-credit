@@ -318,6 +318,25 @@ header h1 {
     animation: slideIn 0.3s ease-out;
 }
 
+.clickable-alert {
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.clickable-alert:hover {
+    background: linear-gradient(135deg, #fde68a 0%, #fcd34d 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.clickable-alert .alert-content {
+    pointer-events: none;
+}
+
+.clickable-alert .alert-icon {
+    pointer-events: none;
+}
+
 @keyframes slideIn {
     from {
         transform: translateY(-20px);
