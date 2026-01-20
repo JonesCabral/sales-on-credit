@@ -40,30 +40,52 @@ body.loaded {
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 9999;
-    transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
+    transition: opacity 0.5s ease-out, visibility 0.5s ease-out;
 }
 
 .loading-screen.hidden {
     opacity: 0;
     visibility: hidden;
+    pointer-events: none;
 }
 
 .loading-content {
     text-align: center;
     color: white;
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.loading-logo {
+    font-size: 72px;
+    margin-bottom: 20px;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.loading-title {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    letter-spacing: -0.5px;
+}
+
+.loading-subtitle {
+    font-size: 14px;
+    opacity: 0.9;
+    margin-bottom: 30px;
+    font-weight: 400;
 }
 
 .spinner {
-    width: 50px;
-    height: 50px;
+    width: 60px;
+    height: 60px;
     margin: 0 auto 20px;
-    border: 4px solid rgba(255, 255, 255, 0.3);
-    border-top: 4px solid white;
+    border: 5px solid rgba(255, 255, 255, 0.2);
+    border-top: 5px solid white;
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
@@ -73,10 +95,33 @@ body.loaded {
     100% { transform: rotate(360deg); }
 }
 
+@keyframes pulse {
+    0%, 100% { 
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% { 
+        transform: scale(1.1);
+        opacity: 0.8;
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 .loading-content p {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 500;
     margin: 0;
+    opacity: 0.95;
 }
 
 .container {

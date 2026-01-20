@@ -1759,7 +1759,7 @@ function hideLoadingScreen() {
         document.body.classList.add('loaded');
         setTimeout(() => {
             loadingScreen.style.display = 'none';
-        }, 300);
+        }, 500);
     }
 }
 
@@ -1770,12 +1770,12 @@ if (document.readyState === 'complete') {
     window.addEventListener('load', hideLoadingScreen);
 }
 
-// Fallback: esconder loading após 3 segundos se ainda estiver visível
+// Fallback: esconder loading após 5 segundos se ainda estiver visível
 setTimeout(() => {
     if (document.getElementById('loadingScreen') && !document.getElementById('loadingScreen').classList.contains('hidden')) {
         console.log('Loading timeout - forçando esconder loading screen');
         hideLoadingScreen();
     }
-}, 3000);
+}, 5000);
 
 // Inicializar (os dados serão carregados automaticamente pelo listener do Firebase)
