@@ -623,7 +623,7 @@
                         qrDiv.innerHTML = '';
                         let qrSize = 180;
                         if (window.innerWidth <= 700) {
-                            qrSize = Math.min(window.innerWidth * 0.9, 350);
+                            qrSize = Math.min(window.innerWidth * 0.8, 350);
                         }
                         new QRCode(qrDiv, {
                             text: pixKey,
