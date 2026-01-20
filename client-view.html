@@ -340,28 +340,18 @@
         }
 
         .pix-qrcode {
+            min-width: 120px;
+            margin: 0 auto;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-width: 120px;
-            margin: 0 auto;
         }
 
         @media (max-width: 600px) {
-            .pix-flex {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 1rem;
-            }
-
-            .pix-info {
-                align-items: stretch;
-                max-width: 100%;
-            }
-
             .pix-qrcode {
-                margin: 0 auto;
-                display: flex;
+                min-width: 0;
+                width: 100%;
+                max-width: 95vw;
                 justify-content: center;
             }
         }
@@ -560,12 +550,16 @@
             // Exibir chave PIX e QR Code se houver dívida
             const pixKey = '00020126580014BR.GOV.BCB.PIX013617f7af49-8c45-42b3-af8d-08ced311b87f5204000053039865802BR5919Jones Vieira Cabral6009SAO PAULO621405108GFi9k39TN63044602';
             let pixDiv = document.getElementById('pixPaymentDiv');
+            const contentScreenDiv = document.getElementById('contentScreen');
+            const statusCard = contentScreenDiv.querySelector('.status-card');
             if (!pixDiv) {
                 pixDiv = document.createElement('div');
                 pixDiv.id = 'pixPaymentDiv';
                 pixDiv.className = 'card';
-                const contentScreenDiv = document.getElementById('contentScreen');
-                contentScreenDiv.insertBefore(pixDiv, contentScreenDiv.children[1]);
+            }
+            // Garante que o card do PIX fique logo após o status-card
+            if (statusCard && statusCard.nextSibling !== pixDiv) {
+                contentScreenDiv.insertBefore(pixDiv, statusCard.nextSibling);
             }
             if (!isPaid && !isCredit) {
                 pixDiv.innerHTML = `
@@ -577,6 +571,11 @@
                         </div>
                         <div id=\"pixQrCode\" class=\"pix-qrcode\"></div>
                     </div>
+                    <div class=\"pix-receiver-info\" style=\"margin-top: 1.5rem; text-align: center; color: #1e293b;\">
+                        <div style=\"font-size: 1.05rem; font-weight: 600;\">Recebedor</div>
+                        <div style=\"margin-top: 0.3rem; font-size: 1rem;\"><b>Nome:</b> Jones Vieira Cabral</div>
+                        <div style=\"margin-top: 0.1rem; font-size: 1rem;\"><b>CPF:</b> •••.253.763-••</div>
+                    </div>
                 `;
                 setTimeout(() => {
                     const btn = document.getElementById('copyPixBtn');
@@ -587,14 +586,18 @@
                             setTimeout(() => btn.textContent = 'Copiar chave PIX', 1500);
                         };
                     }
-                    // Gerar QR Code
+                    // Gerar QR Code responsivo
                     const qrDiv = document.getElementById('pixQrCode');
                     if (qrDiv) {
                         qrDiv.innerHTML = '';
+                        let qrSize = 140;
+                        if (window.innerWidth <= 600) {
+                            qrSize = Math.min(window.innerWidth * 0.9, 350);
+                        }
                         new QRCode(qrDiv, {
                             text: pixKey,
-                            width: 140,
-                            height: 140,
+                            width: qrSize,
+                            height: qrSize,
                             colorDark : '#000000',
                             colorLight : '#ffffff',
                             correctLevel : QRCode.CorrectLevel.M
