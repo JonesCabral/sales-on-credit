@@ -752,7 +752,7 @@ function shareClientHistory(clientId) {
     } else if (isCredit) {
         message = `Olá! 😊\n\nVocê tem um crédito a favor.\n\n🔗 Veja os detalhes:\n${clientUrl}`;
     } else {
-        message = `Olá! 😊\n\nVocê tem um saldo pendente que pode ser consultado através do link abaixo.\n\nQuando puder, ficarei grato se conseguir regularizar.\n\n💳 Pagamento via PIX:\nChave Copia e Cola:\n${pixKey}\n\n🔗 Acompanhe sua conta:\n${clientUrl}\n\nObrigado pela compreensão!`;
+        message = `💳 Pagamento via PIX (Copia e Cola):\n${pixKey}\n\nOlá! 😊\nVocê tem um saldo pendente. Quando puder, ficarei grato se conseguir regularizar.\n\n🔗 Veja sua conta detalhada:\n${clientUrl}\n\nObrigado pela compreensão!`;
     }
 
     // Tentar usar Web Share API
