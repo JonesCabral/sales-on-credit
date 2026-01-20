@@ -1388,7 +1388,7 @@ addSaleForm.addEventListener('submit', async (e) => {
         }
         
         // Adicionar venda
-        await manager.addSale(clientId, amount, description);
+        await manager.addSale(clientId, numericAmount, description);
         hideLoader();
         showToast('Venda registrada com sucesso!', 'success');
         addSaleForm.reset();
