@@ -316,31 +316,37 @@
 
         .pix-card {
             display: flex;
-            flex-direction: row;
+            flex-direction: column;
             align-items: center;
-            gap: 2rem;
-            justify-content: center;
+            background: #f8fafc;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            padding: 1.2rem 1rem 1.5rem 1rem;
+            margin: 0.7rem 0;
+            width: 100%;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .pix-info {
-            flex: 1 1 220px;
-            min-width: 180px;
-            max-width: 320px;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
+            width: 100%;
+            text-align: center;
+            margin-bottom: 0.7rem;
         }
 
         .pix-btn {
-            margin-bottom: 0.5rem;
-            padding: 0.5rem 1.2rem;
-            border-radius: 8px;
-            border: none;
             background: #2563eb;
             color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 0.6rem 1.2rem;
+            font-size: 1rem;
+            font-weight: 600;
             cursor: pointer;
-            font-family: inherit;
-            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            width: 90%;
+            max-width: 260px;
         }
 
         .pix-btn:hover {
@@ -348,42 +354,49 @@
         }
 
         .pix-desc {
-            font-size: 1rem;
-            color: #64748b;
-            margin-bottom: 1rem;
+            font-size: 0.98rem;
+            color: #334155;
+            margin-bottom: 0.5rem;
         }
 
         .pix-qrcode {
-            min-width: 120px;
-            margin: 0 auto;
             display: flex;
             justify-content: center;
             align-items: center;
+            margin: 0.7rem 0 0.5rem 0;
+            width: 100%;
+        }
+
+        .pix-receiver-info {
+            background: #f1f5f9;
+            border-radius: 8px;
+            padding: 0.7rem 0.5rem;
+            margin-top: 1.1rem;
+            text-align: center;
+            color: #1e293b;
+            font-size: 0.98rem;
+            width: 100%;
         }
 
         @media (max-width: 700px) {
             .pix-card {
-                flex-direction: column;
-                gap: 1.2rem;
-                align-items: stretch;
+                padding: 1rem 0.3rem 1.2rem 0.3rem;
+                max-width: 98vw;
             }
-            .pix-info {
-                align-items: stretch;
-                max-width: 100%;
-            }
-            .pix-qrcode {
-                width: 100%;
-                max-width: 95vw;
-                justify-content: center;
-            }
-        }
-        @media (max-width: 400px) {
+
             .pix-btn {
-                font-size: 1rem;
-                padding: 0.4rem 0.8rem;
+                font-size: 0.97rem;
+                padding: 0.5rem 0.7rem;
+                width: 98%;
             }
-            .pix-desc {
+
+            .pix-qrcode {
+                margin: 0.5rem 0 0.3rem 0;
+            }
+
+            .pix-receiver-info {
                 font-size: 0.95rem;
+                padding: 0.6rem 0.2rem;
             }
         }
     </style>
