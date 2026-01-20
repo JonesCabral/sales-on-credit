@@ -1110,6 +1110,7 @@ if (modalJustNoteProductCheckbox && modalSaleAmountInput && modalSaleDescription
 if (searchClients) {
     const filterDebtOnlyCheckbox = document.getElementById('filterDebtOnly');
     const filterArchivedCheckbox = document.getElementById('filterArchived');
+    const filterUnpricedCheckbox = document.getElementById('filterUnpriced');
     
     const applyFilters = () => {
         const searchTerm = searchClients.value.trim().toLowerCase();
@@ -1125,21 +1126,36 @@ if (searchClients) {
             allClients = allClients.filter(client => !client.archived);
         }
         
-        // Se houver busca por nome, desativar filtro de dívida
+        // Se houver busca por nome, desativar outros filtros
         if (searchTerm.length > 0) {
             if (filterDebtOnlyCheckbox) {
                 filterDebtOnlyCheckbox.checked = false;
+            }
+            if (filterUnpricedCheckbox) {
+                filterUnpricedCheckbox.checked = false;
             }
             allClients = allClients.filter(client => 
                 client.name.toLowerCase().includes(searchTerm)
             );
         } else {
-            // Sem busca: aplicar filtro de dívida se checkbox estiver marcado
-            const showDebtOnly = filterDebtOnlyCheckbox?.checked || false;
-            if (showDebtOnly) {
+            // Filtro de produtos sem preço (tem prioridade se marcado)
+            const showUnpricedOnly = filterUnpricedCheckbox?.checked || false;
+            if (showUnpricedOnly) {
+                // Desmarcar filtro de dívida ao marcar produtos sem preço
+                if (filterDebtOnlyCheckbox) {
+                    filterDebtOnlyCheckbox.checked = false;
+                }
                 allClients = allClients.filter(client => 
-                    manager.getClientDebt(client.id) > 0
+                    manager.hasUnpricedNotes(client.id)
                 );
+            } else {
+                // Sem busca: aplicar filtro de dívida se checkbox estiver marcado
+                const showDebtOnly = filterDebtOnlyCheckbox?.checked || false;
+                if (showDebtOnly) {
+                    allClients = allClients.filter(client => 
+                        manager.getClientDebt(client.id) > 0
+                    );
+                }
             }
         }
         
@@ -1155,6 +1171,10 @@ if (searchClients) {
     
     if (filterDebtOnlyCheckbox) {
         filterDebtOnlyCheckbox.addEventListener('change', applyFilters);
+    }
+    
+    if (filterUnpricedCheckbox) {
+        filterUnpricedCheckbox.addEventListener('change', applyFilters);
     }
     
     if (filterArchivedCheckbox) {
