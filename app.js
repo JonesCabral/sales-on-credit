@@ -747,9 +747,9 @@ function shareClientHistory(clientId) {
     if (isPaid) {
         message = `Olá! 😊\n\nSua conta está em dia! Obrigado pela confiança.\n\n🔗 Acompanhe seu histórico:\n${clientUrl}`;
     } else if (isCredit) {
-        message = `Olá! 😊\n\nVocê tem um crédito de R$ ${formatCurrency(Math.abs(debt))} a favor.\n\n🔗 Veja os detalhes:\n${clientUrl}`;
+        message = `Olá! 😊\n\nVocê tem um crédito a favor.\n\n🔗 Veja os detalhes:\n${clientUrl}`;
     } else {
-        message = `Olá! 😊\n\nVocê tem um saldo pendente de R$ ${formatCurrency(debt)}.\n\nQuando puder, ficarei grato se conseguir regularizar.\n\n🔗 Acompanhe sua conta:\n${clientUrl}\n\nObrigado pela compreensão!`;
+        message = `Olá! 😊\n\nVocê tem um saldo pendente que pode ser consultado através do link abaixo.\n\nQuando puder, ficarei grato se conseguir regularizar.\n\n🔗 Acompanhe sua conta:\n${clientUrl}\n\nObrigado pela compreensão!`;
     }
 
     // Tentar usar Web Share API
