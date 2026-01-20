@@ -316,7 +316,7 @@
 
         .pix-card {
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             align-items: center;
             background: #f8fafc;
             border-radius: 12px;
@@ -327,12 +327,14 @@
             max-width: 400px;
             margin-left: auto;
             margin-right: auto;
+            gap: 1.2rem;
         }
 
         .pix-info {
-            width: 100%;
-            text-align: center;
-            margin-bottom: 0.7rem;
+            flex: 1;
+            min-width: 140px;
+            text-align: left;
+            margin-bottom: 0;
         }
 
         .pix-btn {
@@ -363,8 +365,10 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            margin: 0.7rem 0 0.5rem 0;
-            width: 100%;
+            min-width: 140px;
+            width: 180px;
+            height: 180px;
+            margin: 0;
         }
 
         .pix-receiver-info {
@@ -380,8 +384,17 @@
 
         @media (max-width: 700px) {
             .pix-card {
+                flex-direction: column;
+                align-items: center;
                 padding: 1rem 0.3rem 1.2rem 0.3rem;
                 max-width: 98vw;
+                gap: 0.5rem;
+            }
+
+            .pix-info {
+                text-align: center;
+                margin-bottom: 0.5rem;
+                width: 100%;
             }
 
             .pix-btn {
@@ -391,6 +404,10 @@
             }
 
             .pix-qrcode {
+                width: 80vw;
+                height: 80vw;
+                min-width: 120px;
+                max-width: 350px;
                 margin: 0.5rem 0 0.3rem 0;
             }
 
