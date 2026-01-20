@@ -742,9 +742,6 @@ function shareClientHistory(clientId) {
     const baseUrl = window.location.origin + window.location.pathname.replace('index.html', '');
     const clientUrl = `${baseUrl}client-view.html?u=${encodeURIComponent(manager.userId)}&c=${encodeURIComponent(clientId)}`;
 
-    // Chave PIX para pagamento
-    const pixKey = '00020126580014BR.GOV.BCB.PIX013617f7af49-8c45-42b3-af8d-08ced311b87f5204000053039865802BR5919Jones Vieira Cabral6009SAO PAULO621405108GFi9k39TN63044602';
-
     // Mensagem para compartilhar (educada e breve)
     let message = '';
     if (isPaid) {
@@ -752,7 +749,7 @@ function shareClientHistory(clientId) {
     } else if (isCredit) {
         message = `Olá! 😊\n\nVocê tem um crédito a favor.\n\n🔗 Veja os detalhes:\n${clientUrl}`;
     } else {
-        message = `💳 Pagamento via PIX (Copia e Cola):\n${pixKey}\n\nOlá! 😊\nVocê tem um saldo pendente. Quando puder, ficarei grato se conseguir regularizar.\n\n🔗 Veja sua conta detalhada:\n${clientUrl}\n\nObrigado pela compreensão!`;
+        message = `Olá! 😊\nVocê tem um saldo pendente. Quando puder, ficarei grato se conseguir regularizar.\n\n🔗 Veja sua conta detalhada:\n${clientUrl}\n\nObrigado pela compreensão!`;
     }
 
     // Tentar usar Web Share API
