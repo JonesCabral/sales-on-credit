@@ -314,19 +314,33 @@
             gap: 1rem;
         }
 
+        .pix-card {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 2rem;
+            justify-content: center;
+        }
+
         .pix-info {
-            text-align: center;
+            flex: 1 1 220px;
+            min-width: 180px;
+            max-width: 320px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
         }
 
         .pix-btn {
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            padding: 0.5rem 1.2rem;
+            border-radius: 8px;
             border: none;
-            background: var(--primary-color);
+            background: #2563eb;
             color: #fff;
             cursor: pointer;
-            font-size: 1rem;
-            transition: background 0.3s;
+            font-family: inherit;
+            font-size: 1.1rem;
         }
 
         .pix-btn:hover {
@@ -334,9 +348,9 @@
         }
 
         .pix-desc {
-            font-size: 0.9rem;
-            color: var(--text-secondary);
-            margin-top: 0.5rem;
+            font-size: 1rem;
+            color: #64748b;
+            margin-bottom: 1rem;
         }
 
         .pix-qrcode {
@@ -347,12 +361,29 @@
             align-items: center;
         }
 
-        @media (max-width: 600px) {
+        @media (max-width: 700px) {
+            .pix-card {
+                flex-direction: column;
+                gap: 1.2rem;
+                align-items: stretch;
+            }
+            .pix-info {
+                align-items: stretch;
+                max-width: 100%;
+            }
             .pix-qrcode {
-                min-width: 0;
                 width: 100%;
                 max-width: 95vw;
                 justify-content: center;
+            }
+        }
+        @media (max-width: 400px) {
+            .pix-btn {
+                font-size: 1rem;
+                padding: 0.4rem 0.8rem;
+            }
+            .pix-desc {
+                font-size: 0.95rem;
             }
         }
     </style>
@@ -564,7 +595,7 @@
             if (!isPaid && !isCredit) {
                 pixDiv.innerHTML = `
                     <h2 class=\"section-title\">💳 Pagamento via PIX</h2>
-                    <div class=\"pix-flex\">
+                    <div class=\"pix-card\">
                         <div class=\"pix-info\">
                             <button id=\"copyPixBtn\" class=\"pix-btn\">Copiar chave PIX</button>
                             <div class=\"pix-desc\">Clique no botão para copiar a chave ou use o QR Code abaixo no app do seu banco.</div>
@@ -590,8 +621,8 @@
                     const qrDiv = document.getElementById('pixQrCode');
                     if (qrDiv) {
                         qrDiv.innerHTML = '';
-                        let qrSize = 140;
-                        if (window.innerWidth <= 600) {
+                        let qrSize = 180;
+                        if (window.innerWidth <= 700) {
                             qrSize = Math.min(window.innerWidth * 0.9, 350);
                         }
                         new QRCode(qrDiv, {
