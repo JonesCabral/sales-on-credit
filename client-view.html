@@ -305,6 +305,66 @@
                 font-size: 1.75rem;
             }
         }
+
+        /* Estilos adicionais para o bloco PIX */
+        .pix-flex {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .pix-info {
+            text-align: center;
+        }
+
+        .pix-btn {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: none;
+            background: var(--primary-color);
+            color: #fff;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.3s;
+        }
+
+        .pix-btn:hover {
+            background: #1d4ed8;
+        }
+
+        .pix-desc {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+        }
+
+        .pix-qrcode {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-width: 120px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 600px) {
+            .pix-flex {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 1rem;
+            }
+
+            .pix-info {
+                align-items: stretch;
+                max-width: 100%;
+            }
+
+            .pix-qrcode {
+                margin: 0 auto;
+                display: flex;
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 <body>
@@ -510,15 +570,12 @@
             if (!isPaid && !isCredit) {
                 pixDiv.innerHTML = `
                     <h2 class=\"section-title\">💳 Pagamento via PIX</h2>
-                    <div style=\"display: flex; flex-wrap: wrap; align-items: center; gap: 1.5rem; justify-content: center;\">
-                        <div style=\"flex: 1 1 220px; min-width: 180px; max-width: 320px;\">
-                            <div style=\"background: #f9fafb; padding: 0.75rem 1rem; border-radius: 8px; font-family: monospace; font-size: 0.98rem; overflow-x: auto; white-space: nowrap; margin-bottom: 0.5rem;\">
-                                <span id=\"pixKeyText\">${pixKey}</span>
-                            </div>
-                            <button id=\"copyPixBtn\" style=\"margin-bottom: 0.5rem; padding: 0.25rem 0.75rem; border-radius: 6px; border: none; background: #2563eb; color: #fff; cursor: pointer;\">Copiar chave</button>
-                            <div style=\"font-size: 0.95rem; color: #64748b;\">Copie a chave acima ou use o QR Code ao lado no app do seu banco.</div>
+                    <div class=\"pix-flex\">
+                        <div class=\"pix-info\">
+                            <button id=\"copyPixBtn\" class=\"pix-btn\">Copiar chave PIX</button>
+                            <div class=\"pix-desc\">Clique no botão para copiar a chave ou use o QR Code abaixo no app do seu banco.</div>
                         </div>
-                        <div id=\"pixQrCode\" style=\"min-width: 120px; margin: 0 auto;\"></div>
+                        <div id=\"pixQrCode\" class=\"pix-qrcode\"></div>
                     </div>
                 `;
                 setTimeout(() => {
@@ -526,8 +583,8 @@
                     if (btn) {
                         btn.onclick = function() {
                             navigator.clipboard.writeText(pixKey);
-                            btn.textContent = 'Copiado!';
-                            setTimeout(() => btn.textContent = 'Copiar chave', 1500);
+                            btn.textContent = 'Chave copiada!';
+                            setTimeout(() => btn.textContent = 'Copiar chave PIX', 1500);
                         };
                     }
                     // Gerar QR Code
@@ -536,8 +593,8 @@
                         qrDiv.innerHTML = '';
                         new QRCode(qrDiv, {
                             text: pixKey,
-                            width: 120,
-                            height: 120,
+                            width: 140,
+                            height: 140,
                             colorDark : '#000000',
                             colorLight : '#ffffff',
                             correctLevel : QRCode.CorrectLevel.M
