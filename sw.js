@@ -37,34 +37,55 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// Fetch Event
+// Fetch Event com estratégia híbrida
 self.addEventListener('fetch', event => {
+  const { request } = event;
+  const url = new URL(request.url);
+  
+  // Network First para Firebase (sempre dados frescos)
+  if (url.hostname.includes('firebase') || url.hostname.includes('firebaseio')) {
+    event.respondWith(
+      fetch(request)
+        .catch(() => {
+          return new Response(
+            JSON.stringify({ error: 'Offline' }),
+            { headers: { 'Content-Type': 'application/json' } }
+          );
+        })
+    );
+    return;
+  }
+  
+  // Cache First para assets estáticos
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Cache hit - retorna a resposta do cache
-        if (response) {
-          return response;
+    caches.match(request)
+      .then(cachedResponse => {
+        if (cachedResponse) {
+          // Retorna do cache, mas atualiza em background
+          event.waitUntil(
+            fetch(request).then(networkResponse => {
+              if (networkResponse && networkResponse.status === 200) {
+                return caches.open(CACHE_NAME).then(cache => {
+                  cache.put(request, networkResponse.clone());
+                });
+              }
+            }).catch(() => {})
+          );
+          return cachedResponse;
         }
         
-        // Clone do request
-        const fetchRequest = event.request.clone();
-        
-        return fetch(fetchRequest).then(response => {
-          // Checa se é uma resposta válida
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response;
+        // Buscar da rede e cachear
+        return fetch(request).then(networkResponse => {
+          if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+            return networkResponse;
           }
           
-          // Clone da resposta
-          const responseToCache = response.clone();
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(request, responseToCache);
+          });
           
-          caches.open(CACHE_NAME)
-            .then(cache => {
-              cache.put(event.request, responseToCache);
-            });
-          
-          return response;
+          return networkResponse;
         });
       })
   );

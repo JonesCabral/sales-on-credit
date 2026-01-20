@@ -4,6 +4,8 @@ import { getDatabase, ref, set, get, remove, onValue } from 'https://www.gstatic
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
 // Configuração do Firebase
+// IMPORTANTE: Para produção, mova as configurações para variáveis de ambiente
+// e proteja com Firebase App Check (https://firebase.google.com/docs/app-check)
 const firebaseConfig = {
     apiKey: "AIzaSyAmtxBsBUy67kuk50M25SPNl6AOhYFeDuY",
     authDomain: "vendas-fiadas.firebaseapp.com",
@@ -74,6 +76,7 @@ class SalesManager {
         // Cancelar listener anterior se existir
         if (this.unsubscribe) {
             this.unsubscribe();
+            this.unsubscribe = null;
         }
         
         const dbRef = ref(database, `users/${this.userId}/clients`);
@@ -83,7 +86,18 @@ class SalesManager {
             this.clients = snapshot.val() || {};
             console.log('Dados carregados do Firebase:', this.clients);
             updateClientsList();
+        }, (error) => {
+            console.error('Erro ao carregar dados:', error);
+            showToast('Erro ao carregar dados. Verifique sua conexão.', 'error');
         });
+    }
+
+    // Método para limpar recursos
+    cleanup() {
+        if (this.unsubscribe) {
+            this.unsubscribe();
+            this.unsubscribe = null;
+        }
     }
 
     async saveData() {
@@ -100,17 +114,15 @@ class SalesManager {
         if (!this.userId) {
             throw new Error('Usuário não autenticado');
         }
-        // Validar e sanitizar nome
-        const sanitizedName = name.trim();
-        if (!sanitizedName) {
-            throw new Error('Nome do cliente não pode estar vazio');
-        }
-        if (sanitizedName.length < 2) {
-            throw new Error('Nome deve ter pelo menos 2 caracteres');
-        }
-        if (sanitizedName.length > 100) {
-            throw new Error('Nome não pode ter mais de 100 caracteres');
-        }
+        
+        // Validar e sanitizar nome usando utility
+        const sanitizedName = ValidationUtils.validateText(name, {
+            minLength: 2,
+            maxLength: 100,
+            required: true,
+            fieldName: 'Nome do cliente'
+        });
+        
         // Verificar se já existe cliente com esse nome
         const existingClient = Object.values(this.clients).find(
             c => c.name.toLowerCase() === sanitizedName.toLowerCase()
@@ -118,6 +130,7 @@ class SalesManager {
         if (existingClient) {
             throw new Error('Já existe um cliente com este nome');
         }
+        
         const id = Date.now().toString();
         this.clients[id] = {
             id,
@@ -136,28 +149,19 @@ class SalesManager {
             throw new Error('Cliente não encontrado');
         }
         
-        // Validar valor (pode ser 0 para anotações de produtos)
-        const numericAmount = parseFloat(amount) || 0;
-        if (isNaN(numericAmount)) {
-            throw new Error('Valor da venda deve ser um número válido');
-        }
-        if (numericAmount < 0) {
-            throw new Error('Valor da venda não pode ser negativo');
-        }
-        if (numericAmount > 1000000) {
-            throw new Error('Valor da venda não pode ser maior que R$ 1.000.000,00');
-        }
+        // Validar valor usando utility
+        const numericAmount = ValidationUtils.validateAmount(amount, {
+            min: 0,
+            max: 1000000,
+            allowZero: true
+        });
         
         // Validar e sanitizar descrição
-        const sanitizedDescription = description.trim();
-        if (sanitizedDescription.length > 200) {
-            throw new Error('Descrição não pode ter mais de 200 caracteres');
-        }
-        
-        // Se o valor é 0, a descrição é obrigatória
-        if (numericAmount === 0 && !sanitizedDescription) {
-            throw new Error('Para anotações sem valor, a descrição do produto é obrigatória');
-        }
+        const sanitizedDescription = ValidationUtils.validateText(description, {
+            maxLength: 200,
+            required: numericAmount === 0,
+            fieldName: 'Descrição'
+        });
         
         // Garantir que sales existe
         if (!this.clients[clientId].sales) {
@@ -181,17 +185,12 @@ class SalesManager {
             throw new Error('Cliente não encontrado');
         }
         
-        // Validar valor
-        const numericAmount = parseFloat(amount);
-        if (isNaN(numericAmount)) {
-            throw new Error('Valor do pagamento deve ser um número válido');
-        }
-        if (numericAmount <= 0) {
-            throw new Error('Valor do pagamento deve ser maior que zero');
-        }
-        if (numericAmount > 1000000) {
-            throw new Error('Valor do pagamento não pode ser maior que R$ 1.000.000,00');
-        }
+        // Validar valor usando utility
+        const numericAmount = ValidationUtils.validateAmount(amount, {
+            min: 0,
+            max: 1000000,
+            allowZero: false
+        });
         
         // Garantir que sales existe
         if (!this.clients[clientId].sales) {
@@ -486,6 +485,44 @@ function showConfirm(title, message) {
         confirmCancelBtn.addEventListener('click', handleCancel);
     });
 }
+
+// Utilitários de validação
+const ValidationUtils = {
+    validateAmount(amount, options = {}) {
+        const { min = 0, max = 1000000, allowZero = false } = options;
+        const numericAmount = parseFloat(amount);
+        
+        if (isNaN(numericAmount)) {
+            throw new Error('O valor deve ser um número válido');
+        }
+        if (!allowZero && numericAmount <= min) {
+            throw new Error(`O valor deve ser maior que R$ ${min.toFixed(2)}`);
+        }
+        if (allowZero && numericAmount < min) {
+            throw new Error(`O valor não pode ser negativo`);
+        }
+        if (numericAmount > max) {
+            throw new Error(`O valor não pode ser maior que R$ ${max.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`);
+        }
+        return numericAmount;
+    },
+    
+    validateText(text, options = {}) {
+        const { minLength = 0, maxLength = 200, required = false, fieldName = 'Campo' } = options;
+        const trimmed = (text || '').trim();
+        
+        if (required && !trimmed) {
+            throw new Error(`${fieldName} é obrigatório`);
+        }
+        if (trimmed && trimmed.length < minLength) {
+            throw new Error(`${fieldName} deve ter pelo menos ${minLength} caracteres`);
+        }
+        if (trimmed.length > maxLength) {
+            throw new Error(`${fieldName} não pode ter mais de ${maxLength} caracteres`);
+        }
+        return trimmed;
+    }
+};
 
 function formatDescription(text) {
     // Sanitizar e preservar quebras de linha convertendo \n para <br>
@@ -968,6 +1005,8 @@ onAuthStateChanged(auth, (user) => {
         if (userEmailSpan) userEmailSpan.textContent = user.email || '';
     } else {
         currentUser = null;
+        // Limpar listeners ao fazer logout
+        manager.cleanup();
         if (loginScreen) loginScreen.style.display = 'flex';
         if (appScreen) appScreen.style.display = 'none';
     }
@@ -1409,17 +1448,6 @@ if (archiveClientBtn) {
                     showToast(getDatabaseErrorMessage(error, `Erro ao ${action} cliente. Tente novamente.`), 'error');
                 }
             }
-        }
-    });
-}
-
-// Compartilhar histórico do cliente
-if (shareHistoryBtn) {
-    shareHistoryBtn.addEventListener('click', () => {
-        if (manager.currentClientId) {
-            shareClientHistory(manager.currentClientId);
-        } else {
-            showToast('Nenhum cliente selecionado.', 'error');
         }
     });
 }
