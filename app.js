@@ -1078,6 +1078,39 @@ if (logoutBtn) {
     });
 }
 
+// Limpar Cache
+const clearCacheBtn = document.getElementById('clearCacheBtn');
+if (clearCacheBtn) {
+    clearCacheBtn.addEventListener('click', async () => {
+        try {
+            // Limpar localStorage
+            localStorage.clear();
+            
+            // Limpar Service Worker cache
+            if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                await Promise.all(
+                    cacheNames.map(cacheName => caches.delete(cacheName))
+                );
+            }
+            
+            // Desregistrar Service Worker
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                await Promise.all(
+                    registrations.map(registration => registration.unregister())
+                );
+            }
+            
+            showToast('Cache limpo com sucesso! Recarregando...', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } catch (error) {
+            if (IS_DEV) console.error('Erro ao limpar cache:', error);
+            showToast('Erro ao limpar cache.', 'error');
+        }
+    });
+}
+
 
 
 // Event Listeners - App
