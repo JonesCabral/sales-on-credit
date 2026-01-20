@@ -356,7 +356,7 @@ class SalesManager {
             // Excluir clientes arquivados do cálculo
             if (this.clients[clientId].archived) return total;
             const debt = this.getClientDebt(clientId);
-            // Somar apenas débitos positivos
+            // Somar apenas dívidas positivas
             return debt > 0 ? total + debt : total;
         }, 0);
     }
@@ -366,7 +366,7 @@ class SalesManager {
             // Excluir clientes arquivados do cálculo
             if (this.clients[clientId].archived) return total;
             const debt = this.getClientDebt(clientId);
-            // Somar apenas créditos (débitos negativos)
+            // Somar apenas créditos (dívidas negativas)
             return debt < 0 ? total + Math.abs(debt) : total;
         }, 0);
     }
@@ -615,7 +615,7 @@ function updateClientsList() {
         );
     }
     
-    // Ordenar por débito (maior primeiro)
+    // Ordenar por dívida (maior primeiro)
     filteredClients.sort((a, b) => manager.getClientDebt(b.id) - manager.getClientDebt(a.id));
 
     renderClientsList(filteredClients);
@@ -673,7 +673,7 @@ function renderClientsList(clients) {
 
         let statusClass = '';
         let statusIcon = '';
-        let label = 'Débito: ';
+        let label = 'Dívida: ';
         let noteIndicator = '';
         
         if (isPaid) {
@@ -827,7 +827,7 @@ function openClientModal(clientId) {
         modalDebtContainer.classList.add('has-credit');
         modalDebtContainer.innerHTML = `Crédito a favor: <strong>R$ <span id="modalDebt">${formatCurrency(Math.abs(debt))}</span></strong>`;
     } else {
-        modalDebtContainer.innerHTML = `Débito total: <strong>R$ <span id="modalDebt">${formatCurrency(debt)}</span></strong>`;
+        modalDebtContainer.innerHTML = `Dívida total: <strong>R$ <span id="modalDebt">${formatCurrency(debt)}</span></strong>`;
     }
     
     if (editClientNameInput) {
@@ -1208,7 +1208,7 @@ if (searchClients) {
             }
         }
         
-        // Ordenar por débito (maior primeiro)
+        // Ordenar por dívida (maior primeiro)
         const sorted = [...allClients].sort((a, b) => 
             manager.getClientDebt(b.id) - manager.getClientDebt(a.id)
         );
@@ -1262,7 +1262,7 @@ if (clientSearch) {
                 .sort((a, b) => a.name.localeCompare(b.name))
                 .map(client => {
                     const debt = manager.getClientDebt(client.id);
-                    const debtText = debt > 0 ? `Débito: R$ ${formatCurrency(debt)}` : 'Sem débitos';
+                    const debtText = debt > 0 ? `Dívida: R$ ${formatCurrency(debt)}` : 'Sem dívidas';
                     return `
                         <div class="suggestion-item" data-client-id="${client.id}">
                             <div>${sanitizeHTML(client.name)}</div>
@@ -1495,8 +1495,8 @@ if (archiveClientBtn) {
             const confirmed = await showConfirm(
                 actionTitle,
                 isArchived 
-                    ? `Tem certeza que deseja desarquivar ${client.name}? O cliente voltará a aparecer na lista principal e seus débitos serão contabilizados no balanço geral.`
-                    : `Tem certeza que deseja arquivar ${client.name}? O cliente será ocultado da lista principal e seus débitos não serão contabilizados no balanço geral.`
+                    ? `Tem certeza que deseja desarquivar ${client.name}? O cliente voltará a aparecer na lista principal e suas dívidas serão contabilizadas no balanço geral.`
+                    : `Tem certeza que deseja arquivar ${client.name}? O cliente será ocultado da lista principal e suas dívidas não serão contabilizadas no balanço geral.`
             );
             
             if (confirmed) {
