@@ -840,10 +840,18 @@ function openClientModal(clientId) {
     if (sales.length === 0) {
         salesHistory.innerHTML = '<p class="empty-message">Nenhuma venda registrada.</p>';
     } else {
-        // Ordenar por data (mais recente primeiro)
-        const sortedSales = [...sales].sort((a, b) => 
-            new Date(b.date) - new Date(a.date)
-        );
+        // Ordenar: anotações sem valor primeiro, depois por data (mais recente primeiro)
+        const sortedSales = [...sales].sort((a, b) => {
+            const aIsNote = a.isNote || (a.type === 'sale' && a.amount === 0);
+            const bIsNote = b.isNote || (b.type === 'sale' && b.amount === 0);
+            
+            // Anotações sem valor sempre no topo
+            if (aIsNote && !bIsNote) return -1;
+            if (!aIsNote && bIsNote) return 1;
+            
+            // Se ambos são anotações ou ambos não são, ordenar por data
+            return new Date(b.date) - new Date(a.date);
+        });
 
         salesHistory.innerHTML = sortedSales.map(sale => {
             const isNote = sale.isNote || (sale.type === 'sale' && sale.amount === 0);
