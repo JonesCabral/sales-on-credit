@@ -523,6 +523,16 @@ input, select, textarea {
     appearance: none;
 }
 
+/* Manter aparência nativa dos checkboxes */
+input[type="checkbox"] {
+    -webkit-appearance: auto;
+    -moz-appearance: auto;
+    appearance: auto;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+}
+
 textarea {
     resize: vertical;
     min-height: 80px;
