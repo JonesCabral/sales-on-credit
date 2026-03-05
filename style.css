@@ -921,17 +921,31 @@ input:focus, select:focus, textarea:focus {
 }
 
 .modal-header {
-    background: linear-gradient(135deg, #1e40af 0%, #4f46e5 50%, #7c3aed 100%);
+    background: linear-gradient(135deg, var(--primary-color) 0%, #1e40af 50%, #7c3aed 100%);
     padding: 1.5rem 2rem;
     position: relative;
     flex-shrink: 0;
     z-index: 2;
+    overflow: hidden;
+}
+
+.modal-header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
 }
 
 .modal-fixed-section {
     flex-shrink: 0;
     padding: 1rem 2rem;
-    background: linear-gradient(180deg, #312e81 0%, var(--card-bg) 100%);
+    background: var(--card-bg);
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.06);
     border-bottom: 1px solid var(--border-color);
     z-index: 1;
 }
@@ -1102,27 +1116,25 @@ input:focus, select:focus, textarea:focus {
 }
 
 .modal-debt {
-    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
     color: white;
-    padding: 1rem 1.5rem;
-    border-radius: 12px;
+    padding: 0.875rem 1.5rem;
+    border-radius: 10px;
     text-align: center;
     margin: 0;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     font-weight: 700;
-    box-shadow: 0 4px 16px rgba(185, 28, 28, 0.35);
-    letter-spacing: 0.02em;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.25);
 }
 
 .modal-debt.has-credit {
-    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
-    box-shadow: 0 4px 16px rgba(21, 128, 61, 0.35);
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    box-shadow: 0 2px 8px rgba(22, 163, 74, 0.25);
 }
 
 .modal-debt.is-paid {
-    background: linear-gradient(135deg, #64748b, #475569);
-    box-shadow: 0 4px 12px rgba(71, 85, 105, 0.3);
+    background: linear-gradient(135deg, #94a3b8, #64748b);
+    box-shadow: 0 2px 8px rgba(100, 116, 139, 0.25);
 }
 
 .sales-history {
@@ -2030,11 +2042,12 @@ input:focus, select:focus, textarea:focus {
 }
 
 [data-theme="dark"] .modal-header {
-    background: linear-gradient(135deg, #1e3a5f 0%, #312e81 50%, #4c1d95 100%);
+    background: linear-gradient(135deg, #1e3a5f 0%, #1e293b 50%, #312e81 100%);
 }
 
 [data-theme="dark"] .modal-fixed-section {
-    background: linear-gradient(180deg, #1e1b4b 0%, var(--card-bg) 100%);
+    background: var(--card-bg);
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2);
     border-bottom-color: #334155;
 }
 
