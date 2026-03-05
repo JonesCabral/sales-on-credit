@@ -46,6 +46,18 @@ const APP_VERSION = '1.8.0';
         if (loginVersionElement) {
             loginVersionElement.textContent = `Versão ${APP_VERSION}`;
         }
+
+        // Theme toggle
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => {
+                const html = document.documentElement;
+                const currentTheme = html.getAttribute('data-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                html.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+            });
+        }
     });
 })();
 
