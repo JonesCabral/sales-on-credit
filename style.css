@@ -910,17 +910,30 @@ input:focus, select:focus, textarea:focus {
     padding: 0;
     border-radius: 16px;
     max-width: 600px;
+    max-height: 94vh;
     box-shadow: var(--shadow-xl);
     animation: slideDown var(--transition-normal);
     -webkit-overflow-scrolling: touch;
     will-change: transform, opacity;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .modal-header {
     background: linear-gradient(135deg, var(--primary-color) 0%, #7c3aed 100%);
     padding: 1.5rem 2rem;
     position: relative;
+    flex-shrink: 0;
+    z-index: 2;
+}
+
+.modal-body {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
 }
 
 .modal-header .close {
@@ -1225,6 +1238,7 @@ input:focus, select:focus, textarea:focus {
     flex-wrap: wrap;
     background: var(--background);
     border-radius: 0 0 16px 16px;
+    flex-shrink: 0;
 }
 
 .modal-actions .btn {
@@ -1463,7 +1477,6 @@ input:focus, select:focus, textarea:focus {
         max-height: 100vh;
         height: 100vh;
         border-radius: 0;
-        overflow-y: auto;
     }
 
     .modal-header {
