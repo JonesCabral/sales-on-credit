@@ -569,9 +569,9 @@ form {
     top: calc(100% + 4px);
     left: 0;
     right: 0;
-    background: white;
+    background: var(--card-bg);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: 10px;
     max-height: 200px;
     overflow-y: auto;
     box-shadow: var(--shadow-lg);
