@@ -784,15 +784,15 @@
             const pixKey = '00020126580014BR.GOV.BCB.PIX013617f7af49-8c45-42b3-af8d-08ced311b87f5204000053039865802BR5919Jones Vieira Cabral6009SAO PAULO621405108GFi9k39TN63044602';
             let pixDiv = document.getElementById('pixPaymentDiv');
             const contentScreenDiv = document.getElementById('contentScreen');
-            const statusCard = contentScreenDiv.querySelector('.status-card');
+            const pixStatusCard = contentScreenDiv.querySelector('.status-card');
             if (!pixDiv) {
                 pixDiv = document.createElement('div');
                 pixDiv.id = 'pixPaymentDiv';
                 pixDiv.className = 'card';
             }
             // Garante que o card do PIX fique logo após o status-card
-            if (statusCard && statusCard.nextSibling !== pixDiv) {
-                contentScreenDiv.insertBefore(pixDiv, statusCard.nextSibling);
+            if (pixStatusCard && pixStatusCard.nextSibling !== pixDiv) {
+                contentScreenDiv.insertBefore(pixDiv, pixStatusCard.nextSibling);
             }
             if (!isPaid && !isCredit) {
                 pixDiv.innerHTML = `
