@@ -67,6 +67,13 @@ body.loaded {
     overflow: auto;
 }
 
+body.modal-open {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+    touch-action: none;
+}
+
 /* Loading Screen */
 .loading-screen {
     position: fixed;
@@ -888,6 +895,8 @@ input:focus, select:focus, textarea:focus {
     overflow: auto;
     background-color: rgba(0, 0, 0, 0.5);
     animation: fadeIn 0.3s;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
 }
 
 @keyframes fadeIn {

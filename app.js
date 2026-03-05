@@ -926,6 +926,9 @@ function openClientModal(clientId) {
     }
 
     modal.style.display = 'block';
+    document.body.classList.add('modal-open');
+    document.body.dataset.scrollY = window.scrollY;
+    document.body.style.top = `-${window.scrollY}px`;
     
     // Focus trap: focar no primeiro elemento interativo do modal
     const firstFocusable = modal.querySelector('button, input, textarea, select, [tabindex]:not([tabindex="-1"])');
@@ -935,6 +938,10 @@ function openClientModal(clientId) {
 // Fechar modal
 function closeClientModal() {
     modal.style.display = 'none';
+    document.body.classList.remove('modal-open');
+    const scrollY = document.body.dataset.scrollY || '0';
+    document.body.style.top = '';
+    window.scrollTo(0, parseInt(scrollY));
     manager.currentClientId = null;
     paymentForm.reset();
     if (modalAddSaleForm) {
@@ -974,6 +981,7 @@ function openEditSaleModal(saleId) {
     
     if (editSaleModal) {
         editSaleModal.style.display = 'block';
+        document.body.classList.add('modal-open');
     }
 }
 
@@ -981,6 +989,13 @@ function openEditSaleModal(saleId) {
 function closeEditSaleModalFunc() {
     if (editSaleModal) {
         editSaleModal.style.display = 'none';
+    }
+    // Restore body scroll only if client modal is also closed
+    if (modal.style.display === 'none') {
+        document.body.classList.remove('modal-open');
+        const scrollY = document.body.dataset.scrollY || '0';
+        document.body.style.top = '';
+        window.scrollTo(0, parseInt(scrollY));
     }
     currentEditingSaleId = null;
     if (editSaleForm) {

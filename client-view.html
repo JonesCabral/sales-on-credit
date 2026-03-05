@@ -14,6 +14,8 @@
 
         :root {
             --primary-color: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-light: #3b82f6;
             --success-color: #16a34a;
             --danger-color: #dc2626;
             --background: #f1f5f9;
@@ -22,6 +24,10 @@
             --text-secondary: #64748b;
             --border-color: #e2e8f0;
             --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.15);
+            --transition-fast: 0.2s;
+            --transition-normal: 0.3s;
         }
 
         body {
@@ -30,6 +36,8 @@
             color: var(--text-primary);
             line-height: 1.6;
             padding: 1rem;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         .container {
@@ -37,53 +45,119 @@
             margin: 0 auto;
         }
 
+        /* Header - matching main site gradient */
         .header {
             text-align: center;
             margin-bottom: 2rem;
             padding: 2rem 1.5rem;
-            background: linear-gradient(135deg, var(--primary-color), #1d4ed8);
-            border-radius: 12px;
-            box-shadow: var(--shadow);
+            background: linear-gradient(135deg, var(--primary-color) 0%, #1e40af 50%, #7c3aed 100%);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(37, 99, 235, 0.3);
             color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
         }
 
         .header h1 {
             font-size: 1.8rem;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.25rem;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            position: relative;
+            z-index: 1;
         }
 
         .header .subtitle {
-            font-size: 0.9rem;
-            opacity: 0.9;
+            font-size: 0.85rem;
+            opacity: 0.8;
+            font-weight: 400;
+            position: relative;
+            z-index: 1;
         }
 
+        /* Cards */
         .card {
             background: var(--card-bg);
-            border-radius: 12px;
+            border-radius: 16px;
             padding: 1.5rem;
             margin-bottom: 1.5rem;
             box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            animation: fadeInUp 0.4s ease-out;
         }
 
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Status Card */
         .status-card {
             text-align: center;
             padding: 2rem 1.5rem;
+            position: relative;
+            overflow: hidden;
+            border: none;
+            box-shadow: var(--shadow-md);
+        }
+
+        .status-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), #7c3aed);
+        }
+
+        .status-card.debt-status::before {
+            background: linear-gradient(90deg, #ef4444, #f87171);
+        }
+
+        .status-card.credit-status::before {
+            background: linear-gradient(90deg, #16a34a, #4ade80);
+        }
+
+        .status-card.paid-status::before {
+            background: linear-gradient(90deg, #64748b, #94a3b8);
         }
 
         .status-icon {
             font-size: 3rem;
-            margin-bottom: 1rem;
+            margin-bottom: 0.75rem;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
         }
 
         .status-label {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             color: var(--text-secondary);
             margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
         }
 
         .status-value {
             font-size: 2.5rem;
-            font-weight: 700;
+            font-weight: 800;
             margin-bottom: 0.5rem;
         }
 
@@ -100,25 +174,40 @@
         }
 
         .status-text {
-            font-size: 1rem;
+            font-size: 0.95rem;
             color: var(--text-secondary);
         }
 
+        /* Section Title */
         .section-title {
             font-size: 1.2rem;
-            font-weight: 600;
+            font-weight: 700;
             margin-bottom: 1rem;
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            color: var(--text-primary);
         }
 
+        /* Transaction Items */
         .transaction-item {
-            border-left: 3px solid var(--border-color);
-            padding: 1rem;
-            margin-bottom: 1rem;
-            background: var(--background);
-            border-radius: 8px;
+            border-left: 4px solid var(--border-color);
+            padding: 1rem 1.25rem;
+            margin-bottom: 0.75rem;
+            background: var(--card-bg);
+            border-radius: 12px;
+            transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+            border: 1px solid var(--border-color);
+            border-left-width: 4px;
+        }
+
+        .transaction-item:hover {
+            transform: translateX(3px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .transaction-item:last-child {
+            margin-bottom: 0;
         }
 
         .transaction-item.sale {
@@ -142,7 +231,7 @@
         }
 
         .transaction-amount {
-            font-size: 1.2rem;
+            font-size: 1.15rem;
             font-weight: 700;
         }
 
@@ -166,18 +255,21 @@
             font-style: italic;
         }
 
+        /* Empty State */
         .empty-state {
             text-align: center;
-            padding: 2rem;
+            padding: 3rem 2rem;
             color: var(--text-secondary);
         }
 
         .empty-state-icon {
             font-size: 3rem;
             margin-bottom: 1rem;
-            opacity: 0.5;
+            opacity: 0.4;
+            animation: pulse 3s ease-in-out infinite;
         }
 
+        /* Loading */
         .loading {
             text-align: center;
             padding: 3rem;
@@ -185,11 +277,12 @@
         }
 
         .error {
-            background: #fee;
+            background: #fef2f2;
             color: var(--danger-color);
-            padding: 1rem;
-            border-radius: 8px;
+            padding: 1.5rem;
+            border-radius: 12px;
             text-align: center;
+            border: 1px solid #fecaca;
         }
 
         .refresh-info {
@@ -205,10 +298,11 @@
         }
 
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.05); }
         }
 
+        /* Footer */
         .footer {
             text-align: center;
             padding: 2rem 1rem;
@@ -216,12 +310,13 @@
             font-size: 0.85rem;
         }
 
+        /* Spinner */
         .spinner {
-            border: 3px solid rgba(0, 0, 0, 0.1);
+            border: 4px solid rgba(37, 99, 235, 0.15);
             border-radius: 50%;
-            border-top: 3px solid var(--primary-color);
-            width: 40px;
-            height: 40px;
+            border-top: 4px solid var(--primary-color);
+            width: 44px;
+            height: 44px;
             animation: spin 1s linear infinite;
             margin: 0 auto 1rem;
         }
@@ -231,7 +326,114 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Responsividade Mobile */
+        /* PIX Section */
+        .pix-card {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            background: var(--background);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin: 0.75rem 0;
+            width: 100%;
+            gap: 1.25rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .pix-info {
+            flex: 1;
+            min-width: 140px;
+            text-align: left;
+        }
+
+        .pix-btn {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 0.7rem 1.2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 0.75rem;
+            width: 100%;
+            max-width: 260px;
+            transition: all var(--transition-fast);
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+        }
+
+        .pix-btn:hover {
+            background: linear-gradient(135deg, var(--primary-light), var(--primary-color));
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+        }
+
+        .pix-btn:active {
+            transform: translateY(0);
+        }
+
+        .pix-desc {
+            font-size: 0.93rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .pix-qrcode {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-width: 140px;
+            width: 180px;
+            height: 180px;
+            background: white;
+            border-radius: 12px;
+            padding: 8px;
+            box-shadow: var(--shadow);
+        }
+
+        .pix-receiver-info {
+            background: var(--background);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-top: 1rem;
+            text-align: center;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            border: 1px solid var(--border-color);
+        }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .pix-card {
+                flex-direction: column;
+                align-items: center;
+                padding: 1rem;
+                gap: 0.75rem;
+            }
+
+            .pix-info {
+                text-align: center;
+                width: 100%;
+            }
+
+            .pix-btn {
+                font-size: 0.97rem;
+                padding: 0.65rem 0.7rem;
+                width: 100%;
+                max-width: 100%;
+            }
+
+            .pix-qrcode {
+                width: min(80vw, 280px);
+                height: min(80vw, 280px);
+                min-width: 120px;
+            }
+
+            .pix-receiver-info {
+                font-size: 0.9rem;
+            }
+        }
+
         @media (max-width: 600px) {
             body {
                 padding: 0.75rem;
@@ -239,14 +441,16 @@
 
             .header {
                 padding: 1.5rem 1rem;
+                border-radius: 12px;
             }
 
             .header h1 {
-                font-size: 1.5rem;
+                font-size: 1.4rem;
             }
 
             .card {
                 padding: 1.25rem;
+                border-radius: 12px;
             }
 
             .status-card {
@@ -255,6 +459,10 @@
 
             .status-value {
                 font-size: 2rem;
+            }
+
+            .transaction-item {
+                padding: 0.875rem 1rem;
             }
         }
 
@@ -266,10 +474,11 @@
 
             .header {
                 padding: 1.25rem 0.875rem;
+                border-radius: 10px;
             }
 
             .header h1 {
-                font-size: 1.25rem;
+                font-size: 1.2rem;
             }
 
             .card {
@@ -285,7 +494,6 @@
             }
         }
 
-        /* Landscape Mobile */
         @media (max-height: 500px) and (orientation: landscape) {
             .header {
                 padding: 1rem;
@@ -306,114 +514,73 @@
             }
         }
 
-        /* Estilos adicionais para o bloco PIX */
-        .pix-flex {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1rem;
-        }
+        /* Dark Mode */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --primary-color: #3b82f6;
+                --primary-dark: #2563eb;
+                --primary-light: #60a5fa;
+                --success-color: #22c55e;
+                --danger-color: #ef4444;
+                --background: #0f172a;
+                --card-bg: #1e293b;
+                --text-primary: #f1f5f9;
+                --text-secondary: #94a3b8;
+                --border-color: #334155;
+                --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+                --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
+                --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.4);
+            }
 
-        .pix-card {
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            background: #f8fafc;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-            padding: 1.2rem 1rem 1.5rem 1rem;
-            margin: 0.7rem 0;
-            width: 100%;
-            max-width: 400px;
-            margin-left: auto;
-            margin-right: auto;
-            gap: 1.2rem;
-        }
+            body {
+                color-scheme: dark;
+            }
 
-        .pix-info {
-            flex: 1;
-            min-width: 140px;
-            text-align: left;
-            margin-bottom: 0;
-        }
+            .header {
+                background: linear-gradient(135deg, #1e3a5f 0%, #1e293b 50%, #312e81 100%);
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            }
 
-        .pix-btn {
-            background: #2563eb;
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            padding: 0.6rem 1.2rem;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            margin-bottom: 0.5rem;
-            width: 90%;
-            max-width: 260px;
-        }
+            .status-card {
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            }
 
-        .pix-btn:hover {
-            background: #1d4ed8;
-        }
+            .error {
+                background: #451a1a;
+                color: #fca5a5;
+                border-color: #7f1d1d;
+            }
 
-        .pix-desc {
-            font-size: 0.98rem;
-            color: #334155;
-            margin-bottom: 0.5rem;
-        }
+            .transaction-item {
+                background: var(--card-bg);
+            }
 
-        .pix-qrcode {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-width: 140px;
-            width: 180px;
-            height: 180px;
-            margin: 0;
-        }
+            .transaction-item:hover {
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            }
 
-        .pix-receiver-info {
-            background: #f1f5f9;
-            border-radius: 8px;
-            padding: 0.7rem 0.5rem;
-            margin-top: 1.1rem;
-            text-align: center;
-            color: #1e293b;
-            font-size: 0.98rem;
-            width: 100%;
-        }
-
-        @media (max-width: 700px) {
             .pix-card {
-                flex-direction: column;
-                align-items: center;
-                padding: 1rem 0.3rem 1.2rem 0.3rem;
-                max-width: 98vw;
-                gap: 0.5rem;
-            }
-
-            .pix-info {
-                text-align: center;
-                margin-bottom: 0.5rem;
-                width: 100%;
-            }
-
-            .pix-btn {
-                font-size: 0.97rem;
-                padding: 0.5rem 0.7rem;
-                width: 98%;
+                background: #0f172a;
+                border-color: var(--border-color);
             }
 
             .pix-qrcode {
-                width: 80vw;
-                height: 80vw;
-                min-width: 120px;
-                max-width: 350px;
-                margin: 0.5rem 0 0.3rem 0;
+                background: #ffffff;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
             }
 
             .pix-receiver-info {
-                font-size: 0.95rem;
-                padding: 0.6rem 0.2rem;
+                background: #0f172a;
+                border-color: var(--border-color);
+            }
+
+            .pix-btn {
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+            }
+
+            .spinner {
+                border-color: rgba(59, 130, 246, 0.2);
+                border-top-color: var(--primary-color);
             }
         }
     </style>
@@ -474,7 +641,7 @@
         </div>
 
         <div class="footer">
-            <p>Vivi Variedades - Controle de vendas</p>
+            <p>Vivi Variedades - Controle de vendas fiadas</p>
         </div>
     </div>
 
@@ -552,21 +719,26 @@
             const isPaid = debt === 0;
 
             // Atualizar status
+            const statusCard = document.querySelector('.status-card');
+            statusCard.classList.remove('debt-status', 'credit-status', 'paid-status');
             if (isPaid) {
                 statusIcon.textContent = '✅';
                 statusValue.textContent = 'R$ 0,00';
                 statusValue.className = 'status-value paid';
                 statusText.textContent = 'Sua conta está quitada!';
+                statusCard.classList.add('paid-status');
             } else if (isCredit) {
                 statusIcon.textContent = '💚';
                 statusValue.textContent = `R$ ${formatCurrency(Math.abs(debt))}`;
                 statusValue.className = 'status-value credit';
                 statusText.textContent = 'Você tem crédito a favor!';
+                statusCard.classList.add('credit-status');
             } else {
                 statusIcon.textContent = '💰';
                 statusValue.textContent = `R$ ${formatCurrency(debt)}`;
                 statusValue.className = 'status-value debt';
                 statusText.textContent = 'Saldo devedor';
+                statusCard.classList.add('debt-status');
             }
 
             // Atualizar histórico de transações
@@ -632,10 +804,10 @@
                         </div>
                         <div id=\"pixQrCode\" class=\"pix-qrcode\"></div>
                     </div>
-                    <div class=\"pix-receiver-info\" style=\"margin-top: 1.5rem; text-align: center; color: #1e293b;\">
+                    <div class=\"pix-receiver-info\">
                         <div style=\"font-size: 1.05rem; font-weight: 600;\">Recebedor</div>
-                        <div style=\"margin-top: 0.3rem; font-size: 1rem;\"><b>Nome:</b> Jones Vieira Cabral</div>
-                        <div style=\"margin-top: 0.1rem; font-size: 1rem;\"><b>CPF:</b> •••.253.763-••</div>
+                        <div style=\"margin-top: 0.3rem;\"><b>Nome:</b> Jones Vieira Cabral</div>
+                        <div style=\"margin-top: 0.1rem;\"><b>CPF:</b> •••.253.763-••</div>
                     </div>
                 `;
                 setTimeout(() => {
