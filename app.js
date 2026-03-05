@@ -1028,6 +1028,11 @@ onAuthStateChanged(auth, (user) => {
         if (loginScreen) loginScreen.style.display = 'none';
         if (appScreen) appScreen.style.display = 'block';
         if (userEmailSpan) userEmailSpan.textContent = user.email || '';
+        // Set user avatar initial
+        const avatarEl = document.getElementById('userAvatar');
+        if (avatarEl && user.email) {
+            avatarEl.textContent = user.email.charAt(0).toUpperCase();
+        }
     } else {
         currentUser = null;
         // Limpar listeners ao fazer logout

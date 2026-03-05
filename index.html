@@ -62,8 +62,9 @@
     <div id="loginScreen" class="login-screen" style="display: none;">
         <div class="login-container">
             <div class="login-header">
+                <div class="login-logo">🛒</div>
                 <h1>Vivi Variedades</h1>
-                <p>Controle de vendas</p>
+                <p>Sistema de controle de vendas fiadas</p>
                 <span class="login-version" id="loginVersion"></span>
             </div>
 
@@ -81,11 +82,15 @@
     <div id="appScreen" class="container" style="display: none;">
         <header>
             <div class="header-content">
-                <div>
-                    <h1>Vivi Variedades <span class="version-badge" id="appVersion"></span></h1>
-                    <p class="subtitle">Controle de vendas</p>
+                <div class="header-brand">
+                    <span class="header-logo">🛒</span>
+                    <div>
+                        <h1>Vivi Variedades <span class="version-badge" id="appVersion"></span></h1>
+                        <p class="subtitle">Controle de vendas fiadas</p>
+                    </div>
                 </div>
                 <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">V</div>
                     <span id="userEmail" class="user-email"></span>
                     <button id="logoutBtn" class="btn btn-logout">Sair</button>
                 </div>
@@ -131,19 +136,25 @@
             <!-- Cards de Totais -->
             <div class="totals-container">
                 <div class="total-card debt-card">
-                    <div class="total-label">Total a Receber</div>
+                    <div class="total-card-header">
+                        <span class="total-icon">💰</span>
+                        <div class="total-label">Total a Receber</div>
+                    </div>
                     <div class="total-value">R$ <span id="totalDebt">0,00</span></div>
                 </div>
                 <div class="total-card credit-card" id="creditCard" style="display: none;">
-                    <div class="total-label">Crédito dos Clientes</div>
+                    <div class="total-card-header">
+                        <span class="total-icon">💳</span>
+                        <div class="total-label">Crédito dos Clientes</div>
+                    </div>
                     <div class="total-value">R$ <span id="totalCredit">0,00</span></div>
                 </div>
             </div>
 
             <!-- Lista de clientes com dívidas -->
-            <section class="card">
+            <section class="card clients-card">
                 <div class="section-header">
-                    <h2>Clientes</h2>
+                    <h2>👥 Clientes</h2>
                 </div>
                 <div class="filter-search-container">
                     <input 
@@ -181,17 +192,19 @@
     <!-- Modal para detalhes do cliente -->
         <div id="clientModal" class="modal">
             <div class="modal-content">
-                <span class="close" role="button" aria-label="Fechar modal" tabindex="0">&times;</span>
-                
-                <!-- Nome do cliente com edição inline -->
-                <div class="client-name-section">
-                    <h2 id="modalClientName" class="editable-name"></h2>
-                    <button id="editNameBtn" class="btn-edit-name" title="Editar nome">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                        </svg>
-                    </button>
+                <div class="modal-header">
+                    <span class="close" role="button" aria-label="Fechar modal" tabindex="0">&times;</span>
+                    
+                    <!-- Nome do cliente com edição inline -->
+                    <div class="client-name-section">
+                        <h2 id="modalClientName" class="editable-name"></h2>
+                        <button id="editNameBtn" class="btn-edit-name" title="Editar nome">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 
                 <!-- Formulário de edição (oculto por padrão) -->
@@ -207,13 +220,16 @@
                     Dívida total: <strong>R$ <span id="modalDebt">0,00</span></strong>
                 </div>
 
-                <h3>Registrar Pagamento</h3>
+                <div class="modal-section">
+                <h3>➕ Registrar Pagamento</h3>
                 <form id="paymentForm">
                     <input type="number" id="paymentAmount" placeholder="Valor do pagamento (R$)" step="0.01" min="0.01" required>
                     <button type="submit" class="btn btn-success">✓ Registrar Pagamento</button>
                 </form>
+                </div>
 
-                <h3>Adicionar Nova Venda</h3>
+                <div class="modal-section">
+                <h3>💵 Adicionar Nova Venda</h3>
                 <form id="modalAddSaleForm">
                     <input type="number" id="modalSaleAmount" placeholder="Valor da venda (R$)" step="0.01" min="0.01" required>
                     <textarea id="modalSaleDescription" placeholder="Descrição ou produto (opcional)" rows="3"></textarea>
@@ -223,8 +239,9 @@
                     </label>
                     <button type="submit" class="btn btn-primary">💵 Adicionar Venda</button>
                 </form>
+                </div>
 
-                <div class="history-header">
+                <div class="modal-section">
                     <h3>Histórico de Vendas</h3>
                     <button id="shareHistory" class="btn btn-share" title="Fazer cobrança">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
