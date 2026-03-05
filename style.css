@@ -921,7 +921,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .modal-header {
-    background: linear-gradient(135deg, var(--primary-color) 0%, #7c3aed 100%);
+    background: linear-gradient(135deg, #1e40af 0%, #4f46e5 50%, #7c3aed 100%);
     padding: 1.5rem 2rem;
     position: relative;
     flex-shrink: 0;
@@ -931,7 +931,7 @@ input:focus, select:focus, textarea:focus {
 .modal-fixed-section {
     flex-shrink: 0;
     padding: 1rem 2rem;
-    background: var(--card-bg);
+    background: linear-gradient(180deg, #312e81 0%, var(--card-bg) 100%);
     border-bottom: 1px solid var(--border-color);
     z-index: 1;
 }
@@ -1102,20 +1102,22 @@ input:focus, select:focus, textarea:focus {
 }
 
 .modal-debt {
-    background: linear-gradient(135deg, #ef4444, #dc2626);
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
     color: white;
     padding: 1rem 1.5rem;
     border-radius: 12px;
     text-align: center;
     margin: 0;
     font-size: 1.1rem;
-    font-weight: 600;
-    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+    font-weight: 700;
+    box-shadow: 0 4px 16px rgba(185, 28, 28, 0.35);
+    letter-spacing: 0.02em;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .modal-debt.has-credit {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+    box-shadow: 0 4px 16px rgba(21, 128, 61, 0.35);
 }
 
 .modal-debt.is-paid {
@@ -2028,7 +2030,12 @@ input:focus, select:focus, textarea:focus {
 }
 
 [data-theme="dark"] .modal-header {
-    background: linear-gradient(135deg, #1e3a5f 0%, #312e81 100%);
+    background: linear-gradient(135deg, #1e3a5f 0%, #312e81 50%, #4c1d95 100%);
+}
+
+[data-theme="dark"] .modal-fixed-section {
+    background: linear-gradient(180deg, #1e1b4b 0%, var(--card-bg) 100%);
+    border-bottom-color: #334155;
 }
 
 [data-theme="dark"] .loading-screen {
