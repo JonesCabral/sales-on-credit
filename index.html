@@ -221,22 +221,21 @@
                     </div>
                 </div>
                 
-                <div class="modal-body">
-                <!-- Formulário de edição e dívida -->
-                <div class="modal-section">
-                <!-- Formulário de edição (oculto por padrão) -->
-                <form id="editNameForm" class="edit-name-form" style="display: none;">
-                    <input type="text" id="editClientName" placeholder="Nome do cliente" required>
-                    <div class="edit-name-actions">
-                        <button type="submit" class="btn btn-primary btn-sm">✓ Salvar</button>
-                        <button type="button" id="cancelEditName" class="btn btn-secondary btn-sm">✕ Cancelar</button>
+                <!-- Seção fixa: edição de nome e dívida -->
+                <div class="modal-fixed-section">
+                    <form id="editNameForm" class="edit-name-form" style="display: none;">
+                        <input type="text" id="editClientName" placeholder="Nome do cliente" required>
+                        <div class="edit-name-actions">
+                            <button type="submit" class="btn btn-primary btn-sm">✓ Salvar</button>
+                            <button type="button" id="cancelEditName" class="btn btn-secondary btn-sm">✕ Cancelar</button>
+                        </div>
+                    </form>
+                    <div class="modal-debt">
+                        Dívida total: <strong>R$ <span id="modalDebt">0,00</span></strong>
                     </div>
-                </form>
-                
-                <div class="modal-debt">
-                    Dívida total: <strong>R$ <span id="modalDebt">0,00</span></strong>
                 </div>
-                </div>
+
+                <div class="modal-body">
 
                 <div class="modal-section">
                 <h3>➕ Registrar Pagamento</h3>
