@@ -879,14 +879,14 @@ function openClientModal(clientId) {
                     ${sale.description ? `<div class="sale-description">${formatDescription(sale.description)}</div>` : ''}
                 </div>
                 <div class="sale-actions">
-                    <button class="btn-icon btn-edit-sale" data-sale-id="${sale.id}" title="Editar">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <button class="btn-icon btn-edit-sale" data-sale-id="${sale.id}" title="Editar" aria-label="Editar item">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                         </svg>
                     </button>
-                    <button class="btn-icon btn-delete-sale" data-sale-id="${sale.id}" title="Excluir">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <button class="btn-icon btn-delete-sale" data-sale-id="${sale.id}" title="Excluir" aria-label="Excluir item">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <polyline points="3 6 5 6 21 6"/>
                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                         </svg>
@@ -926,6 +926,10 @@ function openClientModal(clientId) {
     }
 
     modal.style.display = 'block';
+    
+    // Focus trap: focar no primeiro elemento interativo do modal
+    const firstFocusable = modal.querySelector('button, input, textarea, select, [tabindex]:not([tabindex="-1"])');
+    if (firstFocusable) firstFocusable.focus();
 }
 
 // Fechar modal
@@ -1874,5 +1878,68 @@ setTimeout(() => {
         hideLoadingScreen();
     }
 }, 5000);
+
+// Botão Voltar ao Topo
+(function initBackToTop() {
+    const backToTopBtn = document.getElementById('backToTop');
+    if (!backToTopBtn) return;
+    
+    window.addEventListener('scroll', () => {
+        if (window.scrollY > 400) {
+            backToTopBtn.classList.add('visible');
+        } else {
+            backToTopBtn.classList.remove('visible');
+        }
+    }, { passive: true });
+    
+    backToTopBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+})();
+
+// Focus trap para modais (acessibilidade)
+function trapFocus(modalElement) {
+    const focusableElements = modalElement.querySelectorAll(
+        'button, input, textarea, select, [tabindex]:not([tabindex="-1"]), a[href]'
+    );
+    if (focusableElements.length === 0) return;
+    
+    const first = focusableElements[0];
+    const last = focusableElements[focusableElements.length - 1];
+    
+    modalElement.addEventListener('keydown', (e) => {
+        if (e.key === 'Tab') {
+            if (e.shiftKey) {
+                if (document.activeElement === first) {
+                    e.preventDefault();
+                    last.focus();
+                }
+            } else {
+                if (document.activeElement === last) {
+                    e.preventDefault();
+                    first.focus();
+                }
+            }
+        }
+        if (e.key === 'Escape') {
+            if (modalElement.id === 'clientModal') closeClientModal();
+            if (modalElement.id === 'editSaleModal') closeEditSaleModalFunc();
+        }
+    });
+}
+
+// Aplicar focus trap aos modais
+if (modal) trapFocus(modal);
+if (editSaleModal) trapFocus(editSaleModal);
+
+// Fechar modal ao pressionar Enter no botão de fechar (acessibilidade)
+document.querySelectorAll('.close[role="button"]').forEach(btn => {
+    btn.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            btn.click();
+        }
+    });
+});
 
 // Inicializar (os dados serão carregados automaticamente pelo listener do Firebase)

@@ -16,54 +16,15 @@
     <style>
         body { margin: 0; padding: 0; overflow: hidden; }
         #loadingScreen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            display: flex; justify-content: center; align-items: center;
             z-index: 9999;
         }
-        .loading-content {
-            text-align: center;
-            color: white;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
-        .loading-logo {
-            font-size: 72px;
-            margin-bottom: 20px;
-            animation: pulse 2s ease-in-out infinite;
-        }
-        .loading-title {
-            font-size: 28px;
-            font-weight: 700;
-            margin: 0 0 10px 0;
-        }
-        .loading-subtitle {
-            font-size: 14px;
-            opacity: 0.9;
-            margin: 0 0 30px 0;
-        }
-        .spinner {
-            width: 60px;
-            height: 60px;
-            margin: 0 auto 20px;
-            border: 5px solid rgba(255, 255, 255, 0.2);
-            border-top: 5px solid white;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.1); opacity: 0.8; }
-        }
+        .loading-content { text-align: center; color: white; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .loading-logo { font-size: 72px; margin-bottom: 20px; }
+        .spinner { width: 60px; height: 60px; margin: 0 auto 20px; border: 5px solid rgba(255,255,255,0.2); border-top: 5px solid white; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
     <link rel="stylesheet" href="style.css?v=1.8.0">
     <script>
@@ -134,7 +95,8 @@
         <main>
             <!-- Formulário para registrar venda -->
             <section class="card">
-                <h2>Registrar Venda Fiada</h2>
+                <details class="collapsible-form" open>
+                <summary class="collapsible-summary"><h2>Registrar Venda Fiada</h2></summary>
                 <form id="addSaleForm">
                     <div class="autocomplete-wrapper">
                         <input 
@@ -153,6 +115,7 @@
                     </label>
                     <button type="submit" class="btn btn-primary">+ Registrar Venda</button>
                 </form>
+                </details>
             </section>
 
             <!-- Aviso de Anotações Pendentes -->
@@ -162,7 +125,7 @@
                     <strong>Atenção!</strong>
                     <span id="unpricedNotesMessage">Você tem clientes com anotações de produtos sem preço.</span>
                 </div>
-                <button id="closeAlert" class="alert-close" title="Fechar">&times;</button>
+                <button id="closeAlert" class="alert-close" title="Fechar" aria-label="Fechar aviso">&times;</button>
             </div>
 
             <!-- Cards de Totais -->
@@ -180,7 +143,7 @@
             <!-- Lista de clientes com dívidas -->
             <section class="card">
                 <div class="section-header">
-                    <h2>Adicionar Pagamento</h2>
+                    <h2>Clientes</h2>
                 </div>
                 <div class="filter-search-container">
                     <input 
@@ -188,8 +151,11 @@
                         id="searchClients" 
                         placeholder="🔍 Buscar cliente por nome..."
                         autocomplete="off"
-                        class="search-input">
-                    <div class="filter-checkbox-container">
+                        class="search-input"
+                        aria-label="Buscar cliente por nome">
+                    <fieldset class="filter-fieldset">
+                        <legend class="filter-legend">Filtros</legend>
+                        <div class="filter-checkbox-container">
                         <label class="filter-checkbox-label">
                             <input type="checkbox" id="filterDebtOnly" checked>
                             <span>💰 Apenas com dívidas</span>
@@ -202,7 +168,8 @@
                             <input type="checkbox" id="filterArchived">
                             <span>📦 Mostrar arquivados</span>
                         </label>
-                    </div>
+                        </div>
+                    </fieldset>
                 </div>
                 <div id="clientsListDiv" class="clients-list">
                     <p class="empty-message">Nenhum cliente cadastrado ainda.</p>
@@ -214,7 +181,7 @@
     <!-- Modal para detalhes do cliente -->
         <div id="clientModal" class="modal">
             <div class="modal-content">
-                <span class="close">&times;</span>
+                <span class="close" role="button" aria-label="Fechar modal" tabindex="0">&times;</span>
                 
                 <!-- Nome do cliente com edição inline -->
                 <div class="client-name-section">
@@ -284,8 +251,8 @@
     </div>
 
     <!-- Toast de Sucesso -->
-    <div id="toast" class="toast">
-        <span class="toast-icon">✓</span>
+    <div id="toast" class="toast" role="status" aria-live="polite">
+        <span class="toast-icon" aria-hidden="true">✓</span>
         <span class="toast-message">Salvo com sucesso!</span>
     </div>
 
@@ -305,7 +272,7 @@
     <!-- Modal de Edição de Venda -->
     <div id="editSaleModal" class="modal">
         <div class="modal-content modal-content-small">
-            <span id="closeEditSaleModal" class="close">&times;</span>
+            <span id="closeEditSaleModal" class="close" role="button" aria-label="Fechar modal de edição" tabindex="0">&times;</span>
             <h2>Editar <span id="editSaleType">Item</span></h2>
             <form id="editSaleForm">
                 <label for="editSaleAmount">Valor (R$)</label>
@@ -324,5 +291,8 @@
 
     <!-- Firebase SDK -->
     <script type="module" src="app.js?v=1.8.0"></script>
+
+    <!-- Botão Voltar ao Topo -->
+    <button id="backToTop" class="back-to-top" aria-label="Voltar ao topo" title="Voltar ao topo">↑</button>
 </body>
 </html>
