@@ -402,6 +402,41 @@ class SalesManager {
             this.hasUnpricedNotes(client.id)
         );
     }
+
+    getLastPaymentDate(clientId) {
+        if (!this.clients[clientId]) return null;
+        if (!this.clients[clientId].sales) return null;
+        const payments = this.clients[clientId].sales.filter(s => s.type === 'payment');
+        if (payments.length === 0) return null;
+        // Retorna a data do pagamento mais recente
+        return payments.reduce((latest, p) => {
+            const d = new Date(p.date);
+            return d > latest ? d : latest;
+        }, new Date(payments[0].date));
+    }
+
+    isOverdue(clientId) {
+        // Só marca como atrasado se tiver dívida positiva
+        const debt = this.getClientDebt(clientId);
+        if (debt <= 0) return false;
+        
+        const lastPayment = this.getLastPaymentDate(clientId);
+        const now = new Date();
+        
+        if (lastPayment === null) {
+            // Nunca pagou: verificar data da primeira venda
+            const client = this.clients[clientId];
+            if (!client.sales || client.sales.length === 0) return false;
+            const firstSale = client.sales.find(s => s.type === 'sale');
+            if (!firstSale) return false;
+            const firstSaleDate = new Date(firstSale.date);
+            const diffMonths = (now.getFullYear() - firstSaleDate.getFullYear()) * 12 + (now.getMonth() - firstSaleDate.getMonth());
+            return diffMonths >= 2;
+        }
+        
+        const diffMonths = (now.getFullYear() - lastPayment.getFullYear()) * 12 + (now.getMonth() - lastPayment.getMonth());
+        return diffMonths >= 2;
+    }
 }
 
 // Inicializar gerenciador
@@ -746,11 +781,13 @@ function renderClientsList(clients) {
         const isCredit = debt < 0;
         const displayValue = Math.abs(debt);
         const hasNotes = manager.hasUnpricedNotes(client.id);
+        const isOverdue = manager.isOverdue(client.id);
 
         let statusClass = '';
         let statusIcon = '';
         let label = 'Dívida: ';
         let noteIndicator = '';
+        let overdueIndicator = '';
         
         if (isPaid) {
             statusClass = 'paid';
@@ -765,12 +802,20 @@ function renderClientsList(clients) {
             noteIndicator = '<span class="note-indicator" title="Tem itens não contabilizados">📝</span>';
         }
 
+        if (isOverdue) {
+            const lastPayment = manager.getLastPaymentDate(client.id);
+            const overdueTitle = lastPayment 
+                ? `Último pagamento: ${lastPayment.toLocaleDateString('pt-BR')}` 
+                : 'Nunca realizou pagamento';
+            overdueIndicator = `<span class="overdue-indicator" title="${overdueTitle}">⚠️</span>`;
+        }
+
         const archivedIndicator = client.archived ? '<span class="archived-badge" title="Cliente arquivado">📦 Arquivado</span>' : '';
         
         return `
-            <div class="client-item ${hasNotes ? 'has-notes' : ''} ${client.archived ? 'archived' : ''}" data-client-id="${sanitizeHTML(client.id)}">
+            <div class="client-item ${hasNotes ? 'has-notes' : ''} ${isOverdue ? 'overdue' : ''} ${client.archived ? 'archived' : ''}" data-client-id="${sanitizeHTML(client.id)}">
                 <div class="client-info">
-                    <div class="client-name">${sanitizeHTML(client.name)} ${noteIndicator} ${archivedIndicator}</div>
+                    <div class="client-name">${sanitizeHTML(client.name)} ${overdueIndicator} ${noteIndicator} ${archivedIndicator}</div>
                     <div class="client-sales">${salesCount} venda${salesCount !== 1 ? 's' : ''} fiada${salesCount !== 1 ? 's' : ''}</div>
                 </div>
                 <div class="client-debt ${statusClass}">
@@ -1273,6 +1318,7 @@ if (searchClients) {
     const filterDebtOnlyCheckbox = document.getElementById('filterDebtOnly');
     const filterArchivedCheckbox = document.getElementById('filterArchived');
     const filterUnpricedCheckbox = document.getElementById('filterUnpriced');
+    const filterOverdueCheckbox = document.getElementById('filterOverdue');
     
     const applyFilters = () => {
         const searchTerm = searchClients.value.trim().toLowerCase();
@@ -1281,42 +1327,42 @@ if (searchClients) {
         // Filtrar clientes por status de arquivado
         const showArchived = filterArchivedCheckbox?.checked || false;
         if (showArchived) {
-            // Quando marcado, mostrar APENAS clientes arquivados
             allClients = allClients.filter(client => client.archived);
         } else {
-            // Quando desmarcado, mostrar apenas clientes não arquivados
             allClients = allClients.filter(client => !client.archived);
         }
         
         // Se houver busca por nome, desativar outros filtros
         if (searchTerm.length > 0) {
-            if (filterDebtOnlyCheckbox) {
-                filterDebtOnlyCheckbox.checked = false;
-            }
-            if (filterUnpricedCheckbox) {
-                filterUnpricedCheckbox.checked = false;
-            }
+            if (filterDebtOnlyCheckbox) filterDebtOnlyCheckbox.checked = false;
+            if (filterUnpricedCheckbox) filterUnpricedCheckbox.checked = false;
+            if (filterOverdueCheckbox) filterOverdueCheckbox.checked = false;
             allClients = allClients.filter(client => 
                 client.name.toLowerCase().includes(searchTerm)
             );
         } else {
-            // Filtro de produtos sem preço (tem prioridade se marcado)
-            const showUnpricedOnly = filterUnpricedCheckbox?.checked || false;
-            if (showUnpricedOnly) {
-                // Desmarcar filtro de dívida ao marcar produtos sem preço
-                if (filterDebtOnlyCheckbox) {
-                    filterDebtOnlyCheckbox.checked = false;
-                }
-                allClients = allClients.filter(client => 
-                    manager.hasUnpricedNotes(client.id)
-                );
+            // Filtro de pagamento atrasado (tem prioridade se marcado)
+            const showOverdueOnly = filterOverdueCheckbox?.checked || false;
+            if (showOverdueOnly) {
+                if (filterDebtOnlyCheckbox) filterDebtOnlyCheckbox.checked = false;
+                if (filterUnpricedCheckbox) filterUnpricedCheckbox.checked = false;
+                allClients = allClients.filter(client => manager.isOverdue(client.id));
             } else {
-                // Sem busca: aplicar filtro de dívida se checkbox estiver marcado
-                const showDebtOnly = filterDebtOnlyCheckbox?.checked || false;
-                if (showDebtOnly) {
+                // Filtro de produtos sem preço
+                const showUnpricedOnly = filterUnpricedCheckbox?.checked || false;
+                if (showUnpricedOnly) {
+                    if (filterDebtOnlyCheckbox) filterDebtOnlyCheckbox.checked = false;
                     allClients = allClients.filter(client => 
-                        manager.getClientDebt(client.id) > 0
+                        manager.hasUnpricedNotes(client.id)
                     );
+                } else {
+                    // Filtro de dívida
+                    const showDebtOnly = filterDebtOnlyCheckbox?.checked || false;
+                    if (showDebtOnly) {
+                        allClients = allClients.filter(client => 
+                            manager.getClientDebt(client.id) > 0
+                        );
+                    }
                 }
             }
         }
@@ -1337,6 +1383,10 @@ if (searchClients) {
     
     if (filterUnpricedCheckbox) {
         filterUnpricedCheckbox.addEventListener('change', applyFilters);
+    }
+    
+    if (filterOverdueCheckbox) {
+        filterOverdueCheckbox.addEventListener('change', applyFilters);
     }
     
     if (filterArchivedCheckbox) {
