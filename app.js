@@ -804,18 +804,30 @@ function renderClientsList(clients) {
 
         if (isOverdue) {
             const lastPayment = manager.getLastPaymentDate(client.id);
-            const overdueTitle = lastPayment 
-                ? `Último pagamento: ${lastPayment.toLocaleDateString('pt-BR')}` 
-                : 'Nunca realizou pagamento';
-            overdueIndicator = `<span class="overdue-indicator" title="${overdueTitle}">⚠️</span>`;
+            let daysSince = 0;
+            let overdueMsg = '';
+            if (lastPayment) {
+                daysSince = Math.floor((new Date() - lastPayment) / (1000 * 60 * 60 * 24));
+                overdueMsg = `Último pagamento há ${daysSince} dia${daysSince !== 1 ? 's' : ''}`;
+            } else {
+                const firstSale = (client.sales || []).find(s => s.type === 'sale');
+                if (firstSale) {
+                    daysSince = Math.floor((new Date() - new Date(firstSale.date)) / (1000 * 60 * 60 * 24));
+                    overdueMsg = `Sem pagamento há ${daysSince} dia${daysSince !== 1 ? 's' : ''}`;
+                } else {
+                    overdueMsg = 'Nunca realizou pagamento';
+                }
+            }
+            overdueIndicator = `<span class="overdue-indicator" title="${overdueMsg}">⚠️ ${overdueMsg}</span>`;
         }
 
         const archivedIndicator = client.archived ? '<span class="archived-badge" title="Cliente arquivado">📦 Arquivado</span>' : '';
         
         return `
-            <div class="client-item ${hasNotes ? 'has-notes' : ''} ${isOverdue ? 'overdue' : ''} ${client.archived ? 'archived' : ''}" data-client-id="${sanitizeHTML(client.id)}">
+            <div class="client-item ${hasNotes ? 'has-notes' : ''} ${client.archived ? 'archived' : ''}" data-client-id="${sanitizeHTML(client.id)}">
                 <div class="client-info">
-                    <div class="client-name">${sanitizeHTML(client.name)} ${overdueIndicator} ${noteIndicator} ${archivedIndicator}</div>
+                    <div class="client-name">${sanitizeHTML(client.name)} ${noteIndicator} ${archivedIndicator}</div>
+                    ${overdueIndicator ? `<div class="client-overdue-msg">${overdueIndicator}</div>` : ''}
                     <div class="client-sales">${salesCount} venda${salesCount !== 1 ? 's' : ''} fiada${salesCount !== 1 ? 's' : ''}</div>
                 </div>
                 <div class="client-debt ${statusClass}">

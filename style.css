@@ -838,33 +838,18 @@ input:focus, select:focus, textarea:focus {
     background: #fde68a;
 }
 
-.client-item.overdue {
-    background: #fee2e2;
-    border-color: #ef4444;
-    border-left-width: 4px;
-}
-
-.client-item.overdue:hover {
-    border-color: #dc2626;
-    background: #fecaca;
-}
-
-.client-item.overdue.has-notes {
-    background: #fee2e2;
-    border-color: #ef4444;
-}
-
 .overdue-indicator {
     display: inline-block;
-    margin-left: 0.35rem;
-    font-size: 1rem;
+    font-size: 0.8rem;
     cursor: help;
-    animation: pulse-overdue 2s ease-in-out infinite;
+    color: var(--warning-dark, #d97706);
 }
 
-@keyframes pulse-overdue {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+.client-overdue-msg {
+    margin-top: 0.15rem;
+    font-size: 0.8rem;
+    color: var(--warning-dark, #d97706);
+    font-weight: 500;
 }
 
 .client-item.archived {
@@ -2491,19 +2476,9 @@ input:focus, select:focus, textarea:focus {
     background: #78350f;
 }
 
-[data-theme="dark"] .client-item.overdue {
-    background: #450a0a;
-    border-color: #ef4444;
-}
-
-[data-theme="dark"] .client-item.overdue:hover {
-    border-color: #f87171;
-    background: #7f1d1d;
-}
-
-[data-theme="dark"] .client-item.overdue.has-notes {
-    background: #450a0a;
-    border-color: #ef4444;
+[data-theme="dark"] .overdue-indicator,
+[data-theme="dark"] .client-overdue-msg {
+    color: #fbbf24;
 }
 
 [data-theme="dark"] .client-item.archived {
