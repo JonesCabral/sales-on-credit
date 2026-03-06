@@ -319,7 +319,7 @@ class SalesManager {
         }
         
         // Validar valor (pode ser 0 para anotações)
-        const numericAmount = parseCurrency(amount) || 0;
+        const numericAmount = parseCurrency(amount);
         if (isNaN(numericAmount)) {
             throw new Error('Valor deve ser um número válido');
         }
@@ -610,9 +610,14 @@ function currencyMask(input) {
 
 // Converte valor formatado "1.234,56" para número 1234.56
 function parseCurrency(value) {
-    if (!value || typeof value !== 'string') return NaN;
+    if (value === null || value === undefined) return NaN;
+    // Se já for número, retorna diretamente
+    if (typeof value === 'number') return value;
+    if (typeof value !== 'string') return NaN;
+    const trimmed = value.trim();
+    if (trimmed === '') return NaN;
     // Remove pontos de milhar e troca vírgula por ponto
-    const cleaned = value.replace(/\./g, '').replace(',', '.');
+    const cleaned = trimmed.replace(/\./g, '').replace(',', '.');
     return parseFloat(cleaned);
 }
 

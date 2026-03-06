@@ -46,29 +46,17 @@
             margin: 0 auto;
         }
 
-        /* Header - matching main site gradient */
+        /* Header - matching main site */
         .header {
             text-align: center;
             margin-bottom: 2rem;
             padding: 2rem 1.5rem;
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 50%, var(--accent-color) 100%);
+            background: var(--primary-color);
             border-radius: 16px;
             box-shadow: 0 8px 32px rgba(37, 99, 235, 0.3);
             color: white;
             position: relative;
             overflow: hidden;
-        }
-
-        .header::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -20%;
-            width: 300px;
-            height: 300px;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-            border-radius: 50%;
-            pointer-events: none;
         }
 
         .header h1 {
@@ -126,19 +114,19 @@
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+            background: var(--primary-color);
         }
 
         .status-card.debt-status::before {
-            background: linear-gradient(90deg, #ef4444, #f87171);
+            background: #ef4444;
         }
 
         .status-card.credit-status::before {
-            background: linear-gradient(90deg, #16a34a, #4ade80);
+            background: #16a34a;
         }
 
         .status-card.paid-status::before {
-            background: linear-gradient(90deg, #64748b, #94a3b8);
+            background: #64748b;
         }
 
         .status-icon {
@@ -348,7 +336,7 @@
         }
 
         .pix-btn {
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            background: var(--primary-color);
             color: #fff;
             border: none;
             border-radius: 10px;
@@ -364,7 +352,7 @@
         }
 
         .pix-btn:hover {
-            background: linear-gradient(135deg, var(--primary-light), var(--primary-color));
+            background: var(--primary-light);
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
         }
@@ -539,7 +527,7 @@
             }
 
             .header {
-                background: linear-gradient(135deg, #1e3a5f 0%, var(--card-bg) 50%, #312e81 100%);
+                background: #1e3a5f;
                 box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
             }
 

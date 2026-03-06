@@ -104,7 +104,7 @@ body.modal-open {
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    background: #2563eb;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -198,23 +198,11 @@ header {
     text-align: center;
     margin-bottom: 2rem;
     padding: 1.25rem 1.5rem;
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 50%, var(--accent-color) 100%);
+    background: var(--primary-color);
     border-radius: 16px;
     box-shadow: 0 8px 32px rgba(37, 99, 235, 0.3);
     position: relative;
     overflow: hidden;
-}
-
-header::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    right: -20%;
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-    border-radius: 50%;
-    pointer-events: none;
 }
 
 .header-content {
@@ -319,7 +307,7 @@ header h1 {
 
 .beta-badge {
     display: inline-block;
-    background: linear-gradient(135deg, #f59e0b, #d97706);
+    background: #f59e0b;
     color: white;
     font-size: 0.6rem;
     padding: 0.25rem 0.5rem;
@@ -421,20 +409,20 @@ header h1 {
 
 .debt-card {
     border-left: none;
-    background: linear-gradient(135deg, #fff5f5 0%, #ffffff 100%);
+    background: #fff5f5;
 }
 
 .debt-card::before {
-    background: linear-gradient(90deg, var(--danger-light), var(--danger-lighter));
+    background: var(--danger-light);
 }
 
 .credit-card {
     border-left: none;
-    background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+    background: #f0fdf4;
 }
 
 .credit-card::before {
-    background: linear-gradient(90deg, var(--success-color), var(--success-light));
+    background: var(--success-color);
 }
 
 .total-label {
@@ -467,7 +455,7 @@ header h1 {
     gap: 1rem;
     padding: 1rem 1.5rem;
     margin-bottom: 1.5rem;
-    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    background: #fef3c7;
     border-left: 4px solid #f59e0b;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(245, 158, 11, 0.2);
@@ -480,7 +468,7 @@ header h1 {
 }
 
 .clickable-alert:hover {
-    background: linear-gradient(135deg, #fde68a 0%, #fcd34d 100%);
+    background: #fde68a;
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
 }
@@ -741,39 +729,39 @@ input:focus, select:focus, textarea:focus {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    background: var(--primary-color);
     color: white;
 }
 
 .btn-primary:hover {
-    background: linear-gradient(135deg, var(--primary-light), var(--primary-color));
+    background: var(--primary-light);
 }
 
 .btn-success {
-    background: linear-gradient(135deg, var(--success-color), var(--success-dark));
+    background: var(--success-color);
     color: white;
 }
 
 .btn-success:hover {
-    background: linear-gradient(135deg, var(--success-light), var(--success-color));
+    background: var(--success-light);
 }
 
 .btn-danger {
-    background: linear-gradient(135deg, var(--danger-color), var(--danger-dark));
+    background: var(--danger-color);
     color: white;
 }
 
 .btn-danger:hover {
-    background: linear-gradient(135deg, var(--danger-light), var(--danger-color));
+    background: var(--danger-light);
 }
 
 .btn-warning {
-    background: linear-gradient(135deg, var(--warning-color), var(--warning-dark));
+    background: var(--warning-color);
     color: white;
 }
 
 .btn-warning:hover {
-    background: linear-gradient(135deg, var(--warning-hover), var(--warning-color));
+    background: var(--warning-hover);
 }
 
 .clients-list {
@@ -836,14 +824,14 @@ input:focus, select:focus, textarea:focus {
 }
 
 .client-item.has-notes {
-    background: linear-gradient(135deg, #fef3c7 0%, #fef9e7 100%);
+    background: #fef3c7;
     border-color: #f59e0b;
     border-left-width: 4px;
 }
 
 .client-item.has-notes:hover {
     border-color: #d97706;
-    background: linear-gradient(135deg, #fde68a 0%, #fef3c7 100%);
+    background: #fde68a;
 }
 
 .client-item.archived {
@@ -944,24 +932,12 @@ input:focus, select:focus, textarea:focus {
 }
 
 .modal-header {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 50%, var(--accent-color) 100%);
+    background: var(--primary-color);
     padding: 1.5rem 2rem;
     position: relative;
     flex-shrink: 0;
     z-index: 2;
     overflow: hidden;
-}
-
-.modal-header::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    right: -20%;
-    width: 200px;
-    height: 200px;
-    background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
-    border-radius: 50%;
-    pointer-events: none;
 }
 
 .modal-fixed-section {
@@ -1139,7 +1115,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .modal-debt {
-    background: linear-gradient(135deg, var(--danger-light) 0%, var(--danger-color) 100%);
+    background: var(--danger-color);
     color: white;
     padding: 0.875rem 1.5rem;
     border-radius: 10px;
@@ -1151,12 +1127,12 @@ input:focus, select:focus, textarea:focus {
 }
 
 .modal-debt.has-credit {
-    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    background: #16a34a;
     box-shadow: 0 2px 8px rgba(22, 163, 74, 0.25);
 }
 
 .modal-debt.is-paid {
-    background: linear-gradient(135deg, #94a3b8, #64748b);
+    background: #64748b;
     box-shadow: 0 2px 8px rgba(100, 116, 139, 0.25);
 }
 
@@ -1455,7 +1431,7 @@ input:focus, select:focus, textarea:focus {
     top: 1.5rem;
     left: 50%;
     transform: translateX(-50%) translateY(-20px);
-    background: linear-gradient(135deg, #16a34a, #15803d);
+    background: #16a34a;
     color: white;
     padding: 1rem 2rem;
     border-radius: 14px;
@@ -1479,7 +1455,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .toast.toast-error {
-    background: linear-gradient(135deg, var(--danger-color), var(--danger-dark));
+    background: var(--danger-color);
 }
 
 .toast.show {
@@ -1773,7 +1749,7 @@ input:focus, select:focus, textarea:focus {
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    background: var(--primary-color);
     padding: 1rem;
 }
 
@@ -1984,7 +1960,7 @@ input:focus, select:focus, textarea:focus {
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem 1rem;
-    background: linear-gradient(135deg, #16a34a, #15803d);
+    background: #16a34a;
     color: white;
     border: none;
     border-radius: 10px;
@@ -1998,7 +1974,7 @@ input:focus, select:focus, textarea:focus {
 .btn-share:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(22, 163, 74, 0.4);
-    background: linear-gradient(135deg, #22c55e, #16a34a);
+    background: #22c55e;
 }
 
 .btn-share svg {
@@ -2115,12 +2091,12 @@ input:focus, select:focus, textarea:focus {
 }
 
 [data-theme="dark"] header {
-    background: linear-gradient(135deg, #1e3a5f 0%, #1e293b 50%, #312e81 100%);
+    background: #1e3a5f;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
 [data-theme="dark"] .modal-header {
-    background: linear-gradient(135deg, #1e3a5f 0%, #1e293b 50%, #312e81 100%);
+    background: #1e3a5f;
 }
 
 [data-theme="dark"] .modal-fixed-section {
@@ -2130,11 +2106,11 @@ input:focus, select:focus, textarea:focus {
 }
 
 [data-theme="dark"] .loading-screen {
-    background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+    background: #1e3a5f;
 }
 
 [data-theme="dark"] .login-screen {
-    background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+    background: #1e3a5f;
 }
 
 [data-theme="dark"] .login-container {
@@ -2144,15 +2120,15 @@ input:focus, select:focus, textarea:focus {
 }
 
 [data-theme="dark"] .debt-card {
-    background: linear-gradient(135deg, #451a1a 0%, var(--card-bg) 100%);
+    background: #451a1a;
 }
 
 [data-theme="dark"] .credit-card {
-    background: linear-gradient(135deg, #14532d 0%, var(--card-bg) 100%);
+    background: #14532d;
 }
 
 [data-theme="dark"] .alert-banner {
-    background: linear-gradient(135deg, var(--warning-surface) 0%, #78350f 100%);
+    background: var(--warning-surface);
     border-left-color: var(--warning-color);
 }
 
@@ -2169,7 +2145,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 [data-theme="dark"] .clickable-alert:hover {
-    background: linear-gradient(135deg, #78350f 0%, #92400e 100%);
+    background: #78350f;
 }
 
 [data-theme="dark"] .client-item {
@@ -2183,13 +2159,13 @@ input:focus, select:focus, textarea:focus {
 }
 
 [data-theme="dark"] .client-item.has-notes {
-    background: linear-gradient(135deg, var(--warning-surface) 0%, var(--card-bg) 100%);
+    background: var(--warning-surface);
     border-color: var(--warning-color);
 }
 
 [data-theme="dark"] .client-item.has-notes:hover {
     border-color: var(--warning-hover);
-    background: linear-gradient(135deg, #78350f 0%, var(--card-bg) 100%);
+    background: #78350f;
 }
 
 [data-theme="dark"] .client-item.archived {
