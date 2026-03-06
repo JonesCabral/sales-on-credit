@@ -109,7 +109,7 @@ class SalesManager {
         // Listener em tempo real para mudanças no banco de dados
         this.unsubscribe = onValue(dbRef, (snapshot) => {
             this.clients = snapshot.val() || {};
-            console.log('Dados carregados do Firebase:', this.clients);
+            safeLog('Dados carregados do Firebase');
             updateClientsList();
         }, (error) => {
             console.error('Erro ao carregar dados:', error);
@@ -560,6 +560,15 @@ function formatDescription(text) {
     return sanitized.replace(/\n/g, '<br>');
 }
 
+// Debounce utility: atrasa execução até parar de digitar
+function debounce(fn, delay = 300) {
+    let timer;
+    return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), delay);
+    };
+}
+
 function getDatabaseErrorMessage(error, fallback) {
     const code = error?.code || '';
     const message = error?.message || '';
@@ -791,6 +800,19 @@ function renderClientsList(clients) {
         document.getElementById('totalCredit').textContent = formatCurrency(totalCredit);
     } else {
         creditCard.style.display = 'none';
+    }
+
+    // Atualizar contador de clientes
+    const totalClients = Object.values(manager.clients).filter(c => !c.archived).length;
+    const clientsCountEl = document.getElementById('clientsCount');
+    if (clientsCountEl) {
+        if (clients.length !== totalClients) {
+            clientsCountEl.textContent = `Mostrando ${clients.length} de ${totalClients} cliente${totalClients !== 1 ? 's' : ''}`;
+            clientsCountEl.style.display = 'block';
+        } else {
+            clientsCountEl.textContent = `${totalClients} cliente${totalClients !== 1 ? 's' : ''}`;
+            clientsCountEl.style.display = 'block';
+        }
     }
 }
 
@@ -1307,7 +1329,7 @@ if (searchClients) {
         renderClientsList(sorted);
     };
     
-    searchClients.addEventListener('input', applyFilters);
+    searchClients.addEventListener('input', debounce(applyFilters, 250));
     
     if (filterDebtOnlyCheckbox) {
         filterDebtOnlyCheckbox.addEventListener('change', applyFilters);
@@ -1326,7 +1348,7 @@ let selectedClientId = null;
 
 // Busca de clientes com autocomplete
 if (clientSearch) {
-    clientSearch.addEventListener('input', (e) => {
+    clientSearch.addEventListener('input', debounce((e) => {
         const searchTerm = e.target.value.trim().toLowerCase();
         selectedClientId = null;
         
@@ -1383,7 +1405,7 @@ if (clientSearch) {
                 clientSuggestions.classList.remove('show');
             });
         });
-    });
+    }, 200));
     
     // Fechar sugestões ao clicar fora
     document.addEventListener('click', (e) => {
@@ -2028,5 +2050,44 @@ document.querySelectorAll('.close[role="button"]').forEach(btn => {
         }
     });
 });
+
+// Toggle mostrar/ocultar senha no login
+(function initPasswordToggle() {
+    const toggleBtn = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('loginPassword');
+    if (!toggleBtn || !passwordInput) return;
+    
+    toggleBtn.addEventListener('click', () => {
+        const isPassword = passwordInput.type === 'password';
+        passwordInput.type = isPassword ? 'text' : 'password';
+        toggleBtn.querySelector('.eye-icon').textContent = isPassword ? '🙈' : '👁️';
+        toggleBtn.setAttribute('aria-label', isPassword ? 'Ocultar senha' : 'Mostrar senha');
+    });
+})();
+
+// Indicador de conexão offline
+(function initOfflineIndicator() {
+    const banner = document.getElementById('offlineBanner');
+    if (!banner) return;
+    
+    function updateStatus() {
+        if (navigator.onLine) {
+            banner.style.display = 'none';
+        } else {
+            banner.style.display = 'flex';
+        }
+    }
+    
+    window.addEventListener('online', () => {
+        banner.style.display = 'none';
+        showToast('Conexão restaurada!', 'success');
+    });
+    
+    window.addEventListener('offline', () => {
+        banner.style.display = 'flex';
+    });
+    
+    updateStatus();
+})();
 
 // Inicializar (os dados serão carregados automaticamente pelo listener do Firebase)

@@ -81,7 +81,12 @@
             <div id="emailTab" class="tab-content active">
                 <form id="loginForm">
                     <input type="email" id="loginEmail" placeholder="Email" required>
-                    <input type="password" id="loginPassword" placeholder="Senha" required>
+                    <div class="password-wrapper">
+                        <input type="password" id="loginPassword" placeholder="Senha" required>
+                        <button type="button" id="togglePassword" class="btn-toggle-password" aria-label="Mostrar senha" title="Mostrar/Ocultar senha">
+                            <span class="eye-icon">👁️</span>
+                        </button>
+                    </div>
                     <button type="submit" class="btn btn-primary">Entrar</button>
                 </form>
             </div>
@@ -196,6 +201,7 @@
                         </div>
                     </fieldset>
                 </div>
+                <div id="clientsCount" class="clients-count" style="display: none;"></div>
                 <div id="clientsListDiv" class="clients-list">
                     <p class="empty-message">Nenhum cliente cadastrado ainda.</p>
                 </div>
@@ -326,6 +332,12 @@
 
     <!-- Firebase SDK -->
     <script type="module" src="app.js?v=1.8.0"></script>
+
+    <!-- Indicador Offline -->
+    <div id="offlineBanner" class="offline-banner" role="alert" aria-live="assertive" style="display: none;">
+        <span class="offline-icon">📡</span>
+        <span>Sem conexão com a internet</span>
+    </div>
 
     <!-- Botão Voltar ao Topo -->
     <button id="backToTop" class="back-to-top" aria-label="Voltar ao topo" title="Voltar ao topo">↑</button>
