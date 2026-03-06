@@ -126,7 +126,7 @@
                             required>
                         <div id="clientSuggestions" class="suggestions-dropdown"></div>
                     </div>
-                    <input type="number" id="saleAmount" placeholder="Valor (R$)" step="0.01" min="0.01" required>
+                    <input type="text" id="saleAmount" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off" required>
                     <textarea id="saleDescription" placeholder="Descrição ou produto (opcional)" rows="3"></textarea>
                     <label class="checkbox-label">
                         <input type="checkbox" id="justNoteProduct">
@@ -240,7 +240,7 @@
                 <div class="modal-section">
                 <h3>➕ Registrar Pagamento</h3>
                 <form id="paymentForm">
-                    <input type="number" id="paymentAmount" placeholder="Valor do pagamento (R$)" step="0.01" min="0.01" required>
+                    <input type="text" id="paymentAmount" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off" required>
                     <button type="submit" class="btn btn-success">✓ Registrar Pagamento</button>
                 </form>
                 </div>
@@ -248,7 +248,7 @@
                 <div class="modal-section">
                 <h3>💵 Adicionar Nova Venda</h3>
                 <form id="modalAddSaleForm">
-                    <input type="number" id="modalSaleAmount" placeholder="Valor da venda (R$)" step="0.01" min="0.01" required>
+                    <input type="text" id="modalSaleAmount" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off" required>
                     <textarea id="modalSaleDescription" placeholder="Descrição ou produto (opcional)" rows="3"></textarea>
                     <label class="checkbox-label">
                         <input type="checkbox" id="modalJustNoteProduct">
@@ -311,7 +311,7 @@
             <h2>Editar <span id="editSaleType">Item</span></h2>
             <form id="editSaleForm">
                 <label for="editSaleAmount">Valor (R$)</label>
-                <input type="number" id="editSaleAmount" placeholder="Valor (R$)" step="0.01" min="0.01" required>
+                <input type="text" id="editSaleAmount" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off" required>
                 <div id="editSaleDescriptionWrapper">
                     <label for="editSaleDescription">Descrição ou produto (opcional)</label>
                     <textarea id="editSaleDescription" placeholder="Descrição ou produto (opcional)" rows="3"></textarea>

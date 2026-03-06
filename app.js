@@ -319,7 +319,7 @@ class SalesManager {
         }
         
         // Validar valor (pode ser 0 para anotações)
-        const numericAmount = parseFloat(amount) || 0;
+        const numericAmount = parseCurrency(amount) || 0;
         if (isNaN(numericAmount)) {
             throw new Error('Valor deve ser um número válido');
         }
@@ -458,6 +458,11 @@ const closeAlertBtn = document.getElementById('closeAlert');
 let currentEditingSaleId = null;
 let alertDismissed = false;
 
+// Aplicar máscara de moeda em todos os campos de valor
+[saleAmountInput, modalSaleAmountInput, editSaleAmount, document.getElementById('paymentAmount')].forEach(input => {
+    if (input) currencyMask(input);
+});
+
 // Funções de UI
 function showLoader(message = 'Processando...') {
     const loaderText = document.querySelector('.loader-text');
@@ -515,7 +520,7 @@ function showConfirm(title, message) {
 const ValidationUtils = {
     validateAmount(amount, options = {}) {
         const { min = 0, max = 1000000, allowZero = false } = options;
-        const numericAmount = parseFloat(amount);
+        const numericAmount = parseCurrency(amount);
         
         if (isNaN(numericAmount)) {
             throw new Error('O valor deve ser um número válido');
@@ -570,6 +575,51 @@ function getDatabaseErrorMessage(error, fallback) {
 // Funções de formatação
 function formatCurrency(value) {
     return value.toFixed(2).replace('.', ',');
+}
+
+// Máscara de moeda brasileira (R$) - formata enquanto digita
+function currencyMask(input) {
+    input.addEventListener('input', (e) => {
+        let value = e.target.value;
+        
+        // Remove tudo que não é dígito
+        value = value.replace(/\D/g, '');
+        
+        // Remove zeros à esquerda excessivos
+        value = value.replace(/^0+/, '') || '0';
+        
+        // Garante pelo menos 3 dígitos (para centavos)
+        value = value.padStart(3, '0');
+        
+        // Separa reais e centavos
+        const cents = value.slice(-2);
+        let reais = value.slice(0, -2);
+        
+        // Adiciona separador de milhar
+        reais = reais.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        
+        // Formata
+        e.target.value = `${reais},${cents}`;
+    });
+    
+    // Seleciona tudo ao focar para facilitar edição
+    input.addEventListener('focus', () => {
+        setTimeout(() => input.select(), 0);
+    });
+}
+
+// Converte valor formatado "1.234,56" para número 1234.56
+function parseCurrency(value) {
+    if (!value || typeof value !== 'string') return NaN;
+    // Remove pontos de milhar e troca vírgula por ponto
+    const cleaned = value.replace(/\./g, '').replace(',', '.');
+    return parseFloat(cleaned);
+}
+
+// Converte número para string formatada para preencher input
+function numberToCurrencyInput(num) {
+    if (isNaN(num) || num === null || num === undefined) return '0,00';
+    return num.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
 function formatDate(isoString) {
@@ -980,7 +1030,7 @@ function openEditSaleModal(saleId) {
     if (!sale) return;
     
     currentEditingSaleId = saleId;
-    editSaleAmount.value = sale.amount;
+    editSaleAmount.value = numberToCurrencyInput(sale.amount);
     editSaleType.textContent = sale.type === 'payment' ? 'Pagamento' : 'Venda';
     
     if (sale.type === 'sale') {
@@ -1383,7 +1433,7 @@ addSaleForm.addEventListener('submit', async (e) => {
             return;
         }
         
-        numericAmount = parseFloat(amount);
+        numericAmount = parseCurrency(amount);
         if (isNaN(numericAmount)) {
             showToast('O valor da venda deve ser um número válido.', 'error');
             document.getElementById('saleAmount').focus();
@@ -1462,7 +1512,7 @@ paymentForm.addEventListener('submit', async (e) => {
         return;
     }
     
-    const numericAmount = parseFloat(amount);
+    const numericAmount = parseCurrency(amount);
     if (isNaN(numericAmount)) {
         showToast('O valor do pagamento deve ser um número válido.', 'error');
         document.getElementById('paymentAmount').focus();
@@ -1629,7 +1679,7 @@ if (modalAddSaleForm) {
             }
             
             // Converter para número
-            numericAmount = parseFloat(amount);
+            numericAmount = parseCurrency(amount);
             
             if (isNaN(numericAmount) || numericAmount <= 0) {
                 showToast('Por favor, digite um valor válido maior que zero.', 'error');
@@ -1776,7 +1826,7 @@ if (editSaleForm) {
             return;
         }
         
-        const numericAmount = parseFloat(amount);
+        const numericAmount = parseCurrency(amount);
         if (isNaN(numericAmount)) {
             showToast('O valor deve ser um número válido.', 'error');
             editSaleAmount.focus();
