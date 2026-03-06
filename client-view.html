@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
     <meta name="theme-color" content="#2563eb">
     <title>Minha Conta - Vivi Variedades</title>
     <style>
@@ -37,6 +37,10 @@
             color: var(--text-primary);
             line-height: 1.6;
             padding: 1rem;
+            padding-left: max(1rem, env(safe-area-inset-left));
+            padding-right: max(1rem, env(safe-area-inset-right));
+            padding-top: max(1rem, env(safe-area-inset-top));
+            padding-bottom: max(1rem, env(safe-area-inset-bottom));
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }
@@ -148,6 +152,8 @@
             font-size: 2.5rem;
             font-weight: 800;
             margin-bottom: 0.5rem;
+            overflow-wrap: break-word;
+            word-break: break-word;
         }
 
         .status-value.debt {
