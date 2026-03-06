@@ -2065,28 +2065,70 @@ document.querySelectorAll('.close[role="button"]').forEach(btn => {
     });
 })();
 
-// Indicador de conexão offline
+// Indicador de conexão offline (verifica conectividade real, não apenas placa de rede)
 (function initOfflineIndicator() {
     const banner = document.getElementById('offlineBanner');
     if (!banner) return;
     
-    function updateStatus() {
-        if (navigator.onLine) {
-            banner.style.display = 'none';
-        } else {
-            banner.style.display = 'flex';
+    let wasOffline = false;
+    let checkInterval = null;
+    
+    // Verifica conectividade real fazendo uma requisição leve
+    async function checkRealConnectivity() {
+        try {
+            const response = await fetch('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js', {
+                method: 'HEAD',
+                mode: 'no-cors',
+                cache: 'no-store',
+                signal: AbortSignal.timeout(5000)
+            });
+            return true;
+        } catch {
+            return false;
         }
     }
     
-    window.addEventListener('online', () => {
+    async function updateStatus() {
+        // Se a placa de rede diz offline, nem precisa testar
+        if (!navigator.onLine) {
+            setOffline();
+            return;
+        }
+        // Placa de rede diz online, mas verifica de verdade
+        const isConnected = await checkRealConnectivity();
+        if (isConnected) {
+            setOnline();
+        } else {
+            setOffline();
+        }
+    }
+    
+    function setOnline() {
         banner.style.display = 'none';
-        showToast('Conexão restaurada!', 'success');
-    });
+        if (wasOffline) {
+            showToast('Conexão restaurada!', 'success');
+            wasOffline = false;
+        }
+        // Verificações menos frequentes quando online
+        clearInterval(checkInterval);
+        checkInterval = setInterval(updateStatus, 30000); // 30s
+    }
     
-    window.addEventListener('offline', () => {
+    function setOffline() {
         banner.style.display = 'flex';
-    });
+        if (!wasOffline) {
+            wasOffline = true;
+        }
+        // Verificações mais frequentes quando offline para detectar retorno rápido
+        clearInterval(checkInterval);
+        checkInterval = setInterval(updateStatus, 10000); // 10s
+    }
     
+    // Eventos do navegador como gatilho para re-verificar de verdade
+    window.addEventListener('online', () => updateStatus());
+    window.addEventListener('offline', () => updateStatus());
+    
+    // Verificação inicial
     updateStatus();
 })();
 
