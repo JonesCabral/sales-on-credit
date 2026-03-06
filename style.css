@@ -1294,11 +1294,23 @@ input:focus, select:focus, textarea:focus {
 /* Modal de edição pequeno */
 .modal-content-small {
     max-width: 450px;
+    padding: 2rem;
+    display: block;
+    overflow-y: auto;
+}
+
+.modal-content-small .close {
+    position: absolute;
+    top: 1rem;
+    right: 1.5rem;
+    z-index: 2;
 }
 
 .modal-content-small h2 {
     margin-bottom: 1.5rem;
     font-size: 1.4rem;
+    color: var(--text-primary);
+    padding-right: 2rem;
 }
 
 .modal-content-small form {
@@ -1307,10 +1319,34 @@ input:focus, select:focus, textarea:focus {
     gap: 1rem;
 }
 
+.modal-content-small form label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: -0.5rem;
+}
+
+#editSaleDescriptionWrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
 .modal-content-small .modal-actions {
-    margin-top: 0;
-    padding-top: 0;
+    margin-top: 0.5rem;
+    padding: 0;
     border-top: none;
+    background: transparent;
+    border-radius: 0;
+}
+
+@media (max-width: 600px) {
+    .modal-content-small {
+        margin: 0;
+        min-height: 100vh;
+        border-radius: 0;
+        padding: 1.5rem;
+    }
 }
 
 /* Modal de Confirmação */
