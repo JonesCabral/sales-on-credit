@@ -430,12 +430,12 @@ class SalesManager {
             const firstSale = client.sales.find(s => s.type === 'sale');
             if (!firstSale) return false;
             const firstSaleDate = new Date(firstSale.date);
-            const diffMonths = (now.getFullYear() - firstSaleDate.getFullYear()) * 12 + (now.getMonth() - firstSaleDate.getMonth());
-            return diffMonths >= 2;
+            const diffDays = Math.floor((now - firstSaleDate) / (1000 * 60 * 60 * 24));
+            return diffDays >= 30;
         }
         
-        const diffMonths = (now.getFullYear() - lastPayment.getFullYear()) * 12 + (now.getMonth() - lastPayment.getMonth());
-        return diffMonths >= 2;
+        const diffDays = Math.floor((now - lastPayment) / (1000 * 60 * 60 * 24));
+        return diffDays >= 30;
     }
 }
 
