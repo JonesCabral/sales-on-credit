@@ -472,6 +472,10 @@ const deleteClientBtn = document.getElementById('deleteClient');
 const archiveClientBtn = document.getElementById('archiveClient');
 const clearHistoryBtn = document.getElementById('clearHistory');
 const shareHistoryBtn = document.getElementById('shareHistory');
+const clientScreenTabActions = document.getElementById('clientScreenTabActions');
+const clientScreenTabHistory = document.getElementById('clientScreenTabHistory');
+const clientScreenActions = document.getElementById('clientScreenActions');
+const clientScreenHistory = document.getElementById('clientScreenHistory');
 const loader = document.getElementById('loader');
 const toast = document.getElementById('toast');
 const editNameForm = document.getElementById('editNameForm');
@@ -697,6 +701,24 @@ function formatDate(isoString) {
         hour: '2-digit',
         minute: '2-digit'
     });
+}
+
+function setClientModalScreen(screen) {
+    if (!clientScreenActions || !clientScreenHistory || !clientScreenTabActions || !clientScreenTabHistory) {
+        return;
+    }
+
+    const showHistory = screen === 'history';
+
+    clientScreenActions.classList.toggle('active', !showHistory);
+    clientScreenActions.hidden = showHistory;
+    clientScreenHistory.classList.toggle('active', showHistory);
+    clientScreenHistory.hidden = !showHistory;
+
+    clientScreenTabActions.classList.toggle('active', !showHistory);
+    clientScreenTabActions.setAttribute('aria-selected', String(!showHistory));
+    clientScreenTabHistory.classList.toggle('active', showHistory);
+    clientScreenTabHistory.setAttribute('aria-selected', String(showHistory));
 }
 
 // Atualizar lista de clientes
@@ -1098,6 +1120,8 @@ function openClientModal(clientId) {
         }
     }
 
+    setClientModalScreen('actions');
+
     modal.style.display = 'block';
     document.body.classList.add('modal-open');
     document.body.dataset.scrollY = window.scrollY;
@@ -1124,6 +1148,7 @@ function closeClientModal() {
         editNameForm.style.display = 'none';
         editNameForm.reset();
     }
+    setClientModalScreen('actions');
     const nameSection = document.querySelector('.client-name-section');
     if (nameSection) {
         nameSection.style.display = 'flex';
@@ -1682,6 +1707,18 @@ if (shareHistoryBtn) {
         } else {
             showToast('Nenhum cliente selecionado.', 'error');
         }
+    });
+}
+
+if (clientScreenTabActions) {
+    clientScreenTabActions.addEventListener('click', () => {
+        setClientModalScreen('actions');
+    });
+}
+
+if (clientScreenTabHistory) {
+    clientScreenTabHistory.addEventListener('click', () => {
+        setClientModalScreen('history');
     });
 }
 

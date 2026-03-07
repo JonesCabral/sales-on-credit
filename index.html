@@ -239,45 +239,53 @@
                 </div>
 
                 <div class="modal-body">
+                    <div class="client-modal-tabs" role="tablist" aria-label="Navegação de detalhes do cliente">
+                        <button id="clientScreenTabActions" class="client-modal-tab active" type="button" role="tab" aria-selected="true" aria-controls="clientScreenActions">Movimentação</button>
+                        <button id="clientScreenTabHistory" class="client-modal-tab" type="button" role="tab" aria-selected="false" aria-controls="clientScreenHistory">Histórico e Gestão</button>
+                    </div>
 
-                <div class="modal-section modal-section-payment">
-                <h3>➕ Registrar Pagamento</h3>
-                <form id="paymentForm">
-                    <input type="text" id="paymentAmount" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off" required>
-                    <button type="submit" class="btn btn-success btn-payment-action">✓ Registrar Pagamento</button>
-                </form>
-                </div>
+                    <div id="clientScreenActions" class="client-modal-screen active" role="tabpanel" aria-labelledby="clientScreenTabActions">
+                        <div class="modal-section modal-section-payment">
+                            <h3>➕ Registrar Pagamento</h3>
+                            <form id="paymentForm">
+                                <input type="text" id="paymentAmount" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off" required>
+                                <button type="submit" class="btn btn-success btn-payment-action">✓ Registrar Pagamento</button>
+                            </form>
+                        </div>
 
-                <div class="modal-section modal-section-sale">
-                <h3>💵 Adicionar Nova Venda</h3>
-                <form id="modalAddSaleForm">
-                    <input type="text" id="modalSaleAmount" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off" required>
-                    <textarea id="modalSaleDescription" placeholder="Descrição ou produto (opcional)" rows="3"></textarea>
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="modalJustNoteProduct">
-                        <span>📝 Apenas anotar produto (sem valor)</span>
-                    </label>
-                    <button type="submit" class="btn btn-primary btn-sale-action">💵 Adicionar Venda</button>
-                </form>
-                </div>
+                        <div class="modal-section modal-section-sale">
+                            <h3>💵 Adicionar Nova Venda</h3>
+                            <form id="modalAddSaleForm">
+                                <input type="text" id="modalSaleAmount" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off" required>
+                                <textarea id="modalSaleDescription" placeholder="Descrição ou produto (opcional)" rows="3"></textarea>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="modalJustNoteProduct">
+                                    <span>📝 Apenas anotar produto (sem valor)</span>
+                                </label>
+                                <button type="submit" class="btn btn-primary btn-sale-action">💵 Adicionar Venda</button>
+                            </form>
+                        </div>
+                    </div>
 
-                <div class="modal-section">
-                    <h3>Histórico de Vendas</h3>
-                    <button id="shareHistory" class="btn btn-share" title="Fazer cobrança">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="12" y1="1" x2="12" y2="23"/>
-                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-                        </svg>
-                        Fazer cobrança
-                    </button>
-                </div>
-                <div id="salesHistory" class="sales-history"></div>
-                </div>
+                    <div id="clientScreenHistory" class="client-modal-screen" role="tabpanel" aria-labelledby="clientScreenTabHistory" hidden>
+                        <div class="modal-section">
+                            <h3>Histórico de Vendas</h3>
+                            <button id="shareHistory" class="btn btn-share" title="Fazer cobrança">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="12" y1="1" x2="12" y2="23"/>
+                                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                                </svg>
+                                Fazer cobrança
+                            </button>
+                        </div>
+                        <div id="salesHistory" class="sales-history"></div>
 
-                <div class="modal-actions">
-                    <button id="archiveClient" class="btn btn-secondary">📦 Arquivar Cliente</button>
-                    <button id="clearHistory" class="btn btn-warning">🧹 Limpar Histórico</button>
-                    <button id="deleteClient" class="btn btn-danger">🗑️ Excluir Cliente</button>
+                        <div class="modal-actions">
+                            <button id="archiveClient" class="btn btn-secondary">📦 Arquivar Cliente</button>
+                            <button id="clearHistory" class="btn btn-warning">🧹 Limpar Histórico</button>
+                            <button id="deleteClient" class="btn btn-danger">🗑️ Excluir Cliente</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
