@@ -619,7 +619,12 @@ function getDatabaseErrorMessage(error, fallback) {
 
 // Funções de formatação
 function formatCurrency(value) {
-    return value.toFixed(2).replace('.', ',');
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) return '0,00';
+    return numericValue.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
 }
 
 // Formatar dias em meses e dias
