@@ -737,6 +737,20 @@ input:focus, select:focus, textarea:focus {
     background: var(--success-light);
 }
 
+.btn-payment-action {
+    box-shadow: 0 2px 8px rgba(22, 163, 74, 0.28);
+}
+
+.btn-sale-action {
+    background: #f59e0b;
+    color: white;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+.btn-sale-action:hover {
+    background: #fbbf24;
+}
+
 .btn-danger {
     background: var(--danger-color);
     color: white;
@@ -1003,6 +1017,16 @@ input:focus, select:focus, textarea:focus {
 .modal-section {
     padding: 1.5rem 2rem;
     border-bottom: 1px solid var(--border-color);
+}
+
+.modal-section-payment {
+    border-left: 4px solid var(--success-color);
+    background: linear-gradient(90deg, rgba(22, 163, 74, 0.1), rgba(22, 163, 74, 0));
+}
+
+.modal-section-sale {
+    border-left: 4px solid #f59e0b;
+    background: linear-gradient(90deg, rgba(245, 158, 11, 0.12), rgba(245, 158, 11, 0));
 }
 
 .modal-section:last-of-type {
@@ -2533,6 +2557,14 @@ input:focus, select:focus, textarea:focus {
 
 [data-theme="dark"] .sales-history {
     background: #0f172a;
+}
+
+[data-theme="dark"] .modal-section-payment {
+    background: linear-gradient(90deg, rgba(22, 163, 74, 0.16), rgba(22, 163, 74, 0));
+}
+
+[data-theme="dark"] .modal-section-sale {
+    background: linear-gradient(90deg, rgba(245, 158, 11, 0.2), rgba(245, 158, 11, 0));
 }
 
 [data-theme="dark"] .sale-item {
