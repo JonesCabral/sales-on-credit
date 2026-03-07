@@ -416,27 +416,29 @@ class SalesManager {
         }, new Date(payments[0].date));
     }
 
-    isOverdue(clientId) {
-        // Só marca como atrasado se tiver dívida positiva
+    getDaysSinceReferencePayment(clientId) {
+        // Considera atraso apenas para clientes com dívida positiva
         const debt = this.getClientDebt(clientId);
-        if (debt <= 0) return false;
-        
-        const lastPayment = this.getLastPaymentDate(clientId);
+        if (debt <= 0) return 0;
+
         const now = new Date();
-        
-        if (lastPayment === null) {
-            // Nunca pagou: verificar data da primeira venda
-            const client = this.clients[clientId];
-            if (!client.sales || client.sales.length === 0) return false;
-            const firstSale = client.sales.find(s => s.type === 'sale');
-            if (!firstSale) return false;
-            const firstSaleDate = new Date(firstSale.date);
-            const diffDays = Math.floor((now - firstSaleDate) / (1000 * 60 * 60 * 24));
-            return diffDays >= 30;
+        const lastPayment = this.getLastPaymentDate(clientId);
+
+        if (lastPayment) {
+            return Math.floor((now - lastPayment) / (1000 * 60 * 60 * 24));
         }
-        
-        const diffDays = Math.floor((now - lastPayment) / (1000 * 60 * 60 * 24));
-        return diffDays >= 30;
+
+        // Nunca pagou: usa a data da primeira venda
+        const client = this.clients[clientId];
+        if (!client?.sales || client.sales.length === 0) return 0;
+        const firstSale = client.sales.find(s => s.type === 'sale');
+        if (!firstSale) return 0;
+
+        return Math.floor((now - new Date(firstSale.date)) / (1000 * 60 * 60 * 24));
+    }
+
+    isOverdue(clientId) {
+        return this.getDaysSinceReferencePayment(clientId) >= 30;
     }
 }
 
@@ -741,8 +743,29 @@ function updateClientsList() {
         );
     }
     
-    // Ordenar por dívida (maior primeiro)
-    filteredClients.sort((a, b) => manager.getClientDebt(b.id) - manager.getClientDebt(a.id));
+    // Prioridade antiga: atrasados primeiro (mais dias no topo), depois maior dívida
+    filteredClients.sort((a, b) => {
+        const aOverdue = manager.isOverdue(a.id);
+        const bOverdue = manager.isOverdue(b.id);
+
+        if (aOverdue !== bOverdue) {
+            return aOverdue ? -1 : 1;
+        }
+
+        if (aOverdue && bOverdue) {
+            const overdueDaysDiff = manager.getDaysSinceReferencePayment(b.id) - manager.getDaysSinceReferencePayment(a.id);
+            if (overdueDaysDiff !== 0) {
+                return overdueDaysDiff;
+            }
+        }
+
+        const debtDiff = manager.getClientDebt(b.id) - manager.getClientDebt(a.id);
+        if (debtDiff !== 0) {
+            return debtDiff;
+        }
+
+        return a.name.localeCompare(b.name, 'pt-BR');
+    });
 
     renderClientsList(filteredClients);
 
