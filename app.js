@@ -703,31 +703,29 @@ function formatDate(isoString) {
 function updateClientsList() {
     safeLog('Atualizando lista de clientes...', manager.clients);
     const clients = Object.values(manager.clients);
-    
-    const clientsListDiv = document.getElementById('clientsListDiv');
-    if (clients.length === 0) {
-        clientsListDiv.innerHTML = '<p class="empty-message">Nenhum cliente cadastrado ainda.</p>';
-        return;
-    }
 
     // Aplicar filtros se existirem
     const searchClients = document.getElementById('searchClients');
     const filterDebtOnlyCheckbox = document.getElementById('filterDebtOnly');
+    const filterUnpricedCheckbox = document.getElementById('filterUnpriced');
+    const filterOverdueCheckbox = document.getElementById('filterOverdue');
+    const filterArchivedCheckbox = document.getElementById('filterArchived');
+
     const searchTerm = searchClients?.value.trim().toLowerCase() || '';
     const showDebtOnly = filterDebtOnlyCheckbox?.checked || false;
-    
-    let filteredClients = [...clients];
-    
-    // Filtrar clientes por status de arquivado
-    const filterArchivedCheckbox = document.getElementById('filterArchived');
+    const showUnpricedOnly = filterUnpricedCheckbox?.checked || false;
+    const showOverdueOnly = filterOverdueCheckbox?.checked || false;
     const showArchived = filterArchivedCheckbox?.checked || false;
+
+    // Define o universo base conforme o filtro de arquivados
+    let baseClients = [...clients];
     if (showArchived) {
-        // Quando marcado, mostrar APENAS clientes arquivados
-        filteredClients = filteredClients.filter(client => client.archived);
+        baseClients = baseClients.filter(client => client.archived);
     } else {
-        // Quando desmarcado, mostrar apenas clientes não arquivados
-        filteredClients = filteredClients.filter(client => !client.archived);
+        baseClients = baseClients.filter(client => !client.archived);
     }
+
+    let filteredClients = [...baseClients];
     
     // Filtrar por nome se houver termo de busca
     if (searchTerm.length > 0) {
@@ -735,11 +733,23 @@ function updateClientsList() {
             client.name.toLowerCase().includes(searchTerm)
         );
     }
-    
-    // Filtrar por dívida se checkbox estiver marcado
+
+    // Filtros combináveis
     if (showDebtOnly) {
         filteredClients = filteredClients.filter(client => 
             manager.getClientDebt(client.id) > 0
+        );
+    }
+
+    if (showUnpricedOnly) {
+        filteredClients = filteredClients.filter(client => 
+            manager.hasUnpricedNotes(client.id)
+        );
+    }
+
+    if (showOverdueOnly) {
+        filteredClients = filteredClients.filter(client => 
+            manager.isOverdue(client.id)
         );
     }
     
@@ -775,6 +785,20 @@ function updateClientsList() {
 
     // Atualizar aviso de anotações pendentes
     updateUnpricedNotesAlert();
+
+    // Atualizar contador de clientes conforme o modo atual (ativos ou arquivados)
+    const clientsCountEl = document.getElementById('clientsCount');
+    if (clientsCountEl) {
+        const totalClients = baseClients.length;
+        const hasActiveFilters = searchTerm.length > 0 || showDebtOnly || showUnpricedOnly || showOverdueOnly;
+
+        if (hasActiveFilters && filteredClients.length !== totalClients) {
+            clientsCountEl.textContent = `Mostrando ${filteredClients.length} de ${totalClients} cliente${totalClients !== 1 ? 's' : ''}`;
+        } else {
+            clientsCountEl.textContent = `${totalClients} cliente${totalClients !== 1 ? 's' : ''}`;
+        }
+        clientsCountEl.style.display = 'block';
+    }
 }
 
 // Atualizar aviso de anotações pendentes
@@ -874,18 +898,6 @@ function renderClientsList(clients) {
     const totalDebt = manager.getTotalDebt();
     document.getElementById('totalDebt').textContent = formatCurrency(totalDebt);
 
-    // Atualizar contador de clientes
-    const totalClients = Object.values(manager.clients).filter(c => !c.archived).length;
-    const clientsCountEl = document.getElementById('clientsCount');
-    if (clientsCountEl) {
-        if (clients.length !== totalClients) {
-            clientsCountEl.textContent = `Mostrando ${clients.length} de ${totalClients} cliente${totalClients !== 1 ? 's' : ''}`;
-            clientsCountEl.style.display = 'block';
-        } else {
-            clientsCountEl.textContent = `${totalClients} cliente${totalClients !== 1 ? 's' : ''}`;
-            clientsCountEl.style.display = 'block';
-        }
-    }
 }
 
 
@@ -1346,78 +1358,25 @@ if (searchClients) {
     const filterArchivedCheckbox = document.getElementById('filterArchived');
     const filterUnpricedCheckbox = document.getElementById('filterUnpriced');
     const filterOverdueCheckbox = document.getElementById('filterOverdue');
-    
-    const applyFilters = () => {
-        const searchTerm = searchClients.value.trim().toLowerCase();
-        let allClients = Object.values(manager.clients);
-        
-        // Filtrar clientes por status de arquivado
-        const showArchived = filterArchivedCheckbox?.checked || false;
-        if (showArchived) {
-            allClients = allClients.filter(client => client.archived);
-        } else {
-            allClients = allClients.filter(client => !client.archived);
-        }
-        
-        // Se houver busca por nome, desativar outros filtros
-        if (searchTerm.length > 0) {
-            if (filterDebtOnlyCheckbox) filterDebtOnlyCheckbox.checked = false;
-            if (filterUnpricedCheckbox) filterUnpricedCheckbox.checked = false;
-            if (filterOverdueCheckbox) filterOverdueCheckbox.checked = false;
-            allClients = allClients.filter(client => 
-                client.name.toLowerCase().includes(searchTerm)
-            );
-        } else {
-            // Filtro de pagamento atrasado (tem prioridade se marcado)
-            const showOverdueOnly = filterOverdueCheckbox?.checked || false;
-            if (showOverdueOnly) {
-                if (filterDebtOnlyCheckbox) filterDebtOnlyCheckbox.checked = false;
-                if (filterUnpricedCheckbox) filterUnpricedCheckbox.checked = false;
-                allClients = allClients.filter(client => manager.isOverdue(client.id));
-            } else {
-                // Filtro de produtos sem preço
-                const showUnpricedOnly = filterUnpricedCheckbox?.checked || false;
-                if (showUnpricedOnly) {
-                    if (filterDebtOnlyCheckbox) filterDebtOnlyCheckbox.checked = false;
-                    allClients = allClients.filter(client => 
-                        manager.hasUnpricedNotes(client.id)
-                    );
-                } else {
-                    // Filtro de dívida
-                    const showDebtOnly = filterDebtOnlyCheckbox?.checked || false;
-                    if (showDebtOnly) {
-                        allClients = allClients.filter(client => 
-                            manager.getClientDebt(client.id) > 0
-                        );
-                    }
-                }
-            }
-        }
-        
-        // Ordenar por dívida (maior primeiro)
-        const sorted = [...allClients].sort((a, b) => 
-            manager.getClientDebt(b.id) - manager.getClientDebt(a.id)
-        );
-        
-        renderClientsList(sorted);
-    };
-    
-    searchClients.addEventListener('input', debounce(applyFilters, 250));
+
+    const debouncedUpdateClientsList = debounce(updateClientsList, 250);
+
+    searchClients.addEventListener('input', debouncedUpdateClientsList);
     
     if (filterDebtOnlyCheckbox) {
-        filterDebtOnlyCheckbox.addEventListener('change', applyFilters);
+        filterDebtOnlyCheckbox.addEventListener('change', updateClientsList);
     }
     
     if (filterUnpricedCheckbox) {
-        filterUnpricedCheckbox.addEventListener('change', applyFilters);
+        filterUnpricedCheckbox.addEventListener('change', updateClientsList);
     }
     
     if (filterOverdueCheckbox) {
-        filterOverdueCheckbox.addEventListener('change', applyFilters);
+        filterOverdueCheckbox.addEventListener('change', updateClientsList);
     }
     
     if (filterArchivedCheckbox) {
-        filterArchivedCheckbox.addEventListener('change', applyFilters);
+        filterArchivedCheckbox.addEventListener('change', updateClientsList);
     }
 }
 
