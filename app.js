@@ -88,6 +88,7 @@ class SalesManager {
         this.currentClientId = null;
         this.userId = null;
         this.unsubscribe = null;
+        this.dataLoaded = false;
     }
 
     setUser(userId) {
@@ -111,9 +112,19 @@ class SalesManager {
             this.clients = snapshot.val() || {};
             safeLog('Dados carregados do Firebase');
             updateClientsList();
+            // Esconder loading screen após primeiro carregamento de dados
+            if (!this.dataLoaded) {
+                this.dataLoaded = true;
+                hideLoadingScreen();
+            }
         }, (error) => {
             console.error('Erro ao carregar dados:', error);
             showToast('Erro ao carregar dados. Verifique sua conexão.', 'error');
+            // Esconder loading mesmo em caso de erro para não travar a tela
+            if (!this.dataLoaded) {
+                this.dataLoaded = true;
+                hideLoadingScreen();
+            }
         });
     }
 
@@ -1198,12 +1209,12 @@ onAuthStateChanged(auth, (user) => {
         currentUser = null;
         // Limpar listeners ao fazer logout
         manager.cleanup();
+        manager.dataLoaded = false;
         if (loginScreen) loginScreen.style.display = 'flex';
         if (appScreen) appScreen.style.display = 'none';
+        // Sem usuário logado, esconder loading e mostrar login
+        hideLoadingScreen();
     }
-    // Remover classe loading e adicionar loaded após verificar autenticação
-    document.body.classList.remove('loading');
-    document.body.classList.add('loaded');
 });
 
 // Login com Email
@@ -2035,20 +2046,14 @@ function hideLoadingScreen() {
     }
 }
 
-// Esconder loading screen quando a página estiver totalmente carregada
-if (document.readyState === 'complete') {
-    hideLoadingScreen();
-} else {
-    window.addEventListener('load', hideLoadingScreen);
-}
-
-// Fallback: esconder loading após 5 segundos se ainda estiver visível
+// Fallback: esconder loading após 10 segundos se ainda estiver visível
+// (protege contra falhas de rede ou Firebase travado)
 setTimeout(() => {
     if (document.getElementById('loadingScreen') && !document.getElementById('loadingScreen').classList.contains('hidden')) {
         console.log('Loading timeout - forçando esconder loading screen');
         hideLoadingScreen();
     }
-}, 5000);
+}, 10000);
 
 // Botão Voltar ao Topo
 (function initBackToTop() {
