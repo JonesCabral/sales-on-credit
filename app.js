@@ -813,17 +813,14 @@ function renderClientsList(clients) {
 
         let statusClass = '';
         let statusIcon = '';
-        let label = 'Dívida: ';
         let noteIndicator = '';
         let overdueIndicator = '';
         
         if (isPaid) {
             statusClass = 'paid';
             statusIcon = '✓';
-            label = 'Pago: ';
         } else if (isCredit) {
             statusClass = 'credit';
-            label = 'Crédito: ';
         }
 
         if (hasNotes) {
@@ -859,7 +856,7 @@ function renderClientsList(clients) {
                     <div class="client-sales">${salesCount} venda${salesCount !== 1 ? 's' : ''} fiada${salesCount !== 1 ? 's' : ''}</div>
                 </div>
                 <div class="client-debt ${statusClass}">
-                    ${label}R$ ${formatCurrency(displayValue)}
+                    R$ ${formatCurrency(displayValue)}
                     ${statusIcon}
                 </div>
             </div>
@@ -991,7 +988,7 @@ function openClientModal(clientId) {
         modalDebtContainer.classList.add('has-credit');
         modalDebtContainer.innerHTML = `Crédito a favor: <strong>R$ <span id="modalDebt">${formatCurrency(Math.abs(debt))}</span></strong>`;
     } else {
-        modalDebtContainer.innerHTML = `Dívida total: <strong>R$ <span id="modalDebt">${formatCurrency(debt)}</span></strong>`;
+        modalDebtContainer.innerHTML = `Saldo: <strong>R$ <span id="modalDebt">${formatCurrency(debt)}</span></strong>`;
     }
     
     if (editClientNameInput) {
@@ -1455,7 +1452,11 @@ if (clientSearch) {
                 .sort((a, b) => a.name.localeCompare(b.name))
                 .map(client => {
                     const debt = manager.getClientDebt(client.id);
-                    const debtText = debt > 0 ? `Dívida: R$ ${formatCurrency(debt)}` : 'Sem dívidas';
+                    const debtText = debt > 0
+                        ? `R$ ${formatCurrency(debt)}`
+                        : debt < 0
+                            ? `R$ -${formatCurrency(Math.abs(debt))}`
+                            : 'R$ 0,00';
                     return `
                         <div class="suggestion-item" data-client-id="${client.id}">
                             <div>${sanitizeHTML(client.name)}</div>
