@@ -419,15 +419,6 @@ header h1 {
     background: var(--danger-light);
 }
 
-.credit-card {
-    border-left: none;
-    background: #f0fdf4;
-}
-
-.credit-card::before {
-    background: var(--success-color);
-}
-
 .total-label {
     font-size: 0.9rem;
     color: var(--text-secondary);
@@ -446,10 +437,6 @@ header h1 {
 
 .debt-card .total-value {
     color: #dc2626;
-}
-
-.credit-card .total-value {
-    color: #16a34a;
 }
 
 /* Alert Banner */
@@ -2438,10 +2425,6 @@ input:focus, select:focus, textarea:focus {
 
 [data-theme="dark"] .debt-card {
     background: #451a1a;
-}
-
-[data-theme="dark"] .credit-card {
-    background: #14532d;
 }
 
 [data-theme="dark"] .alert-banner {

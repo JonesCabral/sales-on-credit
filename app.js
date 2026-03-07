@@ -384,16 +384,6 @@ class SalesManager {
         }, 0);
     }
 
-    getTotalCredit() {
-        return Object.keys(this.clients).reduce((total, clientId) => {
-            // Excluir clientes arquivados do cálculo
-            if (this.clients[clientId].archived) return total;
-            const debt = this.getClientDebt(clientId);
-            // Somar apenas créditos (dívidas negativas)
-            return debt < 0 ? total + Math.abs(debt) : total;
-        }, 0);
-    }
-
     getClientSalesCount(clientId) {
         if (!this.clients[clientId]) return 0;
         if (!this.clients[clientId].sales) return 0;
@@ -753,17 +743,7 @@ function updateClientsList() {
 
     // Atualizar totais
     const totalDebt = manager.getTotalDebt();
-    const totalCredit = manager.getTotalCredit();
-    
     document.getElementById('totalDebt').textContent = formatCurrency(totalDebt);
-    
-    const creditCard = document.getElementById('creditCard');
-    if (totalCredit > 0) {
-        creditCard.style.display = 'block';
-        document.getElementById('totalCredit').textContent = formatCurrency(totalCredit);
-    } else {
-        creditCard.style.display = 'none';
-    }
 
     // Atualizar aviso de anotações pendentes
     updateUnpricedNotesAlert();
@@ -867,17 +847,7 @@ function renderClientsList(clients) {
 
     // Atualizar totais
     const totalDebt = manager.getTotalDebt();
-    const totalCredit = manager.getTotalCredit();
-    
     document.getElementById('totalDebt').textContent = formatCurrency(totalDebt);
-    
-    const creditCard = document.getElementById('creditCard');
-    if (totalCredit > 0) {
-        creditCard.style.display = 'block';
-        document.getElementById('totalCredit').textContent = formatCurrency(totalCredit);
-    } else {
-        creditCard.style.display = 'none';
-    }
 
     // Atualizar contador de clientes
     const totalClients = Object.values(manager.clients).filter(c => !c.archived).length;
