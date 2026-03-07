@@ -632,6 +632,15 @@ function formatCurrency(value) {
     return value.toFixed(2).replace('.', ',');
 }
 
+// Formatar dias em meses e dias
+function formatDaysToMonths(totalDays) {
+    const months = Math.floor(totalDays / 30);
+    const days = totalDays % 30;
+    if (months === 0) return `${days} dia${days !== 1 ? 's' : ''}`;
+    if (days === 0) return `${months} ${months === 1 ? 'mês' : 'meses'}`;
+    return `${months} ${months === 1 ? 'mês' : 'meses'} e ${days} dia${days !== 1 ? 's' : ''}`;
+}
+
 // Máscara de moeda brasileira (R$) - formata enquanto digita
 function currencyMask(input) {
     input.addEventListener('input', (e) => {
@@ -819,12 +828,12 @@ function renderClientsList(clients) {
             let overdueMsg = '';
             if (lastPayment) {
                 daysSince = Math.floor((new Date() - lastPayment) / (1000 * 60 * 60 * 24));
-                overdueMsg = `Último pagamento há ${daysSince} dia${daysSince !== 1 ? 's' : ''}`;
+                overdueMsg = `Último pagamento há ${formatDaysToMonths(daysSince)}`;
             } else {
                 const firstSale = (client.sales || []).find(s => s.type === 'sale');
                 if (firstSale) {
                     daysSince = Math.floor((new Date() - new Date(firstSale.date)) / (1000 * 60 * 60 * 24));
-                    overdueMsg = `Sem pagamento há ${daysSince} dia${daysSince !== 1 ? 's' : ''}`;
+                    overdueMsg = `Sem pagamento há ${formatDaysToMonths(daysSince)}`;
                 } else {
                     overdueMsg = 'Nunca realizou pagamento';
                 }
