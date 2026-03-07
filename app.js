@@ -1009,7 +1009,6 @@ function openClientModal(clientId) {
 
     // Usar textContent para prevenir XSS
     document.getElementById('modalClientName').textContent = client.name;
-    const modalDebtElement = document.getElementById('modalDebt');
     const modalDebtContainer = document.querySelector('.modal-debt');
     
     // Remover classes anteriores
@@ -1017,12 +1016,12 @@ function openClientModal(clientId) {
     
     if (isPaid) {
         modalDebtContainer.classList.add('is-paid');
-        modalDebtContainer.innerHTML = `Saldo: <strong>R$ <span id="modalDebt">0,00</span> ✓</strong>`;
+        modalDebtContainer.innerHTML = '<strong>R$ <span id="modalDebt">0,00</span></strong>';
     } else if (isCredit) {
         modalDebtContainer.classList.add('has-credit');
-        modalDebtContainer.innerHTML = `Crédito a favor: <strong>R$ <span id="modalDebt">${formatCurrency(Math.abs(debt))}</span></strong>`;
+        modalDebtContainer.innerHTML = `<strong>R$ <span id="modalDebt">${formatCurrency(Math.abs(debt))}</span></strong>`;
     } else {
-        modalDebtContainer.innerHTML = `Saldo: <strong>R$ <span id="modalDebt">${formatCurrency(debt)}</span></strong>`;
+        modalDebtContainer.innerHTML = `<strong>R$ <span id="modalDebt">${formatCurrency(debt)}</span></strong>`;
     }
     
     if (editClientNameInput) {
