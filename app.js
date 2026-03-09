@@ -721,6 +721,19 @@ function setClientModalScreen(screen) {
     clientScreenTabHistory.setAttribute('aria-selected', String(showHistory));
 }
 
+function updateSearchFilterInteractivity() {
+    const searchInput = document.getElementById('searchClients');
+    const filterIds = ['filterDebtOnly', 'filterUnpriced', 'filterOverdue', 'filterArchived'];
+    const hasSearchTerm = (searchInput?.value || '').trim().length > 0;
+
+    filterIds.forEach((id) => {
+        const checkbox = document.getElementById(id);
+        if (checkbox) {
+            checkbox.disabled = hasSearchTerm;
+        }
+    });
+}
+
 // Atualizar lista de clientes
 function updateClientsList() {
     safeLog('Atualizando lista de clientes...', manager.clients);
@@ -734,45 +747,48 @@ function updateClientsList() {
     const filterArchivedCheckbox = document.getElementById('filterArchived');
 
     const searchTerm = searchClients?.value.trim().toLowerCase() || '';
+    const hasSearchTerm = searchTerm.length > 0;
     const showDebtOnly = filterDebtOnlyCheckbox?.checked || false;
     const showUnpricedOnly = filterUnpricedCheckbox?.checked || false;
     const showOverdueOnly = filterOverdueCheckbox?.checked || false;
     const showArchived = filterArchivedCheckbox?.checked || false;
 
-    // Define o universo base conforme o filtro de arquivados
     let baseClients = [...clients];
-    if (showArchived) {
-        baseClients = baseClients.filter(client => client.archived);
-    } else {
-        baseClients = baseClients.filter(client => !client.archived);
-    }
+    let filteredClients = [...clients];
 
-    let filteredClients = [...baseClients];
-    
-    // Filtrar por nome se houver termo de busca
-    if (searchTerm.length > 0) {
+    if (hasSearchTerm) {
+        // Ao pesquisar por cliente, desconsidera todos os filtros.
         filteredClients = filteredClients.filter(client => 
             client.name.toLowerCase().includes(searchTerm)
         );
-    }
+    } else {
+        // Define o universo base conforme o filtro de arquivados
+        if (showArchived) {
+            baseClients = baseClients.filter(client => client.archived);
+        } else {
+            baseClients = baseClients.filter(client => !client.archived);
+        }
 
-    // Filtros combináveis
-    if (showDebtOnly) {
-        filteredClients = filteredClients.filter(client => 
-            manager.getClientDebt(client.id) > 0
-        );
-    }
+        filteredClients = [...baseClients];
 
-    if (showUnpricedOnly) {
-        filteredClients = filteredClients.filter(client => 
-            manager.hasUnpricedNotes(client.id)
-        );
-    }
+        // Filtros combináveis
+        if (showDebtOnly) {
+            filteredClients = filteredClients.filter(client => 
+                manager.getClientDebt(client.id) > 0
+            );
+        }
 
-    if (showOverdueOnly) {
-        filteredClients = filteredClients.filter(client => 
-            manager.isOverdue(client.id)
-        );
+        if (showUnpricedOnly) {
+            filteredClients = filteredClients.filter(client => 
+                manager.hasUnpricedNotes(client.id)
+            );
+        }
+
+        if (showOverdueOnly) {
+            filteredClients = filteredClients.filter(client => 
+                manager.isOverdue(client.id)
+            );
+        }
     }
     
     // Prioridade antiga: atrasados primeiro (mais dias no topo), depois maior dívida
@@ -812,7 +828,7 @@ function updateClientsList() {
     const clientsCountEl = document.getElementById('clientsCount');
     if (clientsCountEl) {
         const totalClients = baseClients.length;
-        const hasActiveFilters = searchTerm.length > 0 || showDebtOnly || showUnpricedOnly || showOverdueOnly;
+        const hasActiveFilters = hasSearchTerm || (!hasSearchTerm && (showDebtOnly || showUnpricedOnly || showOverdueOnly));
 
         if (hasActiveFilters && filteredClients.length !== totalClients) {
             clientsCountEl.textContent = `Mostrando ${filteredClients.length} de ${totalClients} cliente${totalClients !== 1 ? 's' : ''}`;
@@ -1385,7 +1401,10 @@ if (searchClients) {
 
     const debouncedUpdateClientsList = debounce(updateClientsList, 250);
 
-    searchClients.addEventListener('input', debouncedUpdateClientsList);
+    searchClients.addEventListener('input', () => {
+        updateSearchFilterInteractivity();
+        debouncedUpdateClientsList();
+    });
     
     if (filterDebtOnlyCheckbox) {
         filterDebtOnlyCheckbox.addEventListener('change', updateClientsList);
@@ -1402,6 +1421,8 @@ if (searchClients) {
     if (filterArchivedCheckbox) {
         filterArchivedCheckbox.addEventListener('change', updateClientsList);
     }
+
+    updateSearchFilterInteractivity();
 }
 
 let selectedClientId = null;
