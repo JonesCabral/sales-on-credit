@@ -22,6 +22,11 @@ const activitySummary = document.getElementById('activitySummary');
 const historyMeta = document.getElementById('historyMeta');
 const activityLimit = document.getElementById('activityLimit');
 const themeToggle = document.getElementById('themeToggle');
+const historyMenu = document.getElementById('historyMenu');
+const historyMenuOverlay = document.getElementById('historyMenuOverlay');
+const historyMenuToggle = document.getElementById('historyMenuToggle');
+const historyMenuClose = document.getElementById('historyMenuClose');
+const historyMenuThemeShortcut = document.getElementById('historyMenuThemeShortcut');
 
 let allActivities = [];
 
@@ -141,14 +146,47 @@ function renderActivities() {
 }
 
 function setupThemeToggle() {
-    if (!themeToggle) return;
-
-    themeToggle.addEventListener('click', () => {
+    const toggleTheme = () => {
         const html = document.documentElement;
         const currentTheme = html.getAttribute('data-theme');
         const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
         html.setAttribute('data-theme', newTheme);
         localStorage.setItem('theme', newTheme);
+    };
+
+    if (themeToggle) {
+        themeToggle.addEventListener('click', toggleTheme);
+    }
+
+    if (historyMenuThemeShortcut) {
+        historyMenuThemeShortcut.addEventListener('click', toggleTheme);
+    }
+}
+
+function setHistoryMenuOpen(isOpen) {
+    if (!historyMenu || !historyMenuOverlay || !historyMenuToggle) return;
+
+    historyMenu.classList.toggle('open', isOpen);
+    historyMenu.setAttribute('aria-hidden', String(!isOpen));
+    historyMenuOverlay.hidden = !isOpen;
+    historyMenuToggle.setAttribute('aria-expanded', String(isOpen));
+}
+
+function setupHistoryMenu() {
+    if (!historyMenu || !historyMenuOverlay || !historyMenuToggle || !historyMenuClose) return;
+
+    historyMenuToggle.addEventListener('click', () => setHistoryMenuOpen(true));
+    historyMenuClose.addEventListener('click', () => setHistoryMenuOpen(false));
+    historyMenuOverlay.addEventListener('click', () => setHistoryMenuOpen(false));
+
+    document.querySelectorAll('.app-menu-link').forEach((link) => {
+        link.addEventListener('click', () => setHistoryMenuOpen(false));
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            setHistoryMenuOpen(false);
+        }
     });
 }
 
@@ -164,6 +202,7 @@ if (activityLimit) {
 }
 
 setupThemeToggle();
+setupHistoryMenu();
 
 onAuthStateChanged(auth, (user) => {
     if (!user) {

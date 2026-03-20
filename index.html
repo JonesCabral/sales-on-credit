@@ -29,7 +29,7 @@
         .spinner { width: 60px; height: 60px; margin: 0 auto 20px; border: 5px solid rgba(255,255,255,0.2); border-top: 5px solid white; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
-    <link rel="stylesheet" href="style.css?v=2.1.1">
+    <link rel="stylesheet" href="style.css?v=2.1.3">
     <script>
         // Registrar Service Worker para PWA
         if ('serviceWorker' in navigator) {
@@ -45,7 +45,7 @@
         }
         
         // Controle de versão
-        const CURRENT_VERSION = '2.1.1';
+        const CURRENT_VERSION = '2.1.3';
         localStorage.setItem('appVersion', CURRENT_VERSION);
 
         // Theme: apply saved preference or system preference immediately to avoid flash
@@ -108,6 +108,7 @@
                     </div>
                 </div>
                 <div class="user-info">
+                    <button id="menuToggle" class="btn-menu-toggle" title="Abrir menu" aria-label="Abrir menu" aria-expanded="false" aria-controls="appMenu">☰</button>
                     <div class="user-avatar" id="userAvatar">V</div>
                     <span id="userEmail" class="user-email"></span>
                     <button id="themeToggle" class="btn-theme-toggle" title="Alternar tema claro/escuro" aria-label="Alternar tema">
@@ -119,9 +120,24 @@
             </div>
         </header>
 
+        <div id="appMenuOverlay" class="app-menu-overlay" hidden></div>
+        <aside id="appMenu" class="app-menu" aria-hidden="true">
+            <div class="app-menu-header">
+                <h3>Menu</h3>
+                <button id="menuClose" class="btn-menu-close" title="Fechar menu" aria-label="Fechar menu">✕</button>
+            </div>
+            <nav class="app-menu-links" aria-label="Navegação principal">
+                <a href="index.html" class="app-menu-link">🏠 Painel principal</a>
+                <a href="history.html" class="app-menu-link">📈 Histórico de movimentações</a>
+                <a href="#registerSaleSection" class="app-menu-link">💵 Registrar venda</a>
+                <a href="#clientsSection" class="app-menu-link">👥 Clientes</a>
+                <button id="menuThemeShortcut" class="app-menu-link app-menu-link-button" type="button">🌗 Alternar tema</button>
+            </nav>
+        </aside>
+
         <main>
             <!-- Formulário para registrar venda -->
-            <section class="card">
+            <section class="card" id="registerSaleSection">
                 <details class="collapsible-form" open>
                 <summary class="collapsible-summary"><h2>Registrar Venda Fiada</h2></summary>
                 <form id="addSaleForm">
@@ -166,12 +182,8 @@
                 </div>
             </div>
 
-            <div class="history-shortcut">
-                <a href="history.html" class="btn btn-secondary history-shortcut-link">📈 Ver página de histórico</a>
-            </div>
-
             <!-- Lista de clientes com dívidas -->
-            <section class="card clients-card">
+            <section class="card clients-card" id="clientsSection">
                 <div class="section-header">
                     <h2>👥 Clientes</h2>
                 </div>
@@ -343,7 +355,7 @@
     </div>
 
     <!-- Firebase SDK -->
-    <script type="module" src="app.js?v=2.1.1"></script>
+    <script type="module" src="app.js?v=2.1.3"></script>
 
     <!-- Indicador Offline -->
     <div id="offlineBanner" class="offline-banner" role="alert" aria-live="assertive" style="display: none;">

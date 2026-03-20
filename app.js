@@ -23,7 +23,7 @@ const database = getDatabase(app);
 const auth = getAuth(app);
 
 // Versão da aplicação
-const APP_VERSION = '2.1.1';
+const APP_VERSION = '2.1.3';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -48,15 +48,22 @@ const APP_VERSION = '2.1.1';
         }
 
         // Theme toggle
+        const toggleTheme = () => {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        };
+
         const themeToggle = document.getElementById('themeToggle');
         if (themeToggle) {
-            themeToggle.addEventListener('click', () => {
-                const html = document.documentElement;
-                const currentTheme = html.getAttribute('data-theme');
-                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-                html.setAttribute('data-theme', newTheme);
-                localStorage.setItem('theme', newTheme);
-            });
+            themeToggle.addEventListener('click', toggleTheme);
+        }
+
+        const menuThemeShortcut = document.getElementById('menuThemeShortcut');
+        if (menuThemeShortcut) {
+            menuThemeShortcut.addEventListener('click', toggleTheme);
         }
     });
 })();
@@ -505,8 +512,41 @@ const cancelEditSale = document.getElementById('cancelEditSale');
 const unpricedNotesAlert = document.getElementById('unpricedNotesAlert');
 const unpricedNotesMessage = document.getElementById('unpricedNotesMessage');
 const closeAlertBtn = document.getElementById('closeAlert');
+const appMenu = document.getElementById('appMenu');
+const appMenuOverlay = document.getElementById('appMenuOverlay');
+const menuToggleBtn = document.getElementById('menuToggle');
+const menuCloseBtn = document.getElementById('menuClose');
 let currentEditingSaleId = null;
 let alertDismissed = false;
+
+function setMenuOpen(isOpen) {
+    if (!appMenu || !appMenuOverlay || !menuToggleBtn) return;
+
+    appMenu.classList.toggle('open', isOpen);
+    appMenu.setAttribute('aria-hidden', String(!isOpen));
+    appMenuOverlay.hidden = !isOpen;
+    menuToggleBtn.setAttribute('aria-expanded', String(isOpen));
+}
+
+function initializeAppMenu() {
+    if (!appMenu || !appMenuOverlay || !menuToggleBtn || !menuCloseBtn) return;
+
+    menuToggleBtn.addEventListener('click', () => setMenuOpen(true));
+    menuCloseBtn.addEventListener('click', () => setMenuOpen(false));
+    appMenuOverlay.addEventListener('click', () => setMenuOpen(false));
+
+    document.querySelectorAll('.app-menu-link').forEach((link) => {
+        link.addEventListener('click', () => setMenuOpen(false));
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            setMenuOpen(false);
+        }
+    });
+}
+
+initializeAppMenu();
 
 // Aplicar máscara de moeda em todos os campos de valor
 [saleAmountInput, modalSaleAmountInput, editSaleAmount, document.getElementById('paymentAmount')].forEach(input => {

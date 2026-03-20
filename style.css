@@ -274,6 +274,107 @@ header {
     background: rgba(255,255,255,0.25);
 }
 
+.btn-menu-toggle {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.35);
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+}
+
+.btn-menu-toggle:hover {
+    background: rgba(255,255,255,0.25);
+}
+
+.app-menu-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.46);
+    z-index: 2100;
+}
+
+.app-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: min(86vw, 340px);
+    height: 100vh;
+    background: var(--card-bg);
+    border-right: 1px solid var(--border-color);
+    box-shadow: var(--shadow-lg);
+    transform: translateX(-100%);
+    transition: transform var(--transition-normal);
+    z-index: 2200;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+}
+
+.app-menu.open {
+    transform: translateX(0);
+}
+
+.app-menu-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.7rem;
+}
+
+.app-menu-header h3 {
+    margin: 0;
+    font-size: 1.05rem;
+}
+
+.btn-menu-close {
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--text-primary);
+    border-radius: 8px;
+    width: 34px;
+    height: 34px;
+    cursor: pointer;
+}
+
+.app-menu-links {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.app-menu-link {
+    display: block;
+    text-decoration: none;
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.7rem 0.8rem;
+    font-weight: 600;
+    background: var(--card-bg);
+    transition: background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.app-menu-link:hover {
+    border-color: #8fd5cd;
+    background: #f8fbff;
+    transform: translateX(2px);
+}
+
+.app-menu-link-button {
+    text-align: left;
+    width: 100%;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 1rem;
+}
+
 header h1 {
     font-size: 1.6rem;
     margin-bottom: 0.15rem;
@@ -437,17 +538,6 @@ header h1 {
 
 .debt-card .total-value {
     color: #dc2626;
-}
-
-.history-shortcut {
-    margin: -0.5rem 0 1.5rem;
-}
-
-.history-shortcut-link {
-    width: 100%;
-    text-align: center;
-    text-decoration: none;
-    display: inline-block;
 }
 
 .activity-card {
@@ -3125,6 +3215,7 @@ textarea:focus {
     .btn-share,
     .client-modal-tab,
     .btn-theme-toggle,
+    .btn-menu-toggle,
     .back-to-top {
         min-height: 44px;
     }
@@ -3200,6 +3291,26 @@ textarea:focus {
 
 [data-theme="dark"] .activity-amount.out {
     color: #fca5a5;
+}
+
+[data-theme="dark"] .btn-menu-toggle {
+    border-color: rgba(148, 163, 184, 0.45);
+    background: rgba(15, 23, 42, 0.28);
+}
+
+[data-theme="dark"] .app-menu {
+    background: #0f1a2d;
+    border-right-color: #2a3c55;
+}
+
+[data-theme="dark"] .app-menu-link {
+    background: #111f34;
+    border-color: #2a3c55;
+}
+
+[data-theme="dark"] .app-menu-link:hover {
+    background: #14253d;
+    border-color: #3c5a7e;
 }
 
 [data-theme="dark"] .history-limit {
