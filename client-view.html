@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <meta name="theme-color" content="#2563eb">
+    <meta name="theme-color" content="#0f766e">
     <title>Minha Conta - Vivi Variedades</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -32,7 +35,7 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: 'Manrope', sans-serif;
             background: var(--background);
             color: var(--text-primary);
             line-height: 1.6;
@@ -43,6 +46,7 @@
             padding-bottom: max(1rem, env(safe-area-inset-bottom));
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+            min-height: 100vh;
         }
 
         .container {
@@ -64,6 +68,7 @@
         }
 
         .header h1 {
+            font-family: 'Sora', sans-serif;
             font-size: 1.8rem;
             margin-bottom: 0.25rem;
             text-shadow: 0 1px 3px rgba(0,0,0,0.2);
@@ -149,6 +154,7 @@
         }
 
         .status-value {
+            font-family: 'Sora', sans-serif;
             font-size: 2.5rem;
             font-weight: 800;
             margin-bottom: 0.5rem;
@@ -397,6 +403,19 @@
             border: 1px solid var(--border-color);
         }
 
+        .pix-receiver-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+        }
+
+        .pix-receiver-row {
+            margin-top: 0.3rem;
+        }
+
+        .pix-receiver-row + .pix-receiver-row {
+            margin-top: 0.1rem;
+        }
+
         /* Responsive */
         @media (max-width: 700px) {
             .pix-card {
@@ -579,6 +598,167 @@
                 border-top-color: var(--primary-color);
             }
         }
+
+        /* UX Refresh v2.1 */
+        :root {
+            --primary-color: #0f766e;
+            --primary-dark: #115e59;
+            --primary-light: #14b8a6;
+            --accent-color: #ea580c;
+            --success-color: #15803d;
+            --danger-color: #b91c1c;
+            --background: #f6f3ee;
+            --card-bg: #fffdf9;
+            --text-primary: #1f2937;
+            --text-secondary: #4b5563;
+            --border-color: #e7dfd3;
+            --shadow: 0 8px 24px rgba(17, 24, 39, 0.08);
+            --shadow-md: 0 18px 40px rgba(17, 24, 39, 0.12);
+            --shadow-lg: 0 30px 60px rgba(17, 24, 39, 0.16);
+        }
+
+        body {
+            background:
+                radial-gradient(80rem 40rem at -10% -20%, rgba(20, 184, 166, 0.12), transparent 70%),
+                radial-gradient(72rem 32rem at 120% -10%, rgba(234, 88, 12, 0.1), transparent 72%),
+                linear-gradient(180deg, #f9f7f3 0%, #f4efe7 100%);
+        }
+
+        .container {
+            max-width: 760px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, rgba(15, 118, 110, 0.96) 0%, rgba(17, 94, 89, 0.95) 55%, rgba(12, 74, 70, 0.96) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .card {
+            border: 1.5px solid var(--border-color);
+            box-shadow: var(--shadow);
+            border-radius: 14px;
+        }
+
+        .status-card {
+            background: linear-gradient(180deg, #ffffff 0%, #fffcf8 100%);
+        }
+
+        .status-text {
+            font-weight: 600;
+        }
+
+        .section-title {
+            letter-spacing: -0.02em;
+        }
+
+        .transaction-item {
+            background: linear-gradient(180deg, #ffffff 0%, #fffcf8 100%);
+            border-radius: 12px;
+            border-width: 1.5px;
+        }
+
+        .transaction-item:hover {
+            border-color: #8fd5cd;
+            transform: translateX(2px) translateY(-1px);
+        }
+
+        .transaction-date {
+            font-weight: 500;
+        }
+
+        .transaction-description {
+            background: rgba(15, 118, 110, 0.08);
+            border: 1px solid rgba(15, 118, 110, 0.15);
+            border-radius: 8px;
+            padding: 0.35rem 0.55rem;
+            margin-top: 0.35rem;
+            font-style: normal;
+        }
+
+        .pix-card {
+            border-width: 1.5px;
+            background: linear-gradient(160deg, #f7f9ff 0%, #f5fdfb 100%);
+        }
+
+        .pix-btn {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            border-radius: 12px;
+            font-weight: 700;
+        }
+
+        .pix-btn:hover {
+            background: linear-gradient(135deg, var(--primary-light), var(--primary-color));
+        }
+
+        .pix-receiver-info {
+            border-width: 1.5px;
+        }
+
+        .refresh-info {
+            font-weight: 600;
+        }
+
+        @media (max-width: 600px) {
+            .card {
+                padding: 1rem;
+            }
+
+            .status-value {
+                font-size: 1.9rem;
+            }
+
+            .transaction-header {
+                gap: 0.5rem;
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .transaction-amount {
+                font-size: 1.02rem;
+            }
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --primary-color: #2dd4bf;
+                --primary-dark: #14b8a6;
+                --primary-light: #5eead4;
+                --accent-color: #fb923c;
+                --success-color: #4ade80;
+                --danger-color: #f87171;
+                --background: #0b1220;
+                --card-bg: #111c2e;
+                --text-primary: #e2e8f0;
+                --text-secondary: #94a3b8;
+                --border-color: #243246;
+            }
+
+            body {
+                background:
+                    radial-gradient(80rem 40rem at -10% -20%, rgba(45, 212, 191, 0.16), transparent 70%),
+                    radial-gradient(72rem 32rem at 120% -10%, rgba(251, 146, 60, 0.14), transparent 72%),
+                    linear-gradient(180deg, #0a1322 0%, #0b1220 100%);
+            }
+
+            .header {
+                background: linear-gradient(135deg, #134e4a 0%, #0f766e 100%);
+            }
+
+            .status-card,
+            .transaction-item {
+                background: linear-gradient(180deg, #13233a 0%, #111c2e 100%);
+            }
+
+            .transaction-description {
+                background: rgba(45, 212, 191, 0.14);
+                border-color: rgba(45, 212, 191, 0.3);
+            }
+
+            .pix-card,
+            .pix-receiver-info {
+                background: #0e1728;
+            }
+        }
     </style>
 </head>
 <body>
@@ -674,6 +854,15 @@
         const statusText = document.getElementById('statusText');
         const transactionsList = document.getElementById('transactionsList');
 
+        function escapeHTML(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         // Função para formatar moeda
         function formatCurrency(value) {
             return value.toFixed(2).replace('.', ',');
@@ -757,6 +946,7 @@
                     const icon = isPayment ? '✅' : '🛒';
                     const typeText = isPayment ? 'Pagamento' : 'Venda';
                     const typeClass = isPayment ? 'payment' : 'sale';
+                    const safeDescription = sale.description ? escapeHTML(sale.description) : '';
 
                     return `
                         <div class="transaction-item ${typeClass}">
@@ -765,7 +955,7 @@
                                 <span class="transaction-amount ${typeClass}">R$ ${formatCurrency(sale.amount)}</span>
                             </div>
                             <div class="transaction-date">📅 ${formatDate(sale.date)}</div>
-                            ${sale.description ? `<div class="transaction-description">📝 ${sale.description}</div>` : ''}
+                            ${safeDescription ? `<div class="transaction-description">📝 ${safeDescription}</div>` : ''}
                         </div>
                     `;
                 }).join('');
@@ -801,9 +991,9 @@
                         <div id=\"pixQrCode\" class=\"pix-qrcode\"></div>
                     </div>
                     <div class=\"pix-receiver-info\">
-                        <div style=\"font-size: 1.05rem; font-weight: 600;\">Recebedor</div>
-                        <div style=\"margin-top: 0.3rem;\"><b>Nome:</b> Jones Vieira Cabral</div>
-                        <div style=\"margin-top: 0.1rem;\"><b>CPF:</b> •••.253.763-••</div>
+                        <div class="pix-receiver-title">Recebedor</div>
+                        <div class="pix-receiver-row"><b>Nome:</b> Jones Vieira Cabral</div>
+                        <div class="pix-receiver-row"><b>CPF:</b> •••.253.763-••</div>
                     </div>
                 `;
                 setTimeout(() => {
