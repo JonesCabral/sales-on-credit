@@ -23,7 +23,7 @@ const database = getDatabase(app);
 const auth = getAuth(app);
 
 // Versão da aplicação
-const APP_VERSION = '2.1.3';
+const APP_VERSION = '2.1.4';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -153,6 +153,45 @@ class SalesManager {
         await set(dbRef, this.clients);
     }
 
+    getActivityKey(clientId, saleId) {
+        return `${clientId}_${saleId}`;
+    }
+
+    async upsertActivity(clientId, saleItem) {
+        if (!this.userId || !saleItem?.id) return;
+        const client = this.clients[clientId];
+        if (!client) return;
+
+        const key = this.getActivityKey(clientId, saleItem.id);
+        const timestamp = new Date(saleItem.date || new Date().toISOString()).getTime();
+
+        await set(ref(database, `users/${this.userId}/activities/${key}`), {
+            id: saleItem.id,
+            clientId,
+            clientName: client.name || 'Cliente',
+            type: saleItem.type,
+            amount: Number(saleItem.amount) || 0,
+            description: saleItem.description || '',
+            isNote: Boolean(saleItem.isNote) || (saleItem.type === 'sale' && Number(saleItem.amount) === 0),
+            date: saleItem.date || new Date().toISOString(),
+            timestamp: Number.isFinite(timestamp) ? timestamp : Date.now(),
+            editedAt: saleItem.editedAt || null
+        });
+    }
+
+    async removeActivity(clientId, saleId) {
+        if (!this.userId || !saleId) return;
+        const key = this.getActivityKey(clientId, saleId);
+        await remove(ref(database, `users/${this.userId}/activities/${key}`));
+    }
+
+    async syncClientActivities(clientId) {
+        const client = this.clients[clientId];
+        if (!client || !Array.isArray(client.sales) || client.sales.length === 0) return;
+
+        await Promise.all(client.sales.map((saleItem) => this.upsertActivity(clientId, saleItem)));
+    }
+
     async addClient(name) {
         if (!this.userId) {
             throw new Error('Usuário não autenticado');
@@ -211,15 +250,18 @@ class SalesManager {
             this.clients[clientId].sales = [];
         }
         
-        this.clients[clientId].sales.push({
+        const saleItem = {
             id: Date.now().toString(),
             amount: numericAmount,
             description: sanitizedDescription,
             type: 'sale',
             isNote: numericAmount === 0,
             date: new Date().toISOString()
-        });
+        };
+
+        this.clients[clientId].sales.push(saleItem);
         await this.saveData();
+        await this.upsertActivity(clientId, saleItem);
         return true;
     }
 
@@ -240,25 +282,46 @@ class SalesManager {
             this.clients[clientId].sales = [];
         }
         
-        this.clients[clientId].sales.push({
+        const paymentItem = {
             id: Date.now().toString(),
             amount: numericAmount,
             type: 'payment',
             date: new Date().toISOString()
-        });
+        };
+
+        this.clients[clientId].sales.push(paymentItem);
         await this.saveData();
+        await this.upsertActivity(clientId, paymentItem);
         return true;
     }
 
     async deleteClient(clientId) {
+        const salesToRemove = Array.isArray(this.clients[clientId]?.sales)
+            ? [...this.clients[clientId].sales]
+            : [];
+
         delete this.clients[clientId];
         await this.saveData();
+
+        if (salesToRemove.length > 0) {
+            await Promise.all(salesToRemove.map((saleItem) => this.removeActivity(clientId, saleItem.id)));
+        }
     }
 
     async clearClientHistory(clientId) {
         if (!this.clients[clientId]) throw new Error('Cliente não encontrado');
+
+        const salesToRemove = Array.isArray(this.clients[clientId].sales)
+            ? [...this.clients[clientId].sales]
+            : [];
+
         this.clients[clientId].sales = [];
         await this.saveData();
+
+        if (salesToRemove.length > 0) {
+            await Promise.all(salesToRemove.map((saleItem) => this.removeActivity(clientId, saleItem.id)));
+        }
+
         return true;
     }
 
@@ -285,6 +348,7 @@ class SalesManager {
         }
         this.clients[clientId].name = name;
         await this.saveData();
+        await this.syncClientActivities(clientId);
         return true;
     }
 
@@ -299,8 +363,13 @@ class SalesManager {
         if (saleIndex === -1) {
             throw new Error('Item não encontrado no histórico');
         }
-        this.clients[clientId].sales.splice(saleIndex, 1);
+        const [removedSale] = this.clients[clientId].sales.splice(saleIndex, 1);
         await this.saveData();
+
+        if (removedSale?.id) {
+            await this.removeActivity(clientId, removedSale.id);
+        }
+
         return true;
     }
 
@@ -367,6 +436,7 @@ class SalesManager {
         sale.editedAt = new Date().toISOString();
         
         await this.saveData();
+        await this.upsertActivity(clientId, sale);
         return true;
     }
 

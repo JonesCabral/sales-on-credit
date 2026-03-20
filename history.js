@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+import { getDatabase, ref, onValue, query, orderByChild, limitToLast, get, set } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
 const firebaseConfig = {
@@ -29,6 +29,9 @@ const historyMenuClose = document.getElementById('historyMenuClose');
 const historyMenuThemeShortcut = document.getElementById('historyMenuThemeShortcut');
 
 let allActivities = [];
+let activitiesUnsubscribe = null;
+let currentUserId = null;
+let hydrationAttempted = false;
 
 function sanitizeHTML(str) {
     const div = document.createElement('div');
@@ -62,36 +65,6 @@ function formatCurrency(value) {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     });
-}
-
-function getActivities(clientsMap) {
-    const activities = [];
-
-    Object.values(clientsMap || {}).forEach((client) => {
-        if (!Array.isArray(client.sales) || client.sales.length === 0) return;
-
-        client.sales.forEach((item) => {
-            const amount = Number(item.amount) || 0;
-            const isSale = item.type === 'sale';
-            const isPayment = item.type === 'payment';
-
-            if (!isSale && !isPayment) return;
-
-            activities.push({
-                id: item.id,
-                clientName: client.name || 'Cliente',
-                type: item.type,
-                amount,
-                isNote: Boolean(item.isNote) || (isSale && amount === 0),
-                description: item.description || '',
-                date: item.date
-            });
-        });
-    });
-
-    return activities
-        .filter((activity) => activity.date)
-        .sort((a, b) => new Date(b.date) - new Date(a.date));
 }
 
 function renderActivities() {
@@ -143,6 +116,108 @@ function renderActivities() {
             </article>
         `;
     }).join('');
+}
+
+function normalizeActivityEntry(activity) {
+    const amount = Number(activity.amount) || 0;
+    const isSale = activity.type === 'sale';
+    return {
+        id: activity.id,
+        clientId: activity.clientId || '',
+        clientName: activity.clientName || 'Cliente',
+        type: activity.type,
+        amount,
+        description: activity.description || '',
+        isNote: Boolean(activity.isNote) || (isSale && amount === 0),
+        date: activity.date,
+        timestamp: Number(activity.timestamp) || new Date(activity.date || 0).getTime() || 0
+    };
+}
+
+function getActivityKey(clientId, saleId) {
+    return `${clientId}_${saleId}`;
+}
+
+async function hydrateActivitiesIndexFromClients(userId) {
+    const clientsSnapshot = await get(ref(database, `users/${userId}/clients`));
+    const clients = clientsSnapshot.val() || {};
+    const indexedActivities = {};
+
+    Object.values(clients).forEach((client) => {
+        const sales = Array.isArray(client.sales) ? client.sales : [];
+
+        sales.forEach((saleItem) => {
+            if (!saleItem?.id) return;
+            if (saleItem.type !== 'sale' && saleItem.type !== 'payment') return;
+
+            const key = getActivityKey(client.id, saleItem.id);
+            const timestamp = new Date(saleItem.date || new Date().toISOString()).getTime();
+            indexedActivities[key] = {
+                id: saleItem.id,
+                clientId: client.id,
+                clientName: client.name || 'Cliente',
+                type: saleItem.type,
+                amount: Number(saleItem.amount) || 0,
+                description: saleItem.description || '',
+                isNote: Boolean(saleItem.isNote) || (saleItem.type === 'sale' && Number(saleItem.amount) === 0),
+                date: saleItem.date || new Date().toISOString(),
+                timestamp: Number.isFinite(timestamp) ? timestamp : Date.now(),
+                editedAt: saleItem.editedAt || null
+            };
+        });
+    });
+
+    const activityCount = Object.keys(indexedActivities).length;
+
+    if (activityCount > 0) {
+        await set(ref(database, `users/${userId}/activities`), indexedActivities);
+    }
+
+    return activityCount;
+}
+
+function subscribeRecentActivities(userId) {
+    if (activitiesUnsubscribe) {
+        activitiesUnsubscribe();
+        activitiesUnsubscribe = null;
+    }
+
+    const limit = Number(activityLimit?.value || 15);
+    const queryLimit = Math.max(30, limit);
+    const activitiesQuery = query(
+        ref(database, `users/${userId}/activities`),
+        orderByChild('timestamp'),
+        limitToLast(queryLimit)
+    );
+
+    historyMeta.textContent = 'Carregando movimentações...';
+
+    activitiesUnsubscribe = onValue(activitiesQuery, async (snapshot) => {
+        const activitiesObj = snapshot.val() || {};
+
+        allActivities = Object.values(activitiesObj)
+            .map(normalizeActivityEntry)
+            .filter((activity) => activity.date)
+            .sort((a, b) => b.timestamp - a.timestamp);
+
+        if (allActivities.length === 0 && !hydrationAttempted) {
+            hydrationAttempted = true;
+            try {
+                const hydratedCount = await hydrateActivitiesIndexFromClients(userId);
+                if (hydratedCount === 0) {
+                    renderActivities();
+                }
+                return;
+            } catch (error) {
+                console.error('Falha ao hidratar índice de atividades:', error);
+            }
+        }
+
+        renderActivities();
+    }, (error) => {
+        showError('Não foi possível carregar o histórico. Verifique sua conexão.');
+        console.error('Erro ao carregar histórico:', error);
+    });
 }
 
 function setupThemeToggle() {
@@ -198,7 +273,13 @@ function showError(message) {
 }
 
 if (activityLimit) {
-    activityLimit.addEventListener('change', renderActivities);
+    activityLimit.addEventListener('change', () => {
+        if (currentUserId) {
+            subscribeRecentActivities(currentUserId);
+            return;
+        }
+        renderActivities();
+    });
 }
 
 setupThemeToggle();
@@ -210,14 +291,6 @@ onAuthStateChanged(auth, (user) => {
         return;
     }
 
-    const dbRef = ref(database, `users/${user.uid}/clients`);
-
-    onValue(dbRef, (snapshot) => {
-        const clients = snapshot.val() || {};
-        allActivities = getActivities(clients);
-        renderActivities();
-    }, (error) => {
-        showError('Não foi possível carregar o histórico. Verifique sua conexão.');
-        console.error('Erro ao carregar histórico:', error);
-    });
+    currentUserId = user.uid;
+    subscribeRecentActivities(user.uid);
 });
