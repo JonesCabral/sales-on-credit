@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="theme-color" content="#0f766e">
+    <title>Histórico de Movimentações - Vivi Variedades</title>
+    <link rel="manifest" href="./manifest.json">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=2.1.2">
+    <script>
+        (function() {
+            const saved = localStorage.getItem('theme');
+            if (saved) {
+                document.documentElement.setAttribute('data-theme', saved);
+            } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+    </script>
+</head>
+<body class="history-page">
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="header-brand">
+                    <span class="header-logo">📈</span>
+                    <div>
+                        <h1>Histórico Geral</h1>
+                        <p class="subtitle">Últimas vendas, recebimentos e anotações</p>
+                    </div>
+                </div>
+                <div class="history-toolbar">
+                    <button id="themeToggle" class="btn-theme-toggle" title="Alternar tema claro/escuro" aria-label="Alternar tema">
+                        <span class="theme-icon-light">☀️</span>
+                        <span class="theme-icon-dark">🌙</span>
+                    </button>
+                    <a href="index.html" class="btn btn-secondary">← Voltar ao painel</a>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <section class="card history-controls">
+                <label class="history-limit-label" for="activityLimit">
+                    Quantidade exibida
+                    <select id="activityLimit" class="history-limit">
+                        <option value="8">Últimas 8</option>
+                        <option value="15" selected>Últimas 15</option>
+                        <option value="30">Últimas 30</option>
+                        <option value="50">Últimas 50</option>
+                    </select>
+                </label>
+                <div id="historyMeta" class="history-meta">Carregando movimentações...</div>
+            </section>
+
+            <section class="card activity-card" aria-labelledby="historyActivityTitle">
+                <div class="section-header activity-header">
+                    <h2 id="historyActivityTitle">Movimentações Recentes</h2>
+                    <span id="activitySummary" class="activity-summary">Carregando...</span>
+                </div>
+                <div id="activityList" class="activity-list">
+                    <p class="empty-message">Carregando dados...</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script type="module" src="history.js?v=2.1.2"></script>
+</body>
+</html>

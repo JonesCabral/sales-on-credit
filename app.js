@@ -505,8 +505,6 @@ const cancelEditSale = document.getElementById('cancelEditSale');
 const unpricedNotesAlert = document.getElementById('unpricedNotesAlert');
 const unpricedNotesMessage = document.getElementById('unpricedNotesMessage');
 const closeAlertBtn = document.getElementById('closeAlert');
-const activityList = document.getElementById('activityList');
-const activitySummary = document.getElementById('activitySummary');
 let currentEditingSaleId = null;
 let alertDismissed = false;
 
@@ -849,9 +847,6 @@ function updateClientsList() {
     // Atualizar aviso de anotações pendentes
     updateUnpricedNotesAlert();
 
-    // Atualizar histórico rápido com as últimas movimentações
-    updateRecentActivity();
-
     // Atualizar contador de clientes conforme o modo atual (ativos ou arquivados)
     const clientsCountEl = document.getElementById('clientsCount');
     if (clientsCountEl) {
@@ -865,82 +860,6 @@ function updateClientsList() {
         }
         clientsCountEl.style.display = 'block';
     }
-}
-
-function getRecentActivities(limit = 8) {
-    const activities = [];
-
-    Object.values(manager.clients).forEach((client) => {
-        if (!Array.isArray(client.sales) || client.sales.length === 0) return;
-
-        client.sales.forEach((item) => {
-            const amount = Number(item.amount) || 0;
-            const isSale = item.type === 'sale';
-            const isPayment = item.type === 'payment';
-
-            if (!isSale && !isPayment) return;
-
-            activities.push({
-                id: item.id,
-                clientName: client.name,
-                type: item.type,
-                amount,
-                isNote: Boolean(item.isNote) || (isSale && amount === 0),
-                description: item.description || '',
-                date: item.date
-            });
-        });
-    });
-
-    return activities
-        .filter((activity) => activity.date)
-        .sort((a, b) => new Date(b.date) - new Date(a.date))
-        .slice(0, limit);
-}
-
-function updateRecentActivity() {
-    if (!activityList || !activitySummary) return;
-
-    const activities = getRecentActivities(8);
-
-    if (activities.length === 0) {
-        activitySummary.textContent = 'Sem movimentações recentes';
-        activityList.innerHTML = '<p class="empty-message">Nenhuma movimentação registrada ainda.</p>';
-        return;
-    }
-
-    const saleTotal = activities
-        .filter((item) => item.type === 'sale' && !item.isNote)
-        .reduce((sum, item) => sum + item.amount, 0);
-    const paymentTotal = activities
-        .filter((item) => item.type === 'payment')
-        .reduce((sum, item) => sum + item.amount, 0);
-
-    activitySummary.textContent = `Vendas: R$ ${formatCurrency(saleTotal)} | Recebimentos: R$ ${formatCurrency(paymentTotal)}`;
-
-    activityList.innerHTML = activities.map((item) => {
-        const isPayment = item.type === 'payment';
-        const typeLabel = isPayment ? 'Recebimento' : (item.isNote ? 'Anotação' : 'Venda');
-        const icon = isPayment ? '✓' : (item.isNote ? '📝' : '💵');
-        const amountText = item.isNote ? 'Sem valor' : `R$ ${formatCurrency(item.amount)}`;
-        const amountClass = isPayment ? 'activity-amount in' : 'activity-amount out';
-        const safeName = sanitizeHTML(item.clientName || 'Cliente');
-        const safeDescription = item.description ? formatDescription(item.description) : '';
-
-        return `
-            <article class="activity-item ${isPayment ? 'is-payment' : 'is-sale'}">
-                <div class="activity-main">
-                    <div class="activity-title-row">
-                        <span class="activity-type">${icon} ${typeLabel}</span>
-                        <span class="${amountClass}">${amountText}</span>
-                    </div>
-                    <div class="activity-client">${safeName}</div>
-                    ${safeDescription ? `<div class="activity-description">${safeDescription}</div>` : ''}
-                </div>
-                <time class="activity-date" datetime="${sanitizeHTML(item.date)}">${formatDate(item.date)}</time>
-            </article>
-        `;
-    }).join('');
 }
 
 // Atualizar aviso de anotações pendentes
