@@ -30,8 +30,10 @@ const historyMenuThemeShortcut = document.getElementById('historyMenuThemeShortc
 
 let allActivities = [];
 let activitiesUnsubscribe = null;
+let legacyUnsubscribe = null;
 let currentUserId = null;
 let hydrationAttempted = false;
+let usingLegacyFallback = false;
 
 function sanitizeHTML(str) {
     const div = document.createElement('div');
@@ -134,6 +136,77 @@ function normalizeActivityEntry(activity) {
     };
 }
 
+function mapActivitiesFromClients(clientsMap) {
+    const activities = [];
+
+    Object.values(clientsMap || {}).forEach((client) => {
+        const sales = Array.isArray(client.sales) ? client.sales : [];
+
+        sales.forEach((item) => {
+            const amount = Number(item.amount) || 0;
+            const isSale = item.type === 'sale';
+            const isPayment = item.type === 'payment';
+            if (!isSale && !isPayment) return;
+
+            activities.push({
+                id: item.id,
+                clientId: client.id,
+                clientName: client.name || 'Cliente',
+                type: item.type,
+                amount,
+                description: item.description || '',
+                isNote: Boolean(item.isNote) || (isSale && amount === 0),
+                date: item.date,
+                timestamp: new Date(item.date || 0).getTime() || 0
+            });
+        });
+    });
+
+    return activities
+        .filter((activity) => activity.date)
+        .sort((a, b) => b.timestamp - a.timestamp);
+}
+
+function unsubscribeAll() {
+    if (activitiesUnsubscribe) {
+        activitiesUnsubscribe();
+        activitiesUnsubscribe = null;
+    }
+    if (legacyUnsubscribe) {
+        legacyUnsubscribe();
+        legacyUnsubscribe = null;
+    }
+}
+
+function isPermissionDenied(error) {
+    const code = String(error?.code || '');
+    const msg = String(error?.message || '');
+    return code.includes('PERMISSION_DENIED') || /permission denied/i.test(msg);
+}
+
+function subscribeLegacyClients(userId) {
+    if (legacyUnsubscribe) {
+        legacyUnsubscribe();
+        legacyUnsubscribe = null;
+    }
+
+    usingLegacyFallback = true;
+    historyMeta.textContent = 'Modo compatibilidade: carregando histórico...';
+
+    legacyUnsubscribe = onValue(ref(database, `users/${userId}/clients`), (snapshot) => {
+        const clients = snapshot.val() || {};
+        allActivities = mapActivitiesFromClients(clients);
+        renderActivities();
+
+        if (allActivities.length > 0) {
+            historyMeta.textContent += ' (compatibilidade)';
+        }
+    }, (error) => {
+        showError('Não foi possível carregar o histórico. Verifique sua conexão.');
+        console.error('Erro no fallback do histórico:', error);
+    });
+}
+
 function getActivityKey(clientId, saleId) {
     return `${clientId}_${saleId}`;
 }
@@ -182,6 +255,8 @@ function subscribeRecentActivities(userId) {
         activitiesUnsubscribe = null;
     }
 
+    usingLegacyFallback = false;
+
     const limit = Number(activityLimit?.value || 15);
     const queryLimit = Math.max(30, limit);
     const activitiesQuery = query(
@@ -210,11 +285,20 @@ function subscribeRecentActivities(userId) {
                 return;
             } catch (error) {
                 console.error('Falha ao hidratar índice de atividades:', error);
+                if (isPermissionDenied(error)) {
+                    subscribeLegacyClients(userId);
+                    return;
+                }
             }
         }
 
         renderActivities();
     }, (error) => {
+        if (isPermissionDenied(error)) {
+            subscribeLegacyClients(userId);
+            return;
+        }
+
         showError('Não foi possível carregar o histórico. Verifique sua conexão.');
         console.error('Erro ao carregar histórico:', error);
     });
@@ -275,6 +359,10 @@ function showError(message) {
 if (activityLimit) {
     activityLimit.addEventListener('change', () => {
         if (currentUserId) {
+            if (usingLegacyFallback) {
+                renderActivities();
+                return;
+            }
             subscribeRecentActivities(currentUserId);
             return;
         }
@@ -287,10 +375,13 @@ setupHistoryMenu();
 
 onAuthStateChanged(auth, (user) => {
     if (!user) {
+        unsubscribeAll();
         window.location.href = './index.html';
         return;
     }
 
     currentUserId = user.uid;
+    unsubscribeAll();
+    hydrationAttempted = false;
     subscribeRecentActivities(user.uid);
 });

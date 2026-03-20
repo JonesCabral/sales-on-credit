@@ -23,7 +23,7 @@ const database = getDatabase(app);
 const auth = getAuth(app);
 
 // Versão da aplicação
-const APP_VERSION = '2.1.4';
+const APP_VERSION = '2.1.5';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -165,31 +165,43 @@ class SalesManager {
         const key = this.getActivityKey(clientId, saleItem.id);
         const timestamp = new Date(saleItem.date || new Date().toISOString()).getTime();
 
-        await set(ref(database, `users/${this.userId}/activities/${key}`), {
-            id: saleItem.id,
-            clientId,
-            clientName: client.name || 'Cliente',
-            type: saleItem.type,
-            amount: Number(saleItem.amount) || 0,
-            description: saleItem.description || '',
-            isNote: Boolean(saleItem.isNote) || (saleItem.type === 'sale' && Number(saleItem.amount) === 0),
-            date: saleItem.date || new Date().toISOString(),
-            timestamp: Number.isFinite(timestamp) ? timestamp : Date.now(),
-            editedAt: saleItem.editedAt || null
-        });
+        try {
+            await set(ref(database, `users/${this.userId}/activities/${key}`), {
+                id: saleItem.id,
+                clientId,
+                clientName: client.name || 'Cliente',
+                type: saleItem.type,
+                amount: Number(saleItem.amount) || 0,
+                description: saleItem.description || '',
+                isNote: Boolean(saleItem.isNote) || (saleItem.type === 'sale' && Number(saleItem.amount) === 0),
+                date: saleItem.date || new Date().toISOString(),
+                timestamp: Number.isFinite(timestamp) ? timestamp : Date.now(),
+                editedAt: saleItem.editedAt || null
+            });
+        } catch (error) {
+            console.warn('Falha ao atualizar índice de atividades:', error?.code || error?.message || error);
+        }
     }
 
     async removeActivity(clientId, saleId) {
         if (!this.userId || !saleId) return;
         const key = this.getActivityKey(clientId, saleId);
-        await remove(ref(database, `users/${this.userId}/activities/${key}`));
+        try {
+            await remove(ref(database, `users/${this.userId}/activities/${key}`));
+        } catch (error) {
+            console.warn('Falha ao remover item do índice de atividades:', error?.code || error?.message || error);
+        }
     }
 
     async syncClientActivities(clientId) {
         const client = this.clients[clientId];
         if (!client || !Array.isArray(client.sales) || client.sales.length === 0) return;
 
-        await Promise.all(client.sales.map((saleItem) => this.upsertActivity(clientId, saleItem)));
+        try {
+            await Promise.all(client.sales.map((saleItem) => this.upsertActivity(clientId, saleItem)));
+        } catch (error) {
+            console.warn('Falha ao sincronizar índice de atividades do cliente:', error?.code || error?.message || error);
+        }
     }
 
     async addClient(name) {
