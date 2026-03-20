@@ -439,6 +439,91 @@ header h1 {
     color: #dc2626;
 }
 
+.activity-card {
+    box-shadow: var(--shadow-md);
+}
+
+.activity-header {
+    align-items: flex-start;
+}
+
+.activity-summary {
+    font-size: 0.84rem;
+    color: var(--text-secondary);
+    background: #f8fafc;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    padding: 0.25rem 0.65rem;
+}
+
+.activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+}
+
+.activity-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.85rem;
+    padding: 0.85rem 0.9rem;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.activity-main {
+    min-width: 0;
+    flex: 1;
+}
+
+.activity-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.18rem;
+}
+
+.activity-type {
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.activity-amount {
+    font-family: 'Sora', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.activity-amount.in {
+    color: var(--success-dark);
+}
+
+.activity-amount.out {
+    color: var(--danger-color);
+}
+
+.activity-client {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.activity-description {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+    line-height: 1.45;
+    word-break: break-word;
+}
+
+.activity-date {
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    white-space: nowrap;
+}
+
 /* Alert Banner */
 .alert-banner {
     display: flex;
@@ -3006,6 +3091,20 @@ textarea:focus {
     .total-value {
         font-size: 1.35rem;
     }
+
+    .activity-item {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .activity-date {
+        align-self: flex-start;
+    }
+
+    .activity-summary {
+        width: 100%;
+        border-radius: 10px;
+    }
 }
 
 [data-theme="dark"] {
@@ -3021,6 +3120,20 @@ textarea:focus {
     --text-primary: #e2e8f0;
     --text-secondary: #94a3b8;
     --border-color: #243246;
+}
+
+[data-theme="dark"] .activity-summary {
+    background: #0f1a2d;
+    border-color: #2a3c55;
+}
+
+[data-theme="dark"] .activity-item {
+    background: linear-gradient(180deg, #111f34 0%, #0f1a2d 100%);
+    border-color: #2a3c55;
+}
+
+[data-theme="dark"] .activity-amount.out {
+    color: #fca5a5;
 }
 
 [data-theme="dark"] body {
