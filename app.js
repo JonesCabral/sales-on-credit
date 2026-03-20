@@ -364,24 +364,32 @@ class SalesManager {
     }
 
     getClientDebt(clientId) {
+        return this.getClientDebtCents(clientId) / 100;
+    }
+
+    getClientDebtCents(clientId) {
         if (!this.clients[clientId]) return 0;
         if (!this.clients[clientId].sales || this.clients[clientId].sales.length === 0) return 0;
-        
+
         return this.clients[clientId].sales.reduce((total, item) => {
+            const amount = Number(item.amount) || 0;
+            const amountInCents = Math.round(amount * 100);
             return item.type === 'sale' 
-                ? total + item.amount 
-                : total - item.amount;
+                ? total + amountInCents
+                : total - amountInCents;
         }, 0);
     }
 
     getTotalDebt() {
-        return Object.keys(this.clients).reduce((total, clientId) => {
+        const totalInCents = Object.keys(this.clients).reduce((total, clientId) => {
             // Excluir clientes arquivados do cálculo
             if (this.clients[clientId].archived) return total;
-            const debt = this.getClientDebt(clientId);
+            const debt = this.getClientDebtCents(clientId);
             // Somar apenas dívidas positivas
             return debt > 0 ? total + debt : total;
         }, 0);
+
+        return totalInCents / 100;
     }
 
     getClientSalesCount(clientId) {
@@ -627,7 +635,10 @@ function getDatabaseErrorMessage(error, fallback) {
 function formatCurrency(value) {
     const numericValue = Number(value);
     if (!Number.isFinite(numericValue)) return '0,00';
-    return numericValue.toLocaleString('pt-BR', {
+    const roundedValue = Math.round((numericValue + Number.EPSILON) * 100) / 100;
+    const safeValue = Object.is(roundedValue, -0) ? 0 : roundedValue;
+
+    return safeValue.toLocaleString('pt-BR', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     });
@@ -734,6 +745,18 @@ function updateSearchFilterInteractivity() {
     });
 }
 
+function applyExclusiveClientFilter(changedCheckbox) {
+    if (!changedCheckbox?.checked) return;
+
+    const filterIds = ['filterDebtOnly', 'filterUnpriced', 'filterOverdue', 'filterArchived'];
+    filterIds.forEach((id) => {
+        const checkbox = document.getElementById(id);
+        if (checkbox && checkbox !== changedCheckbox) {
+            checkbox.checked = false;
+        }
+    });
+}
+
 // Atualizar lista de clientes
 function updateClientsList() {
     safeLog('Atualizando lista de clientes...', manager.clients);
@@ -771,7 +794,7 @@ function updateClientsList() {
 
         filteredClients = [...baseClients];
 
-        // Filtros combináveis
+        // Apenas um filtro por vez (seleção exclusiva)
         if (showDebtOnly) {
             filteredClients = filteredClients.filter(client => 
                 manager.getClientDebt(client.id) > 0
@@ -1407,19 +1430,31 @@ if (searchClients) {
     });
     
     if (filterDebtOnlyCheckbox) {
-        filterDebtOnlyCheckbox.addEventListener('change', updateClientsList);
+        filterDebtOnlyCheckbox.addEventListener('change', (e) => {
+            applyExclusiveClientFilter(e.target);
+            updateClientsList();
+        });
     }
     
     if (filterUnpricedCheckbox) {
-        filterUnpricedCheckbox.addEventListener('change', updateClientsList);
+        filterUnpricedCheckbox.addEventListener('change', (e) => {
+            applyExclusiveClientFilter(e.target);
+            updateClientsList();
+        });
     }
     
     if (filterOverdueCheckbox) {
-        filterOverdueCheckbox.addEventListener('change', updateClientsList);
+        filterOverdueCheckbox.addEventListener('change', (e) => {
+            applyExclusiveClientFilter(e.target);
+            updateClientsList();
+        });
     }
     
     if (filterArchivedCheckbox) {
-        filterArchivedCheckbox.addEventListener('change', updateClientsList);
+        filterArchivedCheckbox.addEventListener('change', (e) => {
+            applyExclusiveClientFilter(e.target);
+            updateClientsList();
+        });
     }
 
     updateSearchFilterInteractivity();
