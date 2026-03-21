@@ -364,6 +364,22 @@ class SalesManager {
         return true;
     }
 
+    async updateClientDisplayName(clientId, displayName) {
+        if (!this.clients[clientId]) {
+            throw new Error('Cliente não encontrado');
+        }
+
+        const sanitizedDisplayName = ValidationUtils.validateText(displayName, {
+            maxLength: 100,
+            required: false,
+            fieldName: 'Nome para exibição'
+        });
+
+        this.clients[clientId].displayClientName = sanitizedDisplayName;
+        await this.saveData();
+        return true;
+    }
+
     async deleteSaleItem(clientId, saleId) {
         if (!this.clients[clientId]) {
             throw new Error('Cliente não encontrado');
@@ -581,6 +597,8 @@ const editNameForm = document.getElementById('editNameForm');
 const editClientNameInput = document.getElementById('editClientName');
 const editNameBtn = document.getElementById('editNameBtn');
 const cancelEditNameBtn = document.getElementById('cancelEditName');
+const clientDisplayNameForm = document.getElementById('clientDisplayNameForm');
+const clientDisplayNameInput = document.getElementById('clientDisplayNameInput');
 const confirmModal = document.getElementById('confirmModal');
 const confirmTitle = document.getElementById('confirmTitle');
 const confirmMessage = document.getElementById('confirmMessage');
@@ -1232,6 +1250,9 @@ function openClientModal(clientId) {
     
     if (editClientNameInput) {
         editClientNameInput.value = client.name;
+    }
+    if (clientDisplayNameInput) {
+        clientDisplayNameInput.value = client.displayClientName || '';
     }
 
     // Histórico de vendas
@@ -1975,6 +1996,32 @@ if (clearHistoryBtn) {
                     showToast(getDatabaseErrorMessage(error, 'Erro ao limpar histórico. Tente novamente.'), 'error');
                 }
             }
+        }
+    });
+}
+
+// Salvar nome de exibição do cliente para client-view
+if (clientDisplayNameForm) {
+    clientDisplayNameForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        if (!manager.currentClientId) {
+            showToast('Nenhum cliente selecionado.', 'error');
+            return;
+        }
+
+        const displayName = (clientDisplayNameInput?.value || '').trim();
+
+        showLoader('Salvando configuração...');
+        try {
+            await manager.updateClientDisplayName(manager.currentClientId, displayName);
+            hideLoader();
+            showToast(displayName ? 'Nome para exibição salvo com sucesso!' : 'Nome para exibição removido.', 'success');
+            openClientModal(manager.currentClientId);
+        } catch (error) {
+            hideLoader();
+            console.error('Erro ao salvar nome para exibição:', error);
+            showToast(getDatabaseErrorMessage(error, error.message || 'Erro ao salvar nome para exibição.'), 'error');
         }
     });
 }

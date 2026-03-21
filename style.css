@@ -1588,6 +1588,22 @@ input:focus, select:focus, textarea:focus {
     font-size: 0.9rem;
 }
 
+.client-display-name-form {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.client-display-name-form label {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.client-display-name-form .btn {
+    width: 100%;
+}
+
 #clientScreenSettings .modal-actions {
     border-top: none;
     border-radius: 0;

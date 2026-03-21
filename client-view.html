@@ -651,6 +651,28 @@
             letter-spacing: -0.02em;
         }
 
+        .client-name-card {
+            display: none;
+            text-align: center;
+        }
+
+        .client-name-label {
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-secondary);
+            margin-bottom: 0.45rem;
+        }
+
+        .client-name-value {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            overflow-wrap: break-word;
+            word-break: break-word;
+        }
+
         .transaction-item {
             background: linear-gradient(180deg, #ffffff 0%, #fffcf8 100%);
             border-radius: 12px;
@@ -781,6 +803,11 @@
         </div>
 
         <div id="contentScreen" style="display: none;">
+            <div id="clientNameCard" class="card client-name-card" aria-live="polite">
+                <div class="client-name-label">Cliente</div>
+                <div class="client-name-value" id="clientNameValue"></div>
+            </div>
+
             <!-- Status da Conta -->
             <div class="card status-card">
                 <div class="status-icon" id="statusIcon">💰</div>
@@ -853,6 +880,8 @@
         const statusValue = document.getElementById('statusValue');
         const statusText = document.getElementById('statusText');
         const transactionsList = document.getElementById('transactionsList');
+        const clientNameCard = document.getElementById('clientNameCard');
+        const clientNameValue = document.getElementById('clientNameValue');
 
         function escapeHTML(str) {
             return String(str)
@@ -902,6 +931,15 @@
             const debt = calculateDebt(clientData.sales || []);
             const isCredit = debt < 0;
             const isPaid = debt === 0;
+
+            const displayClientName = (clientData.displayClientName || '').trim();
+            if (displayClientName) {
+                clientNameValue.textContent = displayClientName;
+                clientNameCard.style.display = 'block';
+            } else {
+                clientNameValue.textContent = '';
+                clientNameCard.style.display = 'none';
+            }
 
             // Atualizar status
             const statusCard = document.querySelector('.status-card');

@@ -305,6 +305,12 @@
                         <div class="modal-section">
                             <h3>Configurações do Cliente</h3>
                             <p class="settings-hint">Gerencie as ações administrativas deste cliente.</p>
+                            <form id="clientDisplayNameForm" class="client-display-name-form">
+                                <label for="clientDisplayNameInput">Nome do cliente para exibição no link</label>
+                                <input type="text" id="clientDisplayNameInput" placeholder="Ex.: Maria Silva" maxlength="100" autocomplete="off">
+                                <p class="settings-hint">Se ficar vazio, o nome do cliente não aparece no client-view.</p>
+                                <button type="submit" class="btn btn-primary">Salvar nome para exibição</button>
+                            </form>
                         </div>
                         <div class="modal-actions">
                             <button id="archiveClient" class="btn btn-secondary">📦 Arquivar Cliente</button>
