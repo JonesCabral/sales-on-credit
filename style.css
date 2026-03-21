@@ -1666,6 +1666,12 @@ input:focus, select:focus, textarea:focus {
     gap: 0.5rem;
 }
 
+#editSaleDescription {
+    min-height: 140px;
+    line-height: 1.5;
+    resize: vertical;
+}
+
 .modal-content-small .modal-actions {
     margin-top: 0.5rem;
     padding: 0;
@@ -1708,6 +1714,10 @@ input:focus, select:focus, textarea:focus {
 
     .modal-content-small form label {
         font-size: 0.95rem;
+    }
+
+    #editSaleDescription {
+        min-height: 180px;
     }
 
     .modal-content-small .modal-actions {
