@@ -1136,7 +1136,9 @@ function renderClientsList(clients) {
     // Adicionar event listeners
     document.querySelectorAll('.client-item').forEach(item => {
         item.addEventListener('click', () => {
-            openClientModal(item.dataset.clientId);
+            const clientId = item.dataset.clientId;
+            const shouldOpenUnpricedEditor = manager.hasUnpricedNotes(clientId);
+            openClientModal(clientId, { openUnpricedEditor: shouldOpenUnpricedEditor });
         });
     });
 
@@ -1222,7 +1224,20 @@ function fallbackCopyToClipboard(text) {
     document.body.removeChild(textArea);
 }
 
-function openClientModal(clientId) {
+function getLatestUnpricedSaleId(client) {
+    if (!client || !Array.isArray(client.sales)) return null;
+
+    const unpricedSales = client.sales.filter((sale) =>
+        sale.type === 'sale' && (sale.isNote || Number(sale.amount) === 0)
+    );
+
+    if (unpricedSales.length === 0) return null;
+
+    unpricedSales.sort((a, b) => new Date(b.date) - new Date(a.date));
+    return unpricedSales[0].id;
+}
+
+function openClientModal(clientId, options = {}) {
     const client = manager.clients[clientId];
     if (!client) return;
 
@@ -1356,6 +1371,14 @@ function openClientModal(clientId) {
     // Focus trap: focar no primeiro elemento interativo do modal
     const firstFocusable = modal.querySelector('button, input, textarea, select, [tabindex]:not([tabindex="-1"])');
     if (firstFocusable) firstFocusable.focus();
+
+    if (options.openUnpricedEditor) {
+        const saleId = getLatestUnpricedSaleId(client);
+        if (saleId) {
+            setClientModalScreen('history');
+            openEditSaleModal(saleId);
+        }
+    }
 }
 
 // Fechar modal
