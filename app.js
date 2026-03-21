@@ -600,6 +600,38 @@ const menuToggleBtn = document.getElementById('menuToggle');
 const menuCloseBtn = document.getElementById('menuClose');
 let currentEditingSaleId = null;
 let alertDismissed = false;
+const SALE_DESCRIPTION_DRAFT_KEY = 'salesOnCredit:addSaleDescriptionDraft';
+
+function loadSaleDescriptionDraft() {
+    if (!saleDescriptionInput) return;
+
+    try {
+        const savedDraft = localStorage.getItem(SALE_DESCRIPTION_DRAFT_KEY);
+        if (savedDraft !== null) {
+            saleDescriptionInput.value = savedDraft;
+        }
+    } catch (error) {
+        safeLog('Não foi possível carregar rascunho da descrição:', error);
+    }
+}
+
+function saveSaleDescriptionDraft() {
+    if (!saleDescriptionInput) return;
+
+    try {
+        localStorage.setItem(SALE_DESCRIPTION_DRAFT_KEY, saleDescriptionInput.value || '');
+    } catch (error) {
+        safeLog('Não foi possível salvar rascunho da descrição:', error);
+    }
+}
+
+function clearSaleDescriptionDraft() {
+    try {
+        localStorage.removeItem(SALE_DESCRIPTION_DRAFT_KEY);
+    } catch (error) {
+        safeLog('Não foi possível limpar rascunho da descrição:', error);
+    }
+}
 
 function setMenuOpen(isOpen) {
     if (!appMenu || !appMenuOverlay || !menuToggleBtn) return;
@@ -629,6 +661,11 @@ function initializeAppMenu() {
 }
 
 initializeAppMenu();
+loadSaleDescriptionDraft();
+
+if (saleDescriptionInput) {
+    saleDescriptionInput.addEventListener('input', saveSaleDescriptionDraft);
+}
 
 // Aplicar máscara de moeda em todos os campos de valor
 [saleAmountInput, modalSaleAmountInput, editSaleAmount, document.getElementById('paymentAmount')].forEach(input => {
@@ -1755,6 +1792,7 @@ addSaleForm.addEventListener('submit', async (e) => {
         hideLoader();
         showToast('Venda registrada com sucesso!', 'success');
         addSaleForm.reset();
+        clearSaleDescriptionDraft();
         selectedClientId = null;
         clientSuggestions.classList.remove('show');
     } catch (error) {
