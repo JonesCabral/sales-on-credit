@@ -1216,7 +1216,7 @@ input:focus, select:focus, textarea:focus {
     top: 0;
     z-index: 2;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.5rem;
     padding: 0.75rem 2rem;
     background: var(--card-bg);
@@ -1231,6 +1231,7 @@ input:focus, select:focus, textarea:focus {
     color: var(--text-secondary);
     font-size: 0.88rem;
     font-weight: 700;
+    white-space: nowrap;
     cursor: pointer;
     transition: all var(--transition-fast);
 }
@@ -1582,6 +1583,20 @@ input:focus, select:focus, textarea:focus {
     min-width: 100px;
 }
 
+.settings-hint {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+#clientScreenSettings .modal-actions {
+    border-top: none;
+    border-radius: 0;
+}
+
+#clientScreenSettings .btn-settings-danger {
+    flex: 1 1 100%;
+}
+
 /* Modal de edição pequeno */
 .modal-content-small {
     max-width: 450px;
@@ -1893,8 +1908,8 @@ input:focus, select:focus, textarea:focus {
     }
 
     .client-modal-tab {
-        font-size: 0.82rem;
-        padding: 0.55rem 0.7rem;
+        font-size: 0.78rem;
+        padding: 0.55rem 0.5rem;
     }
 
     .modal-actions {
@@ -2083,8 +2098,8 @@ input:focus, select:focus, textarea:focus {
     }
 
     .client-modal-tab {
-        font-size: 0.78rem;
-        padding: 0.5rem 0.6rem;
+        font-size: 0.72rem;
+        padding: 0.5rem 0.4rem;
     }
 
     .modal-actions {
@@ -2230,8 +2245,8 @@ input:focus, select:focus, textarea:focus {
     }
 
     .client-modal-tab {
-        font-size: 0.74rem;
-        padding: 0.45rem 0.5rem;
+        font-size: 0.68rem;
+        padding: 0.45rem 0.35rem;
     }
 
     .modal-fixed-section {

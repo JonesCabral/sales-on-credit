@@ -535,7 +535,7 @@ class SalesManager {
     }
 
     isOverdue(clientId) {
-        return this.getDaysSinceReferencePayment(clientId) >= 30;
+        return this.getDaysSinceReferencePayment(clientId) >= 60;
     }
 }
 
@@ -571,8 +571,10 @@ const clearHistoryBtn = document.getElementById('clearHistory');
 const shareHistoryBtn = document.getElementById('shareHistory');
 const clientScreenTabActions = document.getElementById('clientScreenTabActions');
 const clientScreenTabHistory = document.getElementById('clientScreenTabHistory');
+const clientScreenTabSettings = document.getElementById('clientScreenTabSettings');
 const clientScreenActions = document.getElementById('clientScreenActions');
 const clientScreenHistory = document.getElementById('clientScreenHistory');
+const clientScreenSettings = document.getElementById('clientScreenSettings');
 const loader = document.getElementById('loader');
 const toast = document.getElementById('toast');
 const editNameForm = document.getElementById('editNameForm');
@@ -874,21 +876,27 @@ function formatDate(isoString) {
 }
 
 function setClientModalScreen(screen) {
-    if (!clientScreenActions || !clientScreenHistory || !clientScreenTabActions || !clientScreenTabHistory) {
+    if (!clientScreenActions || !clientScreenHistory || !clientScreenSettings || !clientScreenTabActions || !clientScreenTabHistory || !clientScreenTabSettings) {
         return;
     }
 
+    const showActions = screen === 'actions';
     const showHistory = screen === 'history';
+    const showSettings = screen === 'settings';
 
-    clientScreenActions.classList.toggle('active', !showHistory);
-    clientScreenActions.hidden = showHistory;
+    clientScreenActions.classList.toggle('active', showActions);
+    clientScreenActions.hidden = !showActions;
     clientScreenHistory.classList.toggle('active', showHistory);
     clientScreenHistory.hidden = !showHistory;
+    clientScreenSettings.classList.toggle('active', showSettings);
+    clientScreenSettings.hidden = !showSettings;
 
-    clientScreenTabActions.classList.toggle('active', !showHistory);
-    clientScreenTabActions.setAttribute('aria-selected', String(!showHistory));
+    clientScreenTabActions.classList.toggle('active', showActions);
+    clientScreenTabActions.setAttribute('aria-selected', String(showActions));
     clientScreenTabHistory.classList.toggle('active', showHistory);
     clientScreenTabHistory.setAttribute('aria-selected', String(showHistory));
+    clientScreenTabSettings.classList.toggle('active', showSettings);
+    clientScreenTabSettings.setAttribute('aria-selected', String(showSettings));
 }
 
 function updateSearchFilterInteractivity() {
@@ -1934,6 +1942,12 @@ if (clientScreenTabActions) {
 if (clientScreenTabHistory) {
     clientScreenTabHistory.addEventListener('click', () => {
         setClientModalScreen('history');
+    });
+}
+
+if (clientScreenTabSettings) {
+    clientScreenTabSettings.addEventListener('click', () => {
+        setClientModalScreen('settings');
     });
 }
 

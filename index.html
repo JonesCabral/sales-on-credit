@@ -260,7 +260,8 @@
                 <div class="modal-body">
                     <div class="client-modal-tabs" role="tablist" aria-label="Navegação de detalhes do cliente">
                         <button id="clientScreenTabActions" class="client-modal-tab active" type="button" role="tab" aria-selected="true" aria-controls="clientScreenActions">Movimentação</button>
-                        <button id="clientScreenTabHistory" class="client-modal-tab" type="button" role="tab" aria-selected="false" aria-controls="clientScreenHistory">Histórico e Gestão</button>
+                        <button id="clientScreenTabHistory" class="client-modal-tab" type="button" role="tab" aria-selected="false" aria-controls="clientScreenHistory">Histórico</button>
+                        <button id="clientScreenTabSettings" class="client-modal-tab" type="button" role="tab" aria-selected="false" aria-controls="clientScreenSettings">Configurações</button>
                     </div>
 
                     <div id="clientScreenActions" class="client-modal-screen active" role="tabpanel" aria-labelledby="clientScreenTabActions">
@@ -298,11 +299,17 @@
                             </button>
                         </div>
                         <div id="salesHistory" class="sales-history"></div>
+                    </div>
 
+                    <div id="clientScreenSettings" class="client-modal-screen" role="tabpanel" aria-labelledby="clientScreenTabSettings" hidden>
+                        <div class="modal-section">
+                            <h3>Configurações do Cliente</h3>
+                            <p class="settings-hint">Gerencie as ações administrativas deste cliente.</p>
+                        </div>
                         <div class="modal-actions">
                             <button id="archiveClient" class="btn btn-secondary">📦 Arquivar Cliente</button>
                             <button id="clearHistory" class="btn btn-warning">🧹 Limpar Histórico</button>
-                            <button id="deleteClient" class="btn btn-danger">🗑️ Excluir Cliente</button>
+                            <button id="deleteClient" class="btn btn-danger btn-settings-danger">🗑️ Excluir Cliente</button>
                         </div>
                     </div>
                 </div>
