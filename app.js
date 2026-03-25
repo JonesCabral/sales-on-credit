@@ -1752,7 +1752,8 @@ addSaleForm.addEventListener('submit', async (e) => {
     const clientName = clientSearch.value.trim();
     const amount = document.getElementById('saleAmount').value;
     const description = document.getElementById('saleDescription').value.trim();
-    const isJustNote = justNoteProductCheckbox?.checked || false;
+    const hasAmount = (amount || '').trim() !== '';
+    const isJustNote = (justNoteProductCheckbox?.checked || false) || !hasAmount;
     
     // Validar nome do cliente
     if (!clientName) {
@@ -1785,12 +1786,6 @@ addSaleForm.addEventListener('submit', async (e) => {
         }
     } else {
         // Validar valor da venda
-        if (!amount || amount.trim() === '') {
-            showToast('Por favor, digite o valor da venda.', 'error');
-            document.getElementById('saleAmount').focus();
-            return;
-        }
-        
         numericAmount = parseCurrency(amount);
         if (isNaN(numericAmount)) {
             showToast('O valor da venda deve ser um número válido.', 'error');
