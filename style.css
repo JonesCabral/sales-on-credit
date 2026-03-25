@@ -4,6 +4,25 @@
     box-sizing: border-box;
 }
 
+html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+:where(img, video, canvas, svg) {
+    max-width: 100%;
+    height: auto;
+}
+
+:where(pre, code) {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+:where(input, select, textarea, button) {
+    max-width: 100%;
+}
+
 :root {
     /* Colors */
     --primary-color: #2563eb;
@@ -304,6 +323,7 @@ header {
     left: 0;
     width: min(86vw, 340px);
     height: 100vh;
+    height: 100dvh;
     background: var(--card-bg);
     border-right: 1px solid var(--border-color);
     box-shadow: var(--shadow-lg);
@@ -311,6 +331,7 @@ header {
     transition: transform var(--transition-normal);
     z-index: 2200;
     padding: 1rem;
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
     display: flex;
     flex-direction: column;
     gap: 0.9rem;
@@ -904,6 +925,7 @@ textarea {
     font-size: 0.95rem;
     color: var(--text-primary);
     user-select: none;
+    position: relative;
 }
 
 .filter-checkbox-label input[type="checkbox"] {
