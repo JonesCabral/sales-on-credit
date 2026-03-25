@@ -49,8 +49,6 @@
 
         <div id="contentScreen" style="display: none;">
             <div id="clientNameCard" class="card client-name-card" aria-live="polite">
-                <div class="client-name-label">Cliente</div>
-                <div class="client-name-value" id="clientNameValue"></div>
                 <div id="clientFriendlyMessage" class="client-friendly-message" aria-live="polite"></div>
             </div>
 
@@ -119,7 +117,6 @@
         const statusText = document.getElementById('statusText');
         const transactionsList = document.getElementById('transactionsList');
         const clientNameCard = document.getElementById('clientNameCard');
-        const clientNameValue = document.getElementById('clientNameValue');
         const clientFriendlyMessage = document.getElementById('clientFriendlyMessage');
 
         const STORE_SIGNATURE = 'Vivi Variedades';
@@ -211,25 +208,25 @@
 
             const displayClientName = (clientData.displayClientName || '').trim();
             if (displayClientName) {
-                clientNameValue.textContent = displayClientName;
                 clientNameCard.style.display = 'block';
                 if (clientFriendlyMessage) {
-                    const name = displayClientName.split(' ')[0] || displayClientName;
+                    const firstName = displayClientName.split(' ')[0] || displayClientName;
+                    const safeFullName = escapeHTML(displayClientName);
+                    const safeFirstName = escapeHTML(firstName);
                     let msg = '';
                     if (isPaid) {
-                        msg = `Olá, ${name}! Sua conta está em dia — pode ficar tranquilo(a). Obrigado pela confiança.\n\n— ${STORE_SIGNATURE}`;
+                        msg = `<span class="client-name-emphasis">${safeFirstName}</span>, sua conta está em dia — pode ficar tranquilo(a). Obrigado pela confiança.<br><br><span class="client-signature">— ${escapeHTML(STORE_SIGNATURE)}</span>`;
                     } else if (isCredit) {
-                        msg = `Boa, ${name}! Você está com crédito a favor. Quando quiser, é só usar nas próximas compras.\n\n— ${STORE_SIGNATURE}`;
+                        msg = `<span class="client-name-emphasis">${safeFirstName}</span>, você está com crédito a favor. Quando quiser, é só usar nas próximas compras.<br><br><span class="client-signature">— ${escapeHTML(STORE_SIGNATURE)}</span>`;
                     } else if (isOverdue) {
-                        msg = `${name}, vi que sua conta está aberta há ${humanizeDays(daysSinceRef)}. Se puder, acerte quando der — assim você mantém seu limite sempre liberado.\n\n— ${STORE_SIGNATURE}`;
+                        msg = `<span class="client-name-emphasis">${safeFullName}</span>, vi que sua conta está em aberto há ${escapeHTML(humanizeDays(daysSinceRef))}. Se puder, acerte quando der — assim você mantém seu limite sempre liberado.<br><br><span class="client-signature">— ${escapeHTML(STORE_SIGNATURE)}</span>`;
                     } else {
-                        msg = `${name}, sua conta está com saldo em aberto. Quando puder, um pagamento (mesmo pequeno) já ajuda a manter tudo organizado.\n\n— ${STORE_SIGNATURE}`;
+                        msg = `<span class="client-name-emphasis">${safeFullName}</span>, sua conta está com saldo em aberto. Quando puder, um pagamento (mesmo pequeno) já ajuda a manter tudo organizado.<br><br><span class="client-signature">— ${escapeHTML(STORE_SIGNATURE)}</span>`;
                     }
-                    clientFriendlyMessage.textContent = msg;
+                    clientFriendlyMessage.innerHTML = msg;
                     clientFriendlyMessage.style.display = 'block';
                 }
             } else {
-                clientNameValue.textContent = '';
                 clientNameCard.style.display = 'none';
                 if (clientFriendlyMessage) {
                     clientFriendlyMessage.textContent = '';

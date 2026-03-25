@@ -43,6 +43,17 @@
     overflow-wrap: anywhere;
 }
 
+.client-view-page .client-name-emphasis {
+    color: var(--text-primary);
+    font-weight: 900;
+}
+
+.client-view-page .client-signature {
+    font-weight: 800;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
 .client-view-page .footer {
     text-align: center;
     padding: 2rem 1rem;
