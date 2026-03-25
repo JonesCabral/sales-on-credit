@@ -31,6 +31,18 @@
     word-break: break-word;
 }
 
+.client-view-page .client-friendly-message {
+    margin-top: 0.75rem;
+    padding: 0.75rem 0.9rem;
+    border-radius: 12px;
+    border: 1.5px solid var(--border-color);
+    background: rgba(15, 118, 110, 0.06);
+    color: var(--text-secondary);
+    font-weight: 600;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
 .client-view-page .footer {
     text-align: center;
     padding: 2rem 1rem;
@@ -396,6 +408,11 @@
 [data-theme="dark"] .client-view-page .transaction-description {
     background: rgba(45, 212, 191, 0.14);
     border-color: rgba(45, 212, 191, 0.3);
+}
+
+[data-theme="dark"] .client-view-page .client-friendly-message {
+    background: rgba(45, 212, 191, 0.12);
+    border-color: #2a3c55;
 }
 
 [data-theme="dark"] .client-view-page .pix-card,

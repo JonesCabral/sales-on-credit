@@ -51,6 +51,7 @@
             <div id="clientNameCard" class="card client-name-card" aria-live="polite">
                 <div class="client-name-label">Cliente</div>
                 <div class="client-name-value" id="clientNameValue"></div>
+                <div id="clientFriendlyMessage" class="client-friendly-message" aria-live="polite"></div>
             </div>
 
             <!-- Status da Conta -->
@@ -119,6 +120,9 @@
         const transactionsList = document.getElementById('transactionsList');
         const clientNameCard = document.getElementById('clientNameCard');
         const clientNameValue = document.getElementById('clientNameValue');
+        const clientFriendlyMessage = document.getElementById('clientFriendlyMessage');
+
+        const STORE_SIGNATURE = 'Vivi Variedades';
 
         function escapeHTML(str) {
             return String(str)
@@ -158,6 +162,39 @@
             }, 0);
         }
 
+        function getLastPaymentDate(sales) {
+            if (!sales || sales.length === 0) return null;
+            const payments = sales.filter(s => s.type === 'payment' && s.date);
+            if (payments.length === 0) return null;
+            return payments.reduce((latest, p) => {
+                const d = new Date(p.date);
+                return d > latest ? d : latest;
+            }, new Date(payments[0].date));
+        }
+
+        function getDaysSinceReferencePayment(sales, debt) {
+            if (debt <= 0) return 0;
+            const now = new Date();
+            const lastPayment = getLastPaymentDate(sales);
+            if (lastPayment) {
+                return Math.floor((now - lastPayment) / (1000 * 60 * 60 * 24));
+            }
+            const firstSale = (sales || []).find(s => s.type === 'sale' && s.date);
+            if (!firstSale) return 0;
+            return Math.floor((now - new Date(firstSale.date)) / (1000 * 60 * 60 * 24));
+        }
+
+        function humanizeDays(days) {
+            if (!Number.isFinite(days) || days <= 0) return 'hoje';
+            if (days < 7) return `${days} dia${days === 1 ? '' : 's'}`;
+            if (days < 30) {
+                const weeks = Math.round(days / 7);
+                return `${weeks} semana${weeks === 1 ? '' : 's'}`;
+            }
+            const months = Math.round(days / 30);
+            return `${months} mês${months === 1 ? '' : 'es'}`;
+        }
+
         // Função para atualizar a interface
         function updateUI(clientData) {
             if (!clientData) {
@@ -165,17 +202,39 @@
                 return;
             }
 
-            const debt = calculateDebt(clientData.sales || []);
+            const sales = clientData.sales || [];
+            const debt = calculateDebt(sales);
             const isCredit = debt < 0;
             const isPaid = debt === 0;
+            const daysSinceRef = getDaysSinceReferencePayment(sales, debt);
+            const isOverdue = debt > 0 && daysSinceRef >= 60;
 
             const displayClientName = (clientData.displayClientName || '').trim();
             if (displayClientName) {
                 clientNameValue.textContent = displayClientName;
                 clientNameCard.style.display = 'block';
+                if (clientFriendlyMessage) {
+                    const name = displayClientName.split(' ')[0] || displayClientName;
+                    let msg = '';
+                    if (isPaid) {
+                        msg = `Olá, ${name}! Sua conta está em dia — pode ficar tranquilo(a). Obrigado pela confiança.\n\n— ${STORE_SIGNATURE}`;
+                    } else if (isCredit) {
+                        msg = `Boa, ${name}! Você está com crédito a favor. Quando quiser, é só usar nas próximas compras.\n\n— ${STORE_SIGNATURE}`;
+                    } else if (isOverdue) {
+                        msg = `${name}, vi que sua conta está aberta há ${humanizeDays(daysSinceRef)}. Se puder, acerte quando der — assim você mantém seu limite sempre liberado.\n\n— ${STORE_SIGNATURE}`;
+                    } else {
+                        msg = `${name}, sua conta está com saldo em aberto. Quando puder, um pagamento (mesmo pequeno) já ajuda a manter tudo organizado.\n\n— ${STORE_SIGNATURE}`;
+                    }
+                    clientFriendlyMessage.textContent = msg;
+                    clientFriendlyMessage.style.display = 'block';
+                }
             } else {
                 clientNameValue.textContent = '';
                 clientNameCard.style.display = 'none';
+                if (clientFriendlyMessage) {
+                    clientFriendlyMessage.textContent = '';
+                    clientFriendlyMessage.style.display = 'none';
+                }
             }
 
             // Atualizar status
@@ -202,7 +261,6 @@
             }
 
             // Atualizar histórico de transações
-            const sales = clientData.sales || [];
             if (sales.length === 0) {
                 transactionsList.innerHTML = `
                     <div class="empty-state">
