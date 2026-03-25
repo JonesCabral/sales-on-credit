@@ -575,7 +575,6 @@ const modalAddSaleForm = document.getElementById('modalAddSaleForm');
 const modalSaleAmountInput = document.getElementById('modalSaleAmount');
 const modalSaleDescriptionInput = document.getElementById('modalSaleDescription');
 const justNoteProductCheckbox = document.getElementById('justNoteProduct');
-const modalJustNoteProductCheckbox = document.getElementById('modalJustNoteProduct');
 const saleAmountInput = document.getElementById('saleAmount');
 const saleDescriptionInput = document.getElementById('saleDescription');
 const clientNameInput = document.getElementById('clientNameInput');
@@ -1608,24 +1607,6 @@ if (justNoteProductCheckbox && saleAmountInput && saleDescriptionInput) {
     });
 }
 
-// Checkbox "apenas anotar produto" no modal
-if (modalJustNoteProductCheckbox && modalSaleAmountInput && modalSaleDescriptionInput) {
-    modalJustNoteProductCheckbox.addEventListener('change', (e) => {
-        if (e.target.checked) {
-            modalSaleAmountInput.disabled = true;
-            modalSaleAmountInput.required = false;
-            modalSaleAmountInput.value = '';
-            modalSaleDescriptionInput.placeholder = 'Descrição do produto (obrigatório)';
-            modalSaleDescriptionInput.required = true;
-        } else {
-            modalSaleAmountInput.disabled = false;
-            modalSaleAmountInput.required = true;
-            modalSaleDescriptionInput.placeholder = 'Descrição ou produto (opcional)';
-            modalSaleDescriptionInput.required = false;
-        }
-    });
-}
-
 // Busca de clientes na lista
 if (searchClients) {
     const filterDebtOnlyCheckbox = document.getElementById('filterDebtOnly');
@@ -2050,7 +2031,8 @@ if (modalAddSaleForm) {
         e.preventDefault();
         const amount = modalSaleAmountInput?.value;
         const description = (modalSaleDescriptionInput?.value || '').trim();
-        const isJustNote = modalJustNoteProductCheckbox?.checked || false;
+        const hasAmount = (amount || '').trim() !== '';
+        const isJustNote = !hasAmount;
         
         // Validar se há cliente selecionado
         if (!manager.currentClientId) {
@@ -2070,17 +2052,17 @@ if (modalAddSaleForm) {
             }
         } else {
             // Validar valor da venda
-            if (!amount || amount.trim() === '') {
-                showToast('Por favor, digite o valor da venda.', 'error');
-                modalSaleAmountInput.focus();
-                return;
-            }
-            
             // Converter para número
             numericAmount = parseCurrency(amount);
             
             if (isNaN(numericAmount) || numericAmount <= 0) {
                 showToast('Por favor, digite um valor válido maior que zero.', 'error');
+                modalSaleAmountInput.focus();
+                return;
+            }
+
+            if (numericAmount > 1000000) {
+                showToast('O valor da venda não pode ser maior que R$ 1.000.000,00.', 'error');
                 modalSaleAmountInput.focus();
                 return;
             }
