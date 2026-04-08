@@ -686,10 +686,76 @@ header h1 {
     min-width: 180px;
 }
 
+.history-filters-grid {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 1rem;
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+.history-search-wrapper, .history-selects-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.history-search-wrapper label, .history-selects-wrapper label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+
+.history-search-wrapper input {
+    width: 100%;
+    min-width: 200px;
+}
+
+.history-selects-wrapper select {
+    min-width: 160px;
+}
+
+.date-group {
+    margin-bottom: 2rem;
+}
+
+.date-group:last-child {
+    margin-bottom: 0;
+}
+
+.date-group-title {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--primary-color);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.date-group-title::before {
+    content: '📅';
+    font-size: 1.1rem;
+}
+
 .history-meta {
     font-size: 0.85rem;
     color: var(--text-secondary);
     font-weight: 600;
+}
+
+@media (max-width: 650px) {
+    .history-filters-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .history-selects-wrapper select {
+        width: 100%;
+    }
 }
 
 /* Alert Banner */

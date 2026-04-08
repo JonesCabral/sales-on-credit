@@ -58,16 +58,33 @@
 
         <main>
             <section class="card history-controls">
-                <label class="history-limit-label" for="activityLimit">
-                    Quantidade exibida
-                    <select id="activityLimit" class="history-limit">
-                        <option value="8">Últimas 8</option>
-                        <option value="15" selected>Últimas 15</option>
-                        <option value="30">Últimas 30</option>
-                        <option value="50">Últimas 50</option>
-                    </select>
-                </label>
-                <div id="historyMeta" class="history-meta">Carregando movimentações...</div>
+                <div class="history-filters-grid">
+                    <div class="history-search-wrapper">
+                        <label for="historySearch">Buscar cliente</label>
+                        <input type="text" id="historySearch" placeholder="🔍 Digite o nome..." aria-label="Buscar por nome do cliente">
+                    </div>
+                    
+                    <div class="history-selects-wrapper">
+                        <label for="activityType">Filtrar tipo</label>
+                        <select id="activityType">
+                            <option value="all">Todas as movimentações</option>
+                            <option value="sale">Apenas Vendas</option>
+                            <option value="payment">Apenas Recebimentos</option>
+                            <option value="note">Apenas Anotações</option>
+                        </select>
+                    </div>
+
+                    <div class="history-selects-wrapper">
+                        <label for="activityLimit">Quantidade</label>
+                        <select id="activityLimit">
+                            <option value="15" selected>Últimas 15</option>
+                            <option value="30">Últimas 30</option>
+                            <option value="50">Últimas 50</option>
+                            <option value="100">Últimas 100</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="historyMeta" class="history-meta" aria-live="polite">Carregando movimentações...</div>
             </section>
 
             <section class="card activity-card" aria-labelledby="historyActivityTitle">

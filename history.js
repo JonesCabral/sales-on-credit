@@ -21,6 +21,8 @@ const activityList = document.getElementById('activityList');
 const activitySummary = document.getElementById('activitySummary');
 const historyMeta = document.getElementById('historyMeta');
 const activityLimit = document.getElementById('activityLimit');
+const activityType = document.getElementById('activityType');
+const historySearch = document.getElementById('historySearch');
 const themeToggle = document.getElementById('themeToggle');
 const historyMenu = document.getElementById('historyMenu');
 const historyMenuOverlay = document.getElementById('historyMenuOverlay');
@@ -57,6 +59,27 @@ function formatDate(isoString) {
     });
 }
 
+function getDayLabel(isoString) {
+    const date = new Date(isoString);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    const isSameDay = (d1, d2) => 
+        d1.getDate() === d2.getDate() && 
+        d1.getMonth() === d2.getMonth() && 
+        d1.getFullYear() === d2.getFullYear();
+
+    if (isSameDay(date, today)) return 'Hoje';
+    if (isSameDay(date, yesterday)) return 'Ontem';
+
+    return date.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+    });
+}
+
 function formatCurrency(value) {
     const numericValue = Number(value);
     if (!Number.isFinite(numericValue)) return '0,00';
@@ -73,12 +96,31 @@ function renderActivities() {
     if (!activityList || !activitySummary || !historyMeta) return;
 
     const limit = Number(activityLimit?.value || 15);
-    const visibleActivities = allActivities.slice(0, limit);
+    const typeFilter = activityType?.value || 'all';
+    const searchQuery = historySearch?.value?.toLowerCase() || '';
+
+    let filteredActivities = allActivities.filter(item => {
+        // Filtro de Busca por nome
+        const matchesSearch = !searchQuery || 
+            item.clientName.toLowerCase().includes(searchQuery) ||
+            (item.description && item.description.toLowerCase().includes(searchQuery));
+
+        // Filtro de Tipo
+        let matchesType = true;
+        if (typeFilter === 'sale') matchesType = item.type === 'sale' && !item.isNote;
+        else if (typeFilter === 'payment') matchesType = item.type === 'payment';
+        else if (typeFilter === 'note') matchesType = item.isNote;
+
+        return matchesSearch && matchesType;
+    });
+
+    const totalAvailable = filteredActivities.length;
+    const visibleActivities = filteredActivities.slice(0, limit);
 
     if (visibleActivities.length === 0) {
-        activitySummary.textContent = 'Sem movimentações recentes';
-        historyMeta.textContent = 'Nenhuma movimentação disponível.';
-        activityList.innerHTML = '<p class="empty-message">Nenhuma movimentação registrada ainda.</p>';
+        activitySummary.textContent = 'Nenhum resultado';
+        historyMeta.textContent = searchQuery || typeFilter !== 'all' ? 'Nenhuma movimentação encontrada com esses filtros.' : 'Nenhuma movimentação disponível.';
+        activityList.innerHTML = '<p class="empty-message">Nenhuma movimentação encontrada.</p>';
         return;
     }
 
@@ -93,31 +135,51 @@ function renderActivities() {
     const notesCount = visibleActivities.filter((item) => item.isNote).length;
 
     activitySummary.textContent = `Vendas: R$ ${formatCurrency(saleTotal)} | Recebimentos: R$ ${formatCurrency(paymentTotal)}`;
-    historyMeta.textContent = `Exibindo ${visibleActivities.length} de ${allActivities.length} movimentações${notesCount ? ` | ${notesCount} anotação(ões)` : ''}`;
+    
+    let metaText = `Exibindo ${visibleActivities.length} de ${totalAvailable} encontradas`;
+    if (totalAvailable !== allActivities.length) metaText += ` (total geral: ${allActivities.length})`;
+    historyMeta.textContent = metaText;
 
-    activityList.innerHTML = visibleActivities.map((item) => {
-        const isPayment = item.type === 'payment';
-        const typeLabel = isPayment ? 'Recebimento' : (item.isNote ? 'Anotação' : 'Venda');
-        const icon = isPayment ? '✓' : (item.isNote ? '📝' : '💵');
-        const amountText = item.isNote ? 'Sem valor' : `R$ ${formatCurrency(item.amount)}`;
-        const amountClass = isPayment ? 'activity-amount in' : 'activity-amount out';
-        const safeClientName = sanitizeHTML(item.clientName);
-        const safeDescription = item.description ? formatDescription(item.description) : '';
+    // Agrupar por dia
+    const groups = [];
+    visibleActivities.forEach(item => {
+        const day = getDayLabel(item.date);
+        let group = groups.find(g => g.day === day);
+        if (!group) {
+            group = { day, items: [] };
+            groups.push(group);
+        }
+        group.items.push(item);
+    });
 
-        return `
-            <article class="activity-item ${isPayment ? 'is-payment' : 'is-sale'}">
-                <div class="activity-main">
-                    <div class="activity-title-row">
-                        <span class="activity-type">${icon} ${typeLabel}</span>
-                        <span class="${amountClass}">${amountText}</span>
-                    </div>
-                    <div class="activity-client">${safeClientName}</div>
-                    ${safeDescription ? `<div class="activity-description">${safeDescription}</div>` : ''}
-                </div>
-                <time class="activity-date" datetime="${sanitizeHTML(item.date)}">${formatDate(item.date)}</time>
-            </article>
-        `;
-    }).join('');
+    activityList.innerHTML = groups.map(group => `
+        <div class="date-group">
+            <h3 class="date-group-title">${group.day}</h3>
+            ${group.items.map(item => {
+                const isPayment = item.type === 'payment';
+                const typeLabel = isPayment ? 'Recebimento' : (item.isNote ? 'Anotação' : 'Venda');
+                const icon = isPayment ? '✓' : (item.isNote ? '📝' : '💵');
+                const amountText = item.isNote ? 'Sem valor' : `R$ ${formatCurrency(item.amount)}`;
+                const amountClass = isPayment ? 'activity-amount in' : 'activity-amount out';
+                const safeClientName = sanitizeHTML(item.clientName);
+                const safeDescription = item.description ? formatDescription(item.description) : '';
+
+                return `
+                    <article class="activity-item ${isPayment ? 'is-payment' : 'is-sale'}">
+                        <div class="activity-main">
+                            <div class="activity-title-row">
+                                <span class="activity-type">${icon} ${typeLabel}</span>
+                                <span class="${amountClass}">${amountText}</span>
+                            </div>
+                            <div class="activity-client">${safeClientName}</div>
+                            ${safeDescription ? `<div class="activity-description">${safeDescription}</div>` : ''}
+                        </div>
+                        <time class="activity-date" datetime="${sanitizeHTML(item.date)}">${formatDate(item.date).split(' ')[1]}</time>
+                    </article>
+                `;
+            }).join('')}
+        </div>
+    `).join('');
 }
 
 function normalizeActivityEntry(activity) {
@@ -368,6 +430,14 @@ if (activityLimit) {
         }
         renderActivities();
     });
+}
+
+if (activityType) {
+    activityType.addEventListener('change', renderActivities);
+}
+
+if (historySearch) {
+    historySearch.addEventListener('input', renderActivities);
 }
 
 setupThemeToggle();
