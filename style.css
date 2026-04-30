@@ -1392,9 +1392,27 @@ input:focus, select:focus, textarea:focus {
 }
 
 .client-debt {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.15rem;
+    text-align: right;
     font-size: 1.2rem;
     font-weight: 700;
     color: var(--danger-color);
+}
+
+.client-debt-total {
+    line-height: 1.15;
+}
+
+.client-interest-value {
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.76rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--warning-dark, #d97706);
+    white-space: nowrap;
 }
 
 .client-debt.paid {
@@ -3362,7 +3380,8 @@ input:focus, select:focus, textarea:focus {
 }
 
 [data-theme="dark"] .overdue-indicator,
-[data-theme="dark"] .client-overdue-msg {
+[data-theme="dark"] .client-overdue-msg,
+[data-theme="dark"] .client-interest-value {
     color: #fbbf24;
 }
 

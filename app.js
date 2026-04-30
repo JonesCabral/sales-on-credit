@@ -23,7 +23,7 @@ const database = getDatabase(app);
 const auth = getAuth(app);
 
 // Versão da aplicação
-const APP_VERSION = '2.1.10';
+const APP_VERSION = '2.1.11';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -1221,6 +1221,10 @@ function renderClientsList(clients) {
         const displayValue = Math.abs(debt);
         const hasNotes = manager.hasUnpricedNotes(client.id);
         const isOverdue = manager.isOverdue(client.id);
+        const interestCents = manager.getClientInterestCents(client.id);
+        const interestAmountInfo = interestCents > 0
+            ? `<span class="client-interest-value">Juros: R$ ${formatCurrency(interestCents / 100)}</span>`
+            : '';
 
         let statusClass = '';
         let statusIcon = '';
@@ -1240,7 +1244,6 @@ function renderClientsList(clients) {
 
         if (isOverdue) {
             const lastPayment = manager.getLastPaymentDate(client.id);
-            const interestCents = manager.getClientInterestCents(client.id);
             const interestDetails = interestCents > 0
                 ? ` · juros ${formatOverdueInterestPercent(manager.getOverdueInterestPercent())}`
                 : '';
@@ -1274,8 +1277,8 @@ function renderClientsList(clients) {
                     <div class="client-sales">${salesCount} venda${salesCount !== 1 ? 's' : ''} fiada${salesCount !== 1 ? 's' : ''}</div>
                 </div>
                 <div class="client-debt ${statusClass}">
-                    R$ ${formatCurrency(displayValue)}
-                    ${statusIcon}
+                    <span class="client-debt-total">R$ ${formatCurrency(displayValue)} ${statusIcon}</span>
+                    ${interestAmountInfo}
                 </div>
             </div>
         `;
