@@ -23,7 +23,7 @@ const database = getDatabase(app);
 const auth = getAuth(app);
 
 // Versão da aplicação
-const APP_VERSION = '2.1.8';
+const APP_VERSION = '2.1.9';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -77,6 +77,10 @@ const IS_DEV = false;
 const DEFAULT_OVERDUE_ALERT_DAYS = 60;
 const MIN_OVERDUE_ALERT_DAYS = 1;
 const MAX_OVERDUE_ALERT_DAYS = 3650;
+const DEFAULT_OVERDUE_INTEREST_ENABLED = false;
+const DEFAULT_OVERDUE_INTEREST_PERCENT = 0;
+const MIN_OVERDUE_INTEREST_PERCENT = 0;
+const MAX_OVERDUE_INTEREST_PERCENT = 100;
 
 function normalizeOverdueAlertDays(value) {
     const parsedValue = Number.parseInt(value, 10);
@@ -87,6 +91,49 @@ function normalizeOverdueAlertDays(value) {
 function formatOverdueAlertDays(days) {
     const safeDays = normalizeOverdueAlertDays(days);
     return safeDays === 1 ? '1 dia' : `${safeDays} dias`;
+}
+
+function parseOverdueInterestPercent(value) {
+    if (typeof value === 'string') {
+        return Number.parseFloat(value.replace(',', '.'));
+    }
+    return Number.parseFloat(value);
+}
+
+function normalizeOverdueInterestPercent(value) {
+    const parsedValue = parseOverdueInterestPercent(value);
+    if (!Number.isFinite(parsedValue)) return DEFAULT_OVERDUE_INTEREST_PERCENT;
+    const clampedValue = Math.min(MAX_OVERDUE_INTEREST_PERCENT, Math.max(MIN_OVERDUE_INTEREST_PERCENT, parsedValue));
+    return Math.round(clampedValue * 100) / 100;
+}
+
+function formatOverdueInterestPercent(percent) {
+    const safePercent = normalizeOverdueInterestPercent(percent);
+    return `${safePercent.toLocaleString('pt-BR', {
+        minimumFractionDigits: Number.isInteger(safePercent) ? 0 : 2,
+        maximumFractionDigits: 2
+    })}%`;
+}
+
+function getDefaultSettings() {
+    return {
+        overdueAlertDays: DEFAULT_OVERDUE_ALERT_DAYS,
+        overdueInterest: {
+            enabled: DEFAULT_OVERDUE_INTEREST_ENABLED,
+            percent: DEFAULT_OVERDUE_INTEREST_PERCENT
+        }
+    };
+}
+
+function normalizeSettings(savedSettings = {}) {
+    const savedInterest = savedSettings.overdueInterest || {};
+    return {
+        overdueAlertDays: normalizeOverdueAlertDays(savedSettings.overdueAlertDays),
+        overdueInterest: {
+            enabled: savedInterest.enabled === true,
+            percent: normalizeOverdueInterestPercent(savedInterest.percent)
+        }
+    };
 }
 
 // Função para sanitizar strings (prevenir XSS)
@@ -107,9 +154,7 @@ function safeLog(...args) {
 class SalesManager {
     constructor() {
         this.clients = {};
-        this.settings = {
-            overdueAlertDays: DEFAULT_OVERDUE_ALERT_DAYS
-        };
+        this.settings = getDefaultSettings();
         this.currentClientId = null;
         this.userId = null;
         this.unsubscribe = null;
@@ -119,9 +164,7 @@ class SalesManager {
 
     setUser(userId) {
         this.userId = userId;
-        this.settings = {
-            overdueAlertDays: DEFAULT_OVERDUE_ALERT_DAYS
-        };
+        this.settings = getDefaultSettings();
         syncSettingsUI();
         this.loadSettings();
         this.loadData();
@@ -139,16 +182,12 @@ class SalesManager {
 
         this.settingsUnsubscribe = onValue(settingsRef, (snapshot) => {
             const savedSettings = snapshot.val() || {};
-            this.settings = {
-                overdueAlertDays: normalizeOverdueAlertDays(savedSettings.overdueAlertDays)
-            };
+            this.settings = normalizeSettings(savedSettings);
             syncSettingsUI();
             updateClientsList();
         }, (error) => {
             console.error('Erro ao carregar configurações:', error);
-            this.settings = {
-                overdueAlertDays: DEFAULT_OVERDUE_ALERT_DAYS
-            };
+            this.settings = getDefaultSettings();
             syncSettingsUI();
         });
     }
@@ -196,9 +235,7 @@ class SalesManager {
             this.settingsUnsubscribe = null;
         }
         this.userId = null;
-        this.settings = {
-            overdueAlertDays: DEFAULT_OVERDUE_ALERT_DAYS
-        };
+        this.settings = getDefaultSettings();
         syncSettingsUI();
     }
 
@@ -214,6 +251,23 @@ class SalesManager {
 
     getOverdueAlertDays() {
         return normalizeOverdueAlertDays(this.settings?.overdueAlertDays);
+    }
+
+    getOverdueInterestSettings() {
+        const interestSettings = this.settings?.overdueInterest || {};
+        return {
+            enabled: interestSettings.enabled === true,
+            percent: normalizeOverdueInterestPercent(interestSettings.percent)
+        };
+    }
+
+    isOverdueInterestEnabled() {
+        const interestSettings = this.getOverdueInterestSettings();
+        return interestSettings.enabled && interestSettings.percent > 0;
+    }
+
+    getOverdueInterestPercent() {
+        return this.getOverdueInterestSettings().percent;
     }
 
     getActivityKey(clientId, saleId) {
@@ -535,7 +589,7 @@ class SalesManager {
         return this.getClientDebtCents(clientId) / 100;
     }
 
-    getClientDebtCents(clientId) {
+    getBaseClientDebtCents(clientId) {
         if (!this.clients[clientId]) return 0;
         if (!this.clients[clientId].sales || this.clients[clientId].sales.length === 0) return 0;
 
@@ -546,6 +600,20 @@ class SalesManager {
                 ? total + amountInCents
                 : total - amountInCents;
         }, 0);
+    }
+
+    getClientInterestCents(clientId) {
+        const baseDebtCents = this.getBaseClientDebtCents(clientId);
+        if (baseDebtCents <= 0) return 0;
+        if (!this.isOverdueInterestEnabled()) return 0;
+        if (!this.isOverdue(clientId)) return 0;
+
+        return Math.round(baseDebtCents * (this.getOverdueInterestPercent() / 100));
+    }
+
+    getClientDebtCents(clientId) {
+        const baseDebtCents = this.getBaseClientDebtCents(clientId);
+        return baseDebtCents + this.getClientInterestCents(clientId);
     }
 
     getTotalDebt() {
@@ -594,8 +662,8 @@ class SalesManager {
 
     getDaysSinceReferencePayment(clientId) {
         // Considera atraso apenas para clientes com dívida positiva
-        const debt = this.getClientDebt(clientId);
-        if (debt <= 0) return 0;
+        const baseDebtCents = this.getBaseClientDebtCents(clientId);
+        if (baseDebtCents <= 0) return 0;
 
         const now = new Date();
         const lastPayment = this.getLastPaymentDate(clientId);
@@ -1172,6 +1240,10 @@ function renderClientsList(clients) {
 
         if (isOverdue) {
             const lastPayment = manager.getLastPaymentDate(client.id);
+            const interestCents = manager.getClientInterestCents(client.id);
+            const interestDetails = interestCents > 0
+                ? ` · juros ${formatOverdueInterestPercent(manager.getOverdueInterestPercent())}`
+                : '';
             let daysSince = 0;
             let overdueMsg = '';
             if (lastPayment) {
@@ -1186,7 +1258,10 @@ function renderClientsList(clients) {
                     overdueMsg = 'Nunca realizou pagamento';
                 }
             }
-            overdueIndicator = `<span class="overdue-indicator" title="${overdueMsg}">⚠️ ${overdueMsg}</span>`;
+            const overdueTitle = interestCents > 0
+                ? `${overdueMsg}. Juros: R$ ${formatCurrency(interestCents / 100)} (${formatOverdueInterestPercent(manager.getOverdueInterestPercent())}).`
+                : overdueMsg;
+            overdueIndicator = `<span class="overdue-indicator" title="${overdueTitle}">⚠️ ${overdueMsg}${interestDetails}</span>`;
         }
 
         const archivedIndicator = client.archived ? '<span class="archived-badge" title="Cliente arquivado">📦 Arquivado</span>' : '';
@@ -1316,6 +1391,10 @@ function openClientModal(clientId, options = {}) {
 
     manager.currentClientId = clientId;
     const debt = manager.getClientDebt(clientId);
+    const interestCents = manager.getClientInterestCents(clientId);
+    const interestNote = interestCents > 0
+        ? `<span class="modal-debt-note">Inclui juros de ${formatOverdueInterestPercent(manager.getOverdueInterestPercent())} por atraso</span>`
+        : '';
     const isCredit = debt < 0;
     const isPaid = debt === 0;
 
@@ -1333,7 +1412,7 @@ function openClientModal(clientId, options = {}) {
         modalDebtContainer.classList.add('has-credit');
         modalDebtContainer.innerHTML = `<strong>R$ <span id="modalDebt">${formatCurrency(Math.abs(debt))}</span></strong>`;
     } else {
-        modalDebtContainer.innerHTML = `<strong>R$ <span id="modalDebt">${formatCurrency(debt)}</span></strong>`;
+        modalDebtContainer.innerHTML = `<strong>R$ <span id="modalDebt">${formatCurrency(debt)}</span></strong>${interestNote}`;
     }
     
     if (editClientNameInput) {

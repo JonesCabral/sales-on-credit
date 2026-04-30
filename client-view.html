@@ -8,8 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=2.1.5">
-    <link rel="stylesheet" href="client-view.css?v=2.1.5">
+    <link rel="stylesheet" href="style.css?v=2.1.9">
+    <link rel="stylesheet" href="client-view.css?v=2.1.9">
     <script>
         (function() {
             const saved = localStorage.getItem('theme');
@@ -120,6 +120,15 @@
         const clientFriendlyMessage = document.getElementById('clientFriendlyMessage');
 
         const STORE_SIGNATURE = 'Vivi Variedades';
+        const DEFAULT_OVERDUE_ALERT_DAYS = 60;
+        const MAX_OVERDUE_ALERT_DAYS = 3650;
+        const DEFAULT_OVERDUE_INTEREST_ENABLED = false;
+        const DEFAULT_OVERDUE_INTEREST_PERCENT = 0;
+        const MIN_OVERDUE_INTEREST_PERCENT = 0;
+        const MAX_OVERDUE_INTEREST_PERCENT = 100;
+
+        let currentClientData = null;
+        let currentSettings = getDefaultSettings();
 
         function escapeHTML(str) {
             return String(str)
@@ -135,6 +144,55 @@
             return value.toFixed(2).replace('.', ',');
         }
 
+        function parseOverdueInterestPercent(value) {
+            if (typeof value === 'string') {
+                return Number.parseFloat(value.replace(',', '.'));
+            }
+            return Number.parseFloat(value);
+        }
+
+        function normalizeOverdueAlertDays(value) {
+            const parsedValue = Number.parseInt(value, 10);
+            if (!Number.isFinite(parsedValue)) return DEFAULT_OVERDUE_ALERT_DAYS;
+            return Math.min(MAX_OVERDUE_ALERT_DAYS, Math.max(1, parsedValue));
+        }
+
+        function normalizeOverdueInterestPercent(value) {
+            const parsedValue = parseOverdueInterestPercent(value);
+            if (!Number.isFinite(parsedValue)) return DEFAULT_OVERDUE_INTEREST_PERCENT;
+            const clampedValue = Math.min(MAX_OVERDUE_INTEREST_PERCENT, Math.max(MIN_OVERDUE_INTEREST_PERCENT, parsedValue));
+            return Math.round(clampedValue * 100) / 100;
+        }
+
+        function formatOverdueInterestPercent(percent) {
+            const safePercent = normalizeOverdueInterestPercent(percent);
+            return `${safePercent.toLocaleString('pt-BR', {
+                minimumFractionDigits: Number.isInteger(safePercent) ? 0 : 2,
+                maximumFractionDigits: 2
+            })}%`;
+        }
+
+        function getDefaultSettings() {
+            return {
+                overdueAlertDays: DEFAULT_OVERDUE_ALERT_DAYS,
+                overdueInterest: {
+                    enabled: DEFAULT_OVERDUE_INTEREST_ENABLED,
+                    percent: DEFAULT_OVERDUE_INTEREST_PERCENT
+                }
+            };
+        }
+
+        function normalizeSettings(savedSettings = {}) {
+            const savedInterest = savedSettings.overdueInterest || {};
+            return {
+                overdueAlertDays: normalizeOverdueAlertDays(savedSettings.overdueAlertDays),
+                overdueInterest: {
+                    enabled: savedInterest.enabled === true,
+                    percent: normalizeOverdueInterestPercent(savedInterest.percent)
+                }
+            };
+        }
+
         // Função para formatar data
         function formatDate(dateString) {
             const date = new Date(dateString);
@@ -148,15 +206,36 @@
         }
 
         // Função para calcular dívida do cliente
-        function calculateDebt(sales) {
+        function calculateBaseDebt(sales) {
             if (!sales || sales.length === 0) return 0;
             return sales.reduce((total, sale) => {
                 if (sale.type === 'payment') {
-                    return total - sale.amount;
-                } else {
-                    return total + sale.amount;
+                    return total - (Number(sale.amount) || 0);
                 }
+                return total + (Number(sale.amount) || 0);
             }, 0);
+        }
+
+        function calculateDebtDetails(sales, settings) {
+            const baseDebt = calculateBaseDebt(sales);
+            const daysSinceRef = getDaysSinceReferencePayment(sales, baseDebt);
+            const overdueDays = normalizeOverdueAlertDays(settings?.overdueAlertDays);
+            const isOverdue = baseDebt > 0 && daysSinceRef >= overdueDays;
+            const interestSettings = settings?.overdueInterest || {};
+            const interestPercent = normalizeOverdueInterestPercent(interestSettings.percent);
+            const interestEnabled = interestSettings.enabled === true && interestPercent > 0;
+            const interestAmount = isOverdue && interestEnabled
+                ? Math.round(baseDebt * interestPercent) / 100
+                : 0;
+
+            return {
+                baseDebt,
+                totalDebt: baseDebt + interestAmount,
+                interestAmount,
+                interestPercent,
+                daysSinceRef,
+                isOverdue
+            };
         }
 
         function getLastPaymentDate(sales) {
@@ -200,11 +279,12 @@
             }
 
             const sales = clientData.sales || [];
-            const debt = calculateDebt(sales);
+            const debtDetails = calculateDebtDetails(sales, currentSettings);
+            const debt = debtDetails.totalDebt;
             const isCredit = debt < 0;
             const isPaid = debt === 0;
-            const daysSinceRef = getDaysSinceReferencePayment(sales, debt);
-            const isOverdue = debt > 0 && daysSinceRef >= 60;
+            const daysSinceRef = debtDetails.daysSinceRef;
+            const isOverdue = debtDetails.isOverdue;
 
             const displayClientName = (clientData.displayClientName || '').trim();
             if (displayClientName) {
@@ -253,7 +333,9 @@
                 statusIcon.textContent = '💰';
                 statusValue.textContent = `R$ ${formatCurrency(debt)}`;
                 statusValue.className = 'status-value debt';
-                statusText.textContent = 'Saldo devedor';
+                statusText.textContent = debtDetails.interestAmount > 0
+                    ? `Saldo devedor com juros de ${formatOverdueInterestPercent(debtDetails.interestPercent)} por atraso`
+                    : 'Saldo devedor';
                 statusCard.classList.add('debt-status');
             }
 
@@ -384,6 +466,20 @@
                 return;
             }
 
+            const settingsRef = ref(database, `users/${userId}/settings`);
+            onValue(settingsRef, (snapshot) => {
+                currentSettings = normalizeSettings(snapshot.val() || {});
+                if (currentClientData) {
+                    updateUI(currentClientData);
+                }
+            }, (error) => {
+                console.warn('Não foi possível carregar configurações:', error);
+                currentSettings = getDefaultSettings();
+                if (currentClientData) {
+                    updateUI(currentClientData);
+                }
+            });
+
             // Listener em tempo real
             const clientRef = ref(database, `users/${userId}/clients/${clientId}`);
             console.log('Tentando acessar:', `users/${userId}/clients/${clientId}`);
@@ -398,7 +494,8 @@
                     return;
                 }
                 
-                updateUI(clientData);
+                currentClientData = clientData;
+                updateUI(currentClientData);
             }, (error) => {
                 console.error('Erro ao carregar dados:', error);
                 console.error('Código do erro:', error.code);

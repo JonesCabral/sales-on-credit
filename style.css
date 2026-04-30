@@ -1697,6 +1697,15 @@ input:focus, select:focus, textarea:focus {
     word-break: break-word;
 }
 
+.modal-debt-note {
+    display: block;
+    margin-top: 0.3rem;
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 700;
+    opacity: 0.92;
+}
+
 .modal-debt.has-credit {
     background: #16a34a;
     box-shadow: 0 2px 8px rgba(22, 163, 74, 0.25);
@@ -1889,6 +1898,15 @@ input:focus, select:focus, textarea:focus {
     background: linear-gradient(90deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0));
 }
 
+.settings-form + .settings-form {
+    margin-top: 1rem;
+}
+
+.settings-form-interest {
+    border-left-color: var(--primary-color);
+    background: linear-gradient(90deg, rgba(37, 99, 235, 0.08), rgba(37, 99, 235, 0));
+}
+
 .settings-form-header {
     display: flex;
     justify-content: space-between;
@@ -1912,6 +1930,35 @@ input:focus, select:focus, textarea:focus {
     font-weight: 800;
     font-size: 0.82rem;
     white-space: nowrap;
+}
+
+.settings-form-interest .settings-current-value {
+    color: var(--primary-color);
+    background: rgba(37, 99, 235, 0.08);
+}
+
+.settings-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: var(--text-primary);
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+}
+
+.settings-checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--primary-color);
+}
+
+.settings-checkbox-label input[type="checkbox"]:disabled,
+.settings-checkbox-label input[type="checkbox"]:disabled + span,
+.settings-inline-field input:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
 }
 
 .settings-inline-field {
@@ -3393,10 +3440,20 @@ input:focus, select:focus, textarea:focus {
     background: linear-gradient(90deg, rgba(245, 158, 11, 0.16), rgba(245, 158, 11, 0));
 }
 
+[data-theme="dark"] .settings-form-interest {
+    background: linear-gradient(90deg, rgba(37, 99, 235, 0.16), rgba(37, 99, 235, 0));
+}
+
 [data-theme="dark"] .settings-current-value {
     background: rgba(251, 191, 36, 0.12);
     border-color: rgba(251, 191, 36, 0.4);
     color: #fde68a;
+}
+
+[data-theme="dark"] .settings-form-interest .settings-current-value {
+    background: rgba(96, 165, 250, 0.12);
+    border-color: rgba(96, 165, 250, 0.4);
+    color: #bfdbfe;
 }
 
 [data-theme="dark"] .sale-item {

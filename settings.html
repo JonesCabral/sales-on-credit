@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=2.1.8">
+    <link rel="stylesheet" href="style.css?v=2.1.9">
     <script>
         (function() {
             const saved = localStorage.getItem('theme');
@@ -84,11 +84,34 @@
                     </div>
                 </form>
 
+                <form id="interestSettingsForm" class="settings-form settings-form-interest">
+                    <div class="settings-form-header">
+                        <div>
+                            <h3>Juros por atraso</h3>
+                            <p class="settings-hint" id="interestSettingsHint">
+                                Quando ativado, clientes em alerta de pagamento atrasado terão este percentual aplicado ao saldo devedor total.
+                            </p>
+                        </div>
+                        <span id="interestCurrentValue" class="settings-current-value">Atual: desativado</span>
+                    </div>
+
+                    <label class="settings-checkbox-label">
+                        <input type="checkbox" id="interestEnabledInput">
+                        <span>Aplicar juros em clientes atrasados</span>
+                    </label>
+
+                    <div class="settings-inline-field">
+                        <label for="interestPercentInput">Juros (%)</label>
+                        <input type="number" id="interestPercentInput" min="0" max="100" step="0.01" value="0" inputmode="decimal" aria-describedby="interestSettingsHint">
+                        <button id="saveInterestSettings" type="submit" class="btn btn-primary">Salvar juros</button>
+                    </div>
+                </form>
+
                 <p id="settingsStatus" class="settings-status" role="status" aria-live="polite">Carregando configuração...</p>
             </section>
         </main>
     </div>
 
-    <script type="module" src="settings.js?v=2.1.8"></script>
+    <script type="module" src="settings.js?v=2.1.9"></script>
 </body>
 </html>
