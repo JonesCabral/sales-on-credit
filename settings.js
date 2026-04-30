@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getDatabase, ref, onValue, set } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+import { getDatabase, ref, onValue, update, get } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
 const firebaseConfig = {
@@ -98,6 +98,61 @@ function normalizeOverdueInterest(settings = {}) {
         enabled: savedInterest.enabled === true,
         percent: normalizeOverdueInterestPercent(savedInterest.percent)
     };
+}
+
+function normalizeSettings(settings = {}) {
+    return {
+        overdueAlertDays: normalizeOverdueAlertDays(settings.overdueAlertDays),
+        overdueInterest: normalizeOverdueInterest(settings)
+    };
+}
+
+function createSettingsPayload(overrides = {}) {
+    const interestOverrides = overrides.overdueInterest || {};
+    return {
+        overdueAlertDays: normalizeOverdueAlertDays(overrides.overdueAlertDays ?? currentOverdueDays),
+        overdueInterest: {
+            enabled: Boolean(interestOverrides.enabled ?? currentInterestEnabled),
+            percent: normalizeOverdueInterestPercent(interestOverrides.percent ?? currentInterestPercent)
+        },
+        updatedAt: new Date().toISOString()
+    };
+}
+
+function hasOwn(object, key) {
+    return Object.prototype.hasOwnProperty.call(object || {}, key);
+}
+
+function settingsMatch(expectedSettings, savedSettings) {
+    const expected = normalizeSettings(expectedSettings);
+    const saved = normalizeSettings(savedSettings);
+    const savedInterest = savedSettings?.overdueInterest || {};
+
+    return hasOwn(savedSettings, 'overdueAlertDays')
+        && hasOwn(savedSettings, 'overdueInterest')
+        && hasOwn(savedInterest, 'enabled')
+        && hasOwn(savedInterest, 'percent')
+        && expected.overdueAlertDays === saved.overdueAlertDays
+        && expected.overdueInterest.enabled === saved.overdueInterest.enabled
+        && expected.overdueInterest.percent === saved.overdueInterest.percent;
+}
+
+async function saveAndVerifySettings(settingsPayload) {
+    if (!currentUserId) {
+        throw new Error('Usuario nao autenticado');
+    }
+
+    const settingsRef = ref(database, `users/${currentUserId}/settings`);
+    await update(settingsRef, settingsPayload);
+
+    const savedSnapshot = await get(settingsRef);
+    const savedSettings = savedSnapshot.val() || {};
+
+    if (!settingsMatch(settingsPayload, savedSettings)) {
+        throw new Error('As configuracoes nao foram confirmadas no Firebase.');
+    }
+
+    return normalizeSettings(savedSettings);
 }
 
 function setStatus(message, type = 'neutral') {
@@ -239,14 +294,14 @@ overdueSettingsForm?.addEventListener('submit', async (event) => {
     setStatus('Salvando configuração...');
 
     try {
-        await set(ref(database, `users/${currentUserId}/settings/overdueAlertDays`), normalizedDays);
-        syncSettingsForm({
+        const savedSettings = await saveAndVerifySettings(createSettingsPayload({
             overdueAlertDays: normalizedDays,
             overdueInterest: {
                 enabled: currentInterestEnabled,
                 percent: currentInterestPercent
             }
-        });
+        }));
+        syncSettingsForm(savedSettings);
         setStatus(`Configuração salva: ${formatOverdueAlertDays(normalizedDays)} sem pagamento.`, 'success');
     } catch (error) {
         console.error('Erro ao salvar configuração:', error);
@@ -290,17 +345,14 @@ interestSettingsForm?.addEventListener('submit', async (event) => {
     setStatus('Salvando juros...');
 
     try {
-        await set(ref(database, `users/${currentUserId}/settings/overdueInterest`), {
-            enabled,
-            percent: normalizedPercent
-        });
-        syncSettingsForm({
+        const savedSettings = await saveAndVerifySettings(createSettingsPayload({
             overdueAlertDays: currentOverdueDays,
             overdueInterest: {
                 enabled,
                 percent: normalizedPercent
             }
-        });
+        }));
+        syncSettingsForm(savedSettings);
         const savedMessage = enabled
             ? `Juros salvos: ${formatOverdueInterestPercent(normalizedPercent)} para clientes atrasados.`
             : 'Juros por atraso desativados.';
