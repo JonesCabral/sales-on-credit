@@ -1,6 +1,6 @@
 // Importar Firebase
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getDatabase, ref, set, get, remove, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+import { getDatabase, ref, set, remove, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
 // Configuração do Firebase
@@ -23,7 +23,7 @@ const database = getDatabase(app);
 const auth = getAuth(app);
 
 // Versão da aplicação
-const APP_VERSION = '2.1.5';
+const APP_VERSION = '2.1.8';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -74,6 +74,21 @@ let currentUser = null;
 // Flag de desenvolvimento (mudar para false em produção)
 const IS_DEV = false;
 
+const DEFAULT_OVERDUE_ALERT_DAYS = 60;
+const MIN_OVERDUE_ALERT_DAYS = 1;
+const MAX_OVERDUE_ALERT_DAYS = 3650;
+
+function normalizeOverdueAlertDays(value) {
+    const parsedValue = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsedValue)) return DEFAULT_OVERDUE_ALERT_DAYS;
+    return Math.min(MAX_OVERDUE_ALERT_DAYS, Math.max(MIN_OVERDUE_ALERT_DAYS, parsedValue));
+}
+
+function formatOverdueAlertDays(days) {
+    const safeDays = normalizeOverdueAlertDays(days);
+    return safeDays === 1 ? '1 dia' : `${safeDays} dias`;
+}
+
 // Função para sanitizar strings (prevenir XSS)
 function sanitizeHTML(str) {
     const div = document.createElement('div');
@@ -92,15 +107,50 @@ function safeLog(...args) {
 class SalesManager {
     constructor() {
         this.clients = {};
+        this.settings = {
+            overdueAlertDays: DEFAULT_OVERDUE_ALERT_DAYS
+        };
         this.currentClientId = null;
         this.userId = null;
         this.unsubscribe = null;
+        this.settingsUnsubscribe = null;
         this.dataLoaded = false;
     }
 
     setUser(userId) {
         this.userId = userId;
+        this.settings = {
+            overdueAlertDays: DEFAULT_OVERDUE_ALERT_DAYS
+        };
+        syncSettingsUI();
+        this.loadSettings();
         this.loadData();
+    }
+
+    loadSettings() {
+        if (!this.userId) return;
+
+        if (this.settingsUnsubscribe) {
+            this.settingsUnsubscribe();
+            this.settingsUnsubscribe = null;
+        }
+
+        const settingsRef = ref(database, `users/${this.userId}/settings`);
+
+        this.settingsUnsubscribe = onValue(settingsRef, (snapshot) => {
+            const savedSettings = snapshot.val() || {};
+            this.settings = {
+                overdueAlertDays: normalizeOverdueAlertDays(savedSettings.overdueAlertDays)
+            };
+            syncSettingsUI();
+            updateClientsList();
+        }, (error) => {
+            console.error('Erro ao carregar configurações:', error);
+            this.settings = {
+                overdueAlertDays: DEFAULT_OVERDUE_ALERT_DAYS
+            };
+            syncSettingsUI();
+        });
     }
 
     async loadData() {
@@ -141,6 +191,15 @@ class SalesManager {
             this.unsubscribe();
             this.unsubscribe = null;
         }
+        if (this.settingsUnsubscribe) {
+            this.settingsUnsubscribe();
+            this.settingsUnsubscribe = null;
+        }
+        this.userId = null;
+        this.settings = {
+            overdueAlertDays: DEFAULT_OVERDUE_ALERT_DAYS
+        };
+        syncSettingsUI();
     }
 
     async saveData() {
@@ -151,6 +210,10 @@ class SalesManager {
         const dbRef = ref(database, `users/${this.userId}/clients`);
         safeLog('Salvando dados para usuário:', this.userId);
         await set(dbRef, this.clients);
+    }
+
+    getOverdueAlertDays() {
+        return normalizeOverdueAlertDays(this.settings?.overdueAlertDays);
     }
 
     getActivityKey(clientId, saleId) {
@@ -551,7 +614,7 @@ class SalesManager {
     }
 
     isOverdue(clientId) {
-        return this.getDaysSinceReferencePayment(clientId) >= 60;
+        return this.getDaysSinceReferencePayment(clientId) >= this.getOverdueAlertDays();
     }
 }
 
@@ -617,6 +680,7 @@ const appMenu = document.getElementById('appMenu');
 const appMenuOverlay = document.getElementById('appMenuOverlay');
 const menuToggleBtn = document.getElementById('menuToggle');
 const menuCloseBtn = document.getElementById('menuClose');
+const overdueFilterText = document.getElementById('overdueFilterText');
 let currentEditingSaleId = null;
 let alertDismissed = false;
 const SALE_DESCRIPTION_DRAFT_KEY = 'salesOnCredit:addSaleDescriptionDraft';
@@ -679,8 +743,18 @@ function initializeAppMenu() {
     });
 }
 
+function syncSettingsUI() {
+    const overdueDays = manager.getOverdueAlertDays();
+    const formattedDays = formatOverdueAlertDays(overdueDays);
+
+    if (overdueFilterText) {
+        overdueFilterText.textContent = `⚠️ Pagamento atrasado (${formattedDays})`;
+    }
+}
+
 initializeAppMenu();
 loadSaleDescriptionDraft();
+syncSettingsUI();
 
 if (saleDescriptionInput) {
     saleDescriptionInput.addEventListener('input', saveSaleDescriptionDraft);

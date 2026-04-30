@@ -29,7 +29,7 @@
         .spinner { width: 60px; height: 60px; margin: 0 auto 20px; border: 5px solid rgba(255,255,255,0.2); border-top: 5px solid white; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
-    <link rel="stylesheet" href="style.css?v=2.1.5">
+    <link rel="stylesheet" href="style.css?v=2.1.8">
     <script>
         // Registrar Service Worker para PWA
         if ('serviceWorker' in navigator) {
@@ -45,7 +45,7 @@
         }
         
         // Controle de versão
-        const CURRENT_VERSION = '2.1.5';
+        const CURRENT_VERSION = '2.1.8';
         localStorage.setItem('appVersion', CURRENT_VERSION);
 
         // Theme: apply saved preference or system preference immediately to avoid flash
@@ -131,6 +131,7 @@
                 <a href="history.html" class="app-menu-link">📈 Histórico de movimentações</a>
                 <a href="#registerSaleSection" class="app-menu-link">💵 Registrar venda</a>
                 <a href="#clientsSection" class="app-menu-link">👥 Clientes</a>
+                <a href="settings.html" class="app-menu-link">⚙️ Configurações</a>
                 <button id="menuThemeShortcut" class="app-menu-link app-menu-link-button" type="button">🌗 Alternar tema</button>
             </nav>
         </aside>
@@ -204,7 +205,7 @@
                         </label>
                         <label class="filter-checkbox-label">
                             <input type="checkbox" id="filterOverdue">
-                            <span>⚠️ Pagamento atrasado</span>
+                            <span id="overdueFilterText">⚠️ Pagamento atrasado</span>
                         </label>
                         <label class="filter-checkbox-label">
                             <input type="checkbox" id="filterArchived">
@@ -360,7 +361,7 @@
     </div>
 
     <!-- Firebase SDK -->
-    <script type="module" src="app.js?v=2.1.5"></script>
+    <script type="module" src="app.js?v=2.1.8"></script>
 
     <!-- Indicador Offline -->
     <div id="offlineBanner" class="offline-banner" role="alert" aria-live="assertive" style="display: none;">

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="theme-color" content="#0f766e">
+    <title>Configurações do Sistema - Vivi Variedades</title>
+    <link rel="manifest" href="./manifest.json">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=2.1.8">
+    <script>
+        (function() {
+            const saved = localStorage.getItem('theme');
+            if (saved) {
+                document.documentElement.setAttribute('data-theme', saved);
+            } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+    </script>
+</head>
+<body class="settings-page">
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="header-brand">
+                    <span class="header-logo">⚙️</span>
+                    <div>
+                        <h1>Configurações</h1>
+                        <p class="subtitle">Ajustes gerais do sistema</p>
+                    </div>
+                </div>
+                <div class="settings-toolbar">
+                    <button id="settingsMenuToggle" class="btn-menu-toggle" title="Abrir menu" aria-label="Abrir menu" aria-expanded="false" aria-controls="settingsMenu">☰</button>
+                    <button id="themeToggle" class="btn-theme-toggle" title="Alternar tema claro/escuro" aria-label="Alternar tema">
+                        <span class="theme-icon-light">☀️</span>
+                        <span class="theme-icon-dark">🌙</span>
+                    </button>
+                    <a href="index.html" class="btn btn-secondary">← Voltar ao painel</a>
+                </div>
+            </div>
+        </header>
+
+        <div id="settingsMenuOverlay" class="app-menu-overlay" hidden></div>
+        <aside id="settingsMenu" class="app-menu" aria-hidden="true">
+            <div class="app-menu-header">
+                <h3>Menu</h3>
+                <button id="settingsMenuClose" class="btn-menu-close" title="Fechar menu" aria-label="Fechar menu">✕</button>
+            </div>
+            <nav class="app-menu-links" aria-label="Navegação principal">
+                <a href="index.html" class="app-menu-link">🏠 Painel principal</a>
+                <a href="history.html" class="app-menu-link">📈 Histórico geral</a>
+                <a href="settings.html" class="app-menu-link">⚙️ Configurações</a>
+                <button id="settingsMenuThemeShortcut" class="app-menu-link app-menu-link-button" type="button">🌗 Alternar tema</button>
+            </nav>
+        </aside>
+
+        <main>
+            <section class="card settings-card" aria-labelledby="systemSettingsTitle">
+                <div class="section-header">
+                    <div>
+                        <h2 id="systemSettingsTitle">Configurações do Sistema</h2>
+                        <p class="section-subtitle">Defina os padrões usados em todo o painel.</p>
+                    </div>
+                </div>
+
+                <form id="overdueSettingsForm" class="settings-form">
+                    <div class="settings-form-header">
+                        <div>
+                            <h3>Alerta de pagamento atrasado</h3>
+                            <p class="settings-hint" id="overdueSettingsHint">
+                                Clientes com dívida serão marcados quando ficarem este total de dias sem pagamento. Se nunca pagaram, a contagem começa na primeira venda fiada.
+                            </p>
+                        </div>
+                        <span id="overdueCurrentValue" class="settings-current-value">Atual: 60 dias</span>
+                    </div>
+
+                    <div class="settings-inline-field">
+                        <label for="overdueDaysInput">Dias sem pagamento</label>
+                        <input type="number" id="overdueDaysInput" min="1" max="3650" step="1" value="60" inputmode="numeric" aria-describedby="overdueSettingsHint">
+                        <button id="saveOverdueSettings" type="submit" class="btn btn-primary">Salvar configuração</button>
+                    </div>
+                </form>
+
+                <p id="settingsStatus" class="settings-status" role="status" aria-live="polite">Carregando configuração...</p>
+            </section>
+        </main>
+    </div>
+
+    <script type="module" src="settings.js?v=2.1.8"></script>
+</body>
+</html>
