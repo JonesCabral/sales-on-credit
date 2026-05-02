@@ -2087,10 +2087,12 @@ input:focus, select:focus, textarea:focus {
 
 /* Modal de edição pequeno */
 .modal-content-small {
+    width: min(450px, calc(100% - 2rem));
     max-width: 450px;
     padding: 2rem;
     display: block;
     overflow-y: auto;
+    box-sizing: border-box;
 }
 
 .modal-content-small .close {
@@ -2158,9 +2160,22 @@ input:focus, select:focus, textarea:focus {
     border-radius: 0;
 }
 
+#editSaleForm .modal-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+#editSaleForm .modal-actions .btn {
+    width: 100%;
+    min-width: 0;
+}
+
 @media (max-width: 600px) {
     .modal-content-small {
         margin: 0;
+        width: 100%;
         min-height: 100vh;
         min-height: 100dvh;
         height: 100vh;
@@ -2213,6 +2228,12 @@ input:focus, select:focus, textarea:focus {
     .modal-content-small .modal-actions .btn {
         min-height: 48px;
         font-size: 1rem;
+    }
+}
+
+@media (max-width: 360px) {
+    #editSaleForm .modal-actions {
+        grid-template-columns: 1fr;
     }
 }
 
