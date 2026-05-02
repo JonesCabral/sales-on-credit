@@ -1928,32 +1928,36 @@ input:focus, select:focus, textarea:focus {
 
 .settings-card .section-header {
     align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.settings-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
 }
 
 .settings-form {
-    display: grid;
-    gap: 1rem;
-    padding: 1rem;
-    border: 1px solid var(--border-color);
-    border-left: 4px solid var(--warning-color);
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+    min-height: 100%;
+    padding: 1.15rem;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    border-top: 4px solid var(--warning-color);
     border-radius: 12px;
-    background: linear-gradient(90deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0));
-}
-
-.settings-form + .settings-form {
-    margin-top: 1rem;
+    background: linear-gradient(180deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.02));
 }
 
 .settings-form-interest {
-    border-left-color: var(--primary-color);
-    background: linear-gradient(90deg, rgba(37, 99, 235, 0.08), rgba(37, 99, 235, 0));
+    border-color: rgba(37, 99, 235, 0.25);
+    border-top-color: var(--primary-color);
+    background: linear-gradient(180deg, rgba(37, 99, 235, 0.08), rgba(37, 99, 235, 0.02));
 }
 
 .settings-form-header {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
     gap: 1rem;
-    align-items: flex-start;
 }
 
 .settings-form-header h3 {
@@ -1963,6 +1967,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .settings-current-value {
+    justify-self: start;
     flex: 0 0 auto;
     padding: 0.28rem 0.65rem;
     border: 1px solid var(--border-color);
@@ -1983,6 +1988,11 @@ input:focus, select:focus, textarea:focus {
     display: flex;
     align-items: center;
     gap: 0.6rem;
+    align-self: start;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.55);
     color: var(--text-primary);
     font-weight: 700;
     cursor: pointer;
@@ -2005,22 +2015,21 @@ input:focus, select:focus, textarea:focus {
 
 .settings-inline-field {
     display: grid;
-    grid-template-columns: minmax(180px, 0.5fr) minmax(120px, 0.35fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 0.75rem;
     align-items: end;
+    margin-top: auto;
 }
 
 .settings-inline-field label {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    min-height: 44px;
+    grid-column: 1 / -1;
     color: var(--text-primary);
     font-weight: 700;
 }
 
 .settings-inline-field input {
     min-height: 44px;
+    width: 100%;
 }
 
 .settings-inline-field .btn {
@@ -2028,7 +2037,11 @@ input:focus, select:focus, textarea:focus {
 }
 
 .settings-status {
-    margin-top: 1rem;
+    margin: 0 0 1rem;
+    padding: 0.8rem 0.95rem;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--background);
     color: var(--text-secondary);
     font-size: 0.9rem;
     font-weight: 700;
@@ -2043,8 +2056,8 @@ input:focus, select:focus, textarea:focus {
 }
 
 @media (max-width: 700px) {
-    .settings-form-header {
-        flex-direction: column;
+    .settings-grid {
+        grid-template-columns: 1fr;
     }
 
     .settings-current-value {
@@ -3501,11 +3514,21 @@ input:focus, select:focus, textarea:focus {
 }
 
 [data-theme="dark"] .settings-form {
-    background: linear-gradient(90deg, rgba(245, 158, 11, 0.16), rgba(245, 158, 11, 0));
+    background: linear-gradient(180deg, rgba(245, 158, 11, 0.16), rgba(245, 158, 11, 0.03));
+    border-color: rgba(251, 191, 36, 0.3);
+    border-top-color: var(--warning-color);
 }
 
 [data-theme="dark"] .settings-form-interest {
-    background: linear-gradient(90deg, rgba(37, 99, 235, 0.16), rgba(37, 99, 235, 0));
+    background: linear-gradient(180deg, rgba(37, 99, 235, 0.16), rgba(37, 99, 235, 0.03));
+    border-color: rgba(96, 165, 250, 0.3);
+    border-top-color: var(--primary-color);
+}
+
+[data-theme="dark"] .settings-checkbox-label,
+[data-theme="dark"] .settings-status {
+    background: #0f1a2d;
+    border-color: #2a3c55;
 }
 
 [data-theme="dark"] .settings-current-value {
