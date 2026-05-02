@@ -118,6 +118,10 @@ body.modal-open {
     touch-action: none;
 }
 
+body.menu-open {
+    overflow: hidden;
+}
+
 /* Loading Screen */
 .loading-screen {
     position: fixed;
@@ -335,6 +339,9 @@ header {
     display: flex;
     flex-direction: column;
     gap: 0.9rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
 }
 
 .app-menu.open {
@@ -372,6 +379,7 @@ header {
 
 .app-menu-link {
     display: block;
+    width: 100%;
     text-decoration: none;
     color: var(--text-primary);
     border: 1px solid var(--border-color);
@@ -379,6 +387,8 @@ header {
     padding: 0.7rem 0.8rem;
     font-weight: 600;
     background: var(--card-bg);
+    font: inherit;
+    text-align: left;
     transition: background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
 }
 
@@ -2424,6 +2434,11 @@ input:focus, select:focus, textarea:focus {
         gap: 0.75rem;
     }
 
+    .history-page .header-content,
+    .settings-page .header-content {
+        align-items: stretch;
+    }
+
     .header-brand {
         justify-content: center;
         width: 100%;
@@ -2442,6 +2457,17 @@ input:focus, select:focus, textarea:focus {
         justify-content: center;
         flex-wrap: wrap;
         gap: 0.5rem;
+    }
+
+    .history-page .history-toolbar,
+    .settings-page .settings-toolbar {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .history-page .history-toolbar .btn-secondary,
+    .settings-page .settings-toolbar .btn-secondary {
+        display: none;
     }
 
     .user-avatar {
@@ -2508,11 +2534,14 @@ input:focus, select:focus, textarea:focus {
 
     .client-modal-tabs {
         padding: 0.65rem 1.5rem;
+        align-items: stretch;
     }
 
     .client-modal-tab {
         font-size: 0.78rem;
         padding: 0.55rem 0.5rem;
+        white-space: normal;
+        line-height: 1.15;
     }
 
     .modal-actions {
@@ -2525,7 +2554,7 @@ input:focus, select:focus, textarea:focus {
 
     .modal-actions .btn {
         min-width: unset;
-        flex: 1 1 auto;
+        flex: 1 1 100%;
     }
 
     .sales-history {
@@ -2698,11 +2727,12 @@ input:focus, select:focus, textarea:focus {
     .client-modal-tabs {
         padding: 0.6rem 1.25rem;
         gap: 0.4rem;
+        grid-template-columns: 1fr;
     }
 
     .client-modal-tab {
-        font-size: 0.72rem;
-        padding: 0.5rem 0.4rem;
+        font-size: 0.82rem;
+        padding: 0.55rem 0.6rem;
     }
 
     .modal-actions {
@@ -2845,11 +2875,12 @@ input:focus, select:focus, textarea:focus {
     .client-modal-tabs {
         padding: 0.5rem 1rem;
         gap: 0.35rem;
+        grid-template-columns: 1fr;
     }
 
     .client-modal-tab {
-        font-size: 0.68rem;
-        padding: 0.45rem 0.35rem;
+        font-size: 0.8rem;
+        padding: 0.55rem 0.6rem;
     }
 
     .modal-fixed-section {

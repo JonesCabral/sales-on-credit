@@ -821,9 +821,17 @@ function setMenuOpen(isOpen) {
     if (!appMenu || !appMenuOverlay || !menuToggleBtn) return;
 
     appMenu.classList.toggle('open', isOpen);
+    document.body.classList.toggle('menu-open', isOpen);
     appMenu.setAttribute('aria-hidden', String(!isOpen));
     appMenuOverlay.hidden = !isOpen;
     menuToggleBtn.setAttribute('aria-expanded', String(isOpen));
+
+    if (isOpen) {
+        const firstMenuItem = appMenu.querySelector('.app-menu-link, .btn-menu-close');
+        firstMenuItem?.focus({ preventScroll: true });
+    } else if (document.activeElement && appMenu.contains(document.activeElement)) {
+        menuToggleBtn.focus({ preventScroll: true });
+    }
 }
 
 function initializeAppMenu() {
@@ -842,6 +850,8 @@ function initializeAppMenu() {
             setMenuOpen(false);
         }
     });
+
+    window.addEventListener('resize', () => setMenuOpen(false));
 }
 
 function syncSettingsUI() {

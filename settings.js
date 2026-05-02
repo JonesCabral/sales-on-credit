@@ -224,9 +224,17 @@ function setSettingsMenuOpen(isOpen) {
     if (!settingsMenu || !settingsMenuOverlay || !settingsMenuToggle) return;
 
     settingsMenu.classList.toggle('open', isOpen);
+    document.body.classList.toggle('menu-open', isOpen);
     settingsMenu.setAttribute('aria-hidden', String(!isOpen));
     settingsMenuOverlay.hidden = !isOpen;
     settingsMenuToggle.setAttribute('aria-expanded', String(isOpen));
+
+    if (isOpen) {
+        const firstMenuItem = settingsMenu.querySelector('.app-menu-link, .btn-menu-close');
+        firstMenuItem?.focus({ preventScroll: true });
+    } else if (document.activeElement && settingsMenu.contains(document.activeElement)) {
+        settingsMenuToggle.focus({ preventScroll: true });
+    }
 }
 
 function setupSettingsMenu() {
@@ -245,6 +253,8 @@ function setupSettingsMenu() {
             setSettingsMenuOpen(false);
         }
     });
+
+    window.addEventListener('resize', () => setSettingsMenuOpen(false));
 }
 
 function subscribeSettings(userId) {

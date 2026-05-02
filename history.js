@@ -487,9 +487,17 @@ function setHistoryMenuOpen(isOpen) {
     if (!historyMenu || !historyMenuOverlay || !historyMenuToggle) return;
 
     historyMenu.classList.toggle('open', isOpen);
+    document.body.classList.toggle('menu-open', isOpen);
     historyMenu.setAttribute('aria-hidden', String(!isOpen));
     historyMenuOverlay.hidden = !isOpen;
     historyMenuToggle.setAttribute('aria-expanded', String(isOpen));
+
+    if (isOpen) {
+        const firstMenuItem = historyMenu.querySelector('.app-menu-link, .btn-menu-close');
+        firstMenuItem?.focus({ preventScroll: true });
+    } else if (document.activeElement && historyMenu.contains(document.activeElement)) {
+        historyMenuToggle.focus({ preventScroll: true });
+    }
 }
 
 function setupHistoryMenu() {
@@ -508,6 +516,8 @@ function setupHistoryMenu() {
             setHistoryMenuOpen(false);
         }
     });
+
+    window.addEventListener('resize', () => setHistoryMenuOpen(false));
 }
 
 function showError(message) {
