@@ -709,6 +709,30 @@ header h1 {
     min-height: 42px;
 }
 
+.history-page .history-toolbar .btn-secondary,
+.settings-page .settings-toolbar .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 0.5rem 0.85rem;
+    border: 1px solid rgba(255,255,255,0.35);
+    border-radius: 10px;
+    background: rgba(255,255,255,0.15);
+    color: #ffffff;
+    font-size: 0.88rem;
+    font-weight: 700;
+    box-shadow: none;
+    backdrop-filter: blur(4px);
+}
+
+.history-page .history-toolbar .btn-secondary:hover,
+.settings-page .settings-toolbar .btn-secondary:hover {
+    background: rgba(255,255,255,0.25);
+    border-color: rgba(255,255,255,0.55);
+    transform: none;
+}
+
 .history-controls {
     display: grid;
     gap: 1rem;
