@@ -23,7 +23,7 @@ const database = getDatabase(app);
 const auth = getAuth(app);
 
 // Versão da aplicação
-const APP_VERSION = '2.1.11';
+const APP_VERSION = '2.1.12';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -81,6 +81,18 @@ const DEFAULT_OVERDUE_INTEREST_ENABLED = false;
 const DEFAULT_OVERDUE_INTEREST_PERCENT = 0;
 const MIN_OVERDUE_INTEREST_PERCENT = 0;
 const MAX_OVERDUE_INTEREST_PERCENT = 100;
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+const currencyFormatter = new Intl.NumberFormat('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+});
+const dateTimeFormatter = new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+});
 
 function normalizeOverdueAlertDays(value) {
     const parsedValue = Number.parseInt(value, 10);
@@ -249,6 +261,27 @@ class SalesManager {
         await set(dbRef, this.clients);
     }
 
+    async saveClientData(clientId) {
+        if (!this.userId) {
+            if (IS_DEV) console.error('Erro: userId nÃ£o definido');
+            throw new Error('UsuÃ¡rio nÃ£o autenticado');
+        }
+        if (!this.clients[clientId]) {
+            throw new Error('Cliente nÃ£o encontrado');
+        }
+
+        await set(ref(database, `users/${this.userId}/clients/${clientId}`), this.clients[clientId]);
+    }
+
+    async removeClientData(clientId) {
+        if (!this.userId) {
+            if (IS_DEV) console.error('Erro: userId nÃ£o definido');
+            throw new Error('UsuÃ¡rio nÃ£o autenticado');
+        }
+
+        await remove(ref(database, `users/${this.userId}/clients/${clientId}`));
+    }
+
     getOverdueAlertDays() {
         return normalizeOverdueAlertDays(this.settings?.overdueAlertDays);
     }
@@ -351,7 +384,7 @@ class SalesManager {
             archived: false
         };
         safeLog('Adicionando cliente:', sanitizedName);
-        await this.saveData();
+        await this.saveClientData(id);
         return id;
     }
 
@@ -389,7 +422,7 @@ class SalesManager {
         };
 
         this.clients[clientId].sales.push(saleItem);
-        await this.saveData();
+        await this.saveClientData(clientId);
         await this.upsertActivity(clientId, saleItem);
         return true;
     }
@@ -419,7 +452,7 @@ class SalesManager {
         };
 
         this.clients[clientId].sales.push(paymentItem);
-        await this.saveData();
+        await this.saveClientData(clientId);
         await this.upsertActivity(clientId, paymentItem);
         return true;
     }
@@ -430,7 +463,7 @@ class SalesManager {
             : [];
 
         delete this.clients[clientId];
-        await this.saveData();
+        await this.removeClientData(clientId);
 
         if (salesToRemove.length > 0) {
             await Promise.all(salesToRemove.map((saleItem) => this.removeActivity(clientId, saleItem.id)));
@@ -445,7 +478,7 @@ class SalesManager {
             : [];
 
         this.clients[clientId].sales = [];
-        await this.saveData();
+        await this.saveClientData(clientId);
 
         if (salesToRemove.length > 0) {
             await Promise.all(salesToRemove.map((saleItem) => this.removeActivity(clientId, saleItem.id)));
@@ -476,7 +509,7 @@ class SalesManager {
             throw new Error('Já existe um cliente com este nome');
         }
         this.clients[clientId].name = name;
-        await this.saveData();
+        await this.saveClientData(clientId);
         await this.syncClientActivities(clientId);
         return true;
     }
@@ -493,7 +526,7 @@ class SalesManager {
         });
 
         this.clients[clientId].displayClientName = sanitizedDisplayName;
-        await this.saveData();
+        await this.saveClientData(clientId);
         return true;
     }
 
@@ -509,7 +542,7 @@ class SalesManager {
             throw new Error('Item não encontrado no histórico');
         }
         const [removedSale] = this.clients[clientId].sales.splice(saleIndex, 1);
-        await this.saveData();
+        await this.saveClientData(clientId);
 
         if (removedSale?.id) {
             await this.removeActivity(clientId, removedSale.id);
@@ -524,7 +557,7 @@ class SalesManager {
         }
         this.clients[clientId].archived = true;
         this.clients[clientId].archivedAt = new Date().toISOString();
-        await this.saveData();
+        await this.saveClientData(clientId);
         return true;
     }
 
@@ -534,7 +567,7 @@ class SalesManager {
         }
         this.clients[clientId].archived = false;
         delete this.clients[clientId].archivedAt;
-        await this.saveData();
+        await this.saveClientData(clientId);
         return true;
     }
 
@@ -580,7 +613,7 @@ class SalesManager {
         }
         sale.editedAt = new Date().toISOString();
         
-        await this.saveData();
+        await this.saveClientData(clientId);
         await this.upsertActivity(clientId, sale);
         return true;
     }
@@ -958,10 +991,7 @@ function formatCurrency(value) {
     const roundedValue = Math.round((numericValue + Number.EPSILON) * 100) / 100;
     const safeValue = Object.is(roundedValue, -0) ? 0 : roundedValue;
 
-    return safeValue.toLocaleString('pt-BR', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    });
+    return currencyFormatter.format(safeValue);
 }
 
 // Formatar dias em meses e dias
@@ -1025,13 +1055,7 @@ function numberToCurrencyInput(num) {
 
 function formatDate(isoString) {
     const date = new Date(isoString);
-    return date.toLocaleString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    return Number.isNaN(date.getTime()) ? 'Data indisponÃ­vel' : dateTimeFormatter.format(date);
 }
 
 function setClientModalScreen(screen) {
@@ -1083,10 +1107,80 @@ function applyExclusiveClientFilter(changedCheckbox) {
     });
 }
 
+function getClientListModel(client, now = new Date()) {
+    const sales = Array.isArray(client.sales) ? client.sales : [];
+    let baseDebtCents = 0;
+    let salesCount = 0;
+    let hasNotes = false;
+    let firstSaleDate = null;
+    let lastPaymentDate = null;
+
+    for (const item of sales) {
+        const amount = Number(item.amount) || 0;
+        const amountInCents = Math.round(amount * 100);
+
+        if (item.type === 'sale') {
+            salesCount += 1;
+            baseDebtCents += amountInCents;
+            hasNotes = hasNotes || item.isNote || amount === 0;
+
+            if (!firstSaleDate && item.date) {
+                const date = new Date(item.date);
+                if (!Number.isNaN(date.getTime())) firstSaleDate = date;
+            }
+        } else if (item.type === 'payment') {
+            baseDebtCents -= amountInCents;
+
+            if (item.date) {
+                const date = new Date(item.date);
+                if (!Number.isNaN(date.getTime()) && (!lastPaymentDate || date > lastPaymentDate)) {
+                    lastPaymentDate = date;
+                }
+            }
+        }
+    }
+
+    let overdueDays = 0;
+    let overdueMessage = '';
+    if (baseDebtCents > 0) {
+        const referenceDate = lastPaymentDate || firstSaleDate;
+        overdueDays = referenceDate ? Math.floor((now - referenceDate) / DAY_IN_MS) : 0;
+
+        if (lastPaymentDate) {
+            overdueMessage = `Ãšltimo pagamento hÃ¡ ${formatDaysToMonths(overdueDays)}`;
+        } else if (firstSaleDate) {
+            overdueMessage = `Sem pagamento hÃ¡ ${formatDaysToMonths(overdueDays)}`;
+        } else {
+            overdueMessage = 'Nunca realizou pagamento';
+        }
+    }
+
+    const isOverdue = baseDebtCents > 0 && overdueDays >= manager.getOverdueAlertDays();
+    const interestCents = isOverdue && manager.isOverdueInterestEnabled()
+        ? Math.round(baseDebtCents * (manager.getOverdueInterestPercent() / 100))
+        : 0;
+    const debtCents = baseDebtCents + interestCents;
+
+    return {
+        client,
+        id: client.id,
+        name: client.name || '',
+        searchName: (client.name || '').toLowerCase(),
+        archived: Boolean(client.archived),
+        debt: debtCents / 100,
+        salesCount,
+        hasNotes,
+        isOverdue,
+        overdueDays,
+        overdueMessage,
+        interestCents
+    };
+}
+
 // Atualizar lista de clientes
 function updateClientsList() {
     safeLog('Atualizando lista de clientes...', manager.clients);
-    const clients = Object.values(manager.clients);
+    const clientRows = Object.values(manager.clients).map((client) => getClientListModel(client));
 
     // Aplicar filtros se existirem
     const searchClients = document.getElementById('searchClients');
@@ -1102,61 +1196,61 @@ function updateClientsList() {
     const showOverdueOnly = filterOverdueCheckbox?.checked || false;
     const showArchived = filterArchivedCheckbox?.checked || false;
 
-    let baseClients = [...clients];
-    let filteredClients = [...clients];
+    let baseRows = [...clientRows];
+    let filteredRows = [...clientRows];
 
     if (hasSearchTerm) {
         // Ao pesquisar por cliente, desconsidera todos os filtros.
-        filteredClients = filteredClients.filter(client => 
-            client.name.toLowerCase().includes(searchTerm)
+        filteredRows = filteredRows.filter(row =>
+            row.searchName.includes(searchTerm)
         );
     } else {
         // Define o universo base conforme o filtro de arquivados
         if (showArchived) {
-            baseClients = baseClients.filter(client => client.archived);
+            baseRows = baseRows.filter(row => row.archived);
         } else {
-            baseClients = baseClients.filter(client => !client.archived);
+            baseRows = baseRows.filter(row => !row.archived);
         }
 
-        filteredClients = [...baseClients];
+        filteredRows = [...baseRows];
 
         // Apenas um filtro por vez (seleção exclusiva)
         if (showDebtOnly) {
-            filteredClients = filteredClients.filter(client => 
-                manager.getClientDebt(client.id) > 0
+            filteredRows = filteredRows.filter(row =>
+                row.debt > 0
             );
         }
 
         if (showUnpricedOnly) {
-            filteredClients = filteredClients.filter(client => 
-                manager.hasUnpricedNotes(client.id)
+            filteredRows = filteredRows.filter(row =>
+                row.hasNotes
             );
         }
 
         if (showOverdueOnly) {
-            filteredClients = filteredClients.filter(client => 
-                manager.isOverdue(client.id)
+            filteredRows = filteredRows.filter(row =>
+                row.isOverdue
             );
         }
     }
     
     // Prioridade antiga: atrasados primeiro (mais dias no topo), depois maior dívida
-    filteredClients.sort((a, b) => {
-        const aOverdue = manager.isOverdue(a.id);
-        const bOverdue = manager.isOverdue(b.id);
+    filteredRows.sort((a, b) => {
+        const aOverdue = a.isOverdue;
+        const bOverdue = b.isOverdue;
 
         if (aOverdue !== bOverdue) {
             return aOverdue ? -1 : 1;
         }
 
         if (aOverdue && bOverdue) {
-            const overdueDaysDiff = manager.getDaysSinceReferencePayment(b.id) - manager.getDaysSinceReferencePayment(a.id);
+            const overdueDaysDiff = b.overdueDays - a.overdueDays;
             if (overdueDaysDiff !== 0) {
                 return overdueDaysDiff;
             }
         }
 
-        const debtDiff = manager.getClientDebt(b.id) - manager.getClientDebt(a.id);
+        const debtDiff = b.debt - a.debt;
         if (debtDiff !== 0) {
             return debtDiff;
         }
@@ -1164,10 +1258,13 @@ function updateClientsList() {
         return a.name.localeCompare(b.name, 'pt-BR');
     });
 
-    renderClientsList(filteredClients);
+    renderClientsList(filteredRows);
 
     // Atualizar totais
-    const totalDebt = manager.getTotalDebt();
+    const totalDebt = clientRows.reduce((total, row) => {
+        if (row.archived || row.debt <= 0) return total;
+        return total + row.debt;
+    }, 0);
     document.getElementById('totalDebt').textContent = formatCurrency(totalDebt);
 
     // Atualizar aviso de anotações pendentes
@@ -1176,11 +1273,11 @@ function updateClientsList() {
     // Atualizar contador de clientes conforme o modo atual (ativos ou arquivados)
     const clientsCountEl = document.getElementById('clientsCount');
     if (clientsCountEl) {
-        const totalClients = baseClients.length;
+        const totalClients = baseRows.length;
         const hasActiveFilters = hasSearchTerm || (!hasSearchTerm && (showDebtOnly || showUnpricedOnly || showOverdueOnly));
 
-        if (hasActiveFilters && filteredClients.length !== totalClients) {
-            clientsCountEl.textContent = `Mostrando ${filteredClients.length} de ${totalClients} cliente${totalClients !== 1 ? 's' : ''}`;
+        if (hasActiveFilters && filteredRows.length !== totalClients) {
+            clientsCountEl.textContent = `Mostrando ${filteredRows.length} de ${totalClients} cliente${totalClients !== 1 ? 's' : ''}`;
         } else {
             clientsCountEl.textContent = `${totalClients} cliente${totalClients !== 1 ? 's' : ''}`;
         }
@@ -1205,23 +1302,24 @@ function updateUnpricedNotesAlert() {
 }
 
 // Renderizar lista de clientes
-function renderClientsList(clients) {
+function renderClientsList(clientRows) {
     const clientsListDiv = document.getElementById('clientsListDiv');
     
-    if (clients.length === 0) {
+    if (clientRows.length === 0) {
         clientsListDiv.innerHTML = '<p class="empty-message">Nenhum cliente encontrado.</p>';
         return;
     }
     
-    clientsListDiv.innerHTML = clients.map(client => {
-        const debt = manager.getClientDebt(client.id);
-        const salesCount = manager.getClientSalesCount(client.id);
+    clientsListDiv.innerHTML = clientRows.map(row => {
+        const client = row.client;
+        const debt = row.debt;
+        const salesCount = row.salesCount;
         const isPaid = debt === 0;
         const isCredit = debt < 0;
         const displayValue = Math.abs(debt);
-        const hasNotes = manager.hasUnpricedNotes(client.id);
-        const isOverdue = manager.isOverdue(client.id);
-        const interestCents = manager.getClientInterestCents(client.id);
+        const hasNotes = row.hasNotes;
+        const isOverdue = row.isOverdue;
+        const interestCents = row.interestCents;
         const interestAmountInfo = interestCents > 0
             ? `<span class="client-interest-value">Juros: R$ ${formatCurrency(interestCents / 100)}</span>`
             : '';
@@ -1284,19 +1382,17 @@ function renderClientsList(clients) {
         `;
     }).join('');
 
-    // Adicionar event listeners
-    document.querySelectorAll('.client-item').forEach(item => {
-        item.addEventListener('click', () => {
+    if (!clientsListDiv.dataset.clickBound) {
+        clientsListDiv.dataset.clickBound = 'true';
+        clientsListDiv.addEventListener('click', (event) => {
+            const item = event.target.closest('.client-item');
+            if (!item || !clientsListDiv.contains(item)) return;
+
             const clientId = item.dataset.clientId;
             const shouldOpenUnpricedEditor = manager.hasUnpricedNotes(clientId);
             openClientModal(clientId, { openUnpricedEditor: shouldOpenUnpricedEditor });
         });
-    });
-
-    // Atualizar totais
-    const totalDebt = manager.getTotalDebt();
-    document.getElementById('totalDebt').textContent = formatCurrency(totalDebt);
-
+    }
 }
 
 
@@ -1488,19 +1584,23 @@ function openClientModal(clientId, options = {}) {
         }).join('');
         
         // Adicionar event listeners para botões de editar e excluir
-        document.querySelectorAll('.btn-edit-sale').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                openEditSaleModal(btn.dataset.saleId);
+        if (!salesHistory.dataset.actionsBound) {
+            salesHistory.dataset.actionsBound = 'true';
+            salesHistory.addEventListener('click', async (event) => {
+                const editButton = event.target.closest('.btn-edit-sale');
+                if (editButton && salesHistory.contains(editButton)) {
+                    event.stopPropagation();
+                    openEditSaleModal(editButton.dataset.saleId);
+                    return;
+                }
+
+                const deleteButton = event.target.closest('.btn-delete-sale');
+                if (deleteButton && salesHistory.contains(deleteButton)) {
+                    event.stopPropagation();
+                    await deleteSaleItem(deleteButton.dataset.saleId);
+                }
             });
-        });
-        
-        document.querySelectorAll('.btn-delete-sale').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                await deleteSaleItem(btn.dataset.saleId);
-            });
-        });
+        }
     }
     
     // Atualizar texto do botão de arquivar baseado no estado

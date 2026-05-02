@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vivi-variedades-v2.1.11';
+const CACHE_NAME = 'vivi-variedades-v2.1.12';
 const urlsToCache = [
   './',
   './index.html',
@@ -6,6 +6,7 @@ const urlsToCache = [
   './history.html',
   './settings.html',
   './style.css',
+  './client-view.css',
   './app.js',
   './history.js',
   './settings.js',
@@ -44,6 +45,10 @@ self.addEventListener('activate', event => {
 // Fetch Event com estratégia híbrida
 self.addEventListener('fetch', event => {
   const { request } = event;
+  if (request.method !== 'GET') {
+    return;
+  }
+
   const url = new URL(request.url);
   
   // Network First para Firebase (sempre dados frescos)

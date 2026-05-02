@@ -29,7 +29,7 @@
         .spinner { width: 60px; height: 60px; margin: 0 auto 20px; border: 5px solid rgba(255,255,255,0.2); border-top: 5px solid white; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
-    <link rel="stylesheet" href="style.css?v=2.1.11">
+    <link rel="stylesheet" href="style.css?v=2.1.12">
     <script>
         // Registrar Service Worker para PWA
         if ('serviceWorker' in navigator) {
@@ -45,7 +45,7 @@
         }
         
         // Controle de versão
-        const CURRENT_VERSION = '2.1.11';
+        const CURRENT_VERSION = '2.1.12';
         localStorage.setItem('appVersion', CURRENT_VERSION);
 
         // Theme: apply saved preference or system preference immediately to avoid flash
@@ -357,7 +357,7 @@
     </div>
 
     <!-- Firebase SDK -->
-    <script type="module" src="app.js?v=2.1.11"></script>
+    <script type="module" src="app.js?v=2.1.12"></script>
 
     <!-- Indicador Offline -->
     <div id="offlineBanner" class="offline-banner" role="alert" aria-live="assertive" style="display: none;">
