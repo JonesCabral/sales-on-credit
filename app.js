@@ -1013,6 +1013,12 @@ function formatDaysToMonths(totalDays) {
     return `${months} ${months === 1 ? 'mês' : 'meses'} e ${days} dia${days !== 1 ? 's' : ''}`;
 }
 
+function buildOverdueMessage({ lastPaymentDate, firstSaleDate, overdueDays }) {
+    if (lastPaymentDate) return `\u00daltimo pagamento h\u00e1 ${formatDaysToMonths(overdueDays)}`;
+    if (firstSaleDate) return `Sem pagamento h\u00e1 ${formatDaysToMonths(overdueDays)}`;
+    return 'Nunca realizou pagamento';
+}
+
 // Máscara de moeda brasileira (R$) - formata enquanto digita
 function currencyMask(input) {
     input.addEventListener('input', (e) => {
@@ -1156,13 +1162,7 @@ function getClientListModel(client, now = new Date()) {
         const referenceDate = lastPaymentDate || firstSaleDate;
         overdueDays = referenceDate ? Math.floor((now - referenceDate) / DAY_IN_MS) : 0;
 
-        if (lastPaymentDate) {
-            overdueMessage = `Ãšltimo pagamento hÃ¡ ${formatDaysToMonths(overdueDays)}`;
-        } else if (firstSaleDate) {
-            overdueMessage = `Sem pagamento hÃ¡ ${formatDaysToMonths(overdueDays)}`;
-        } else {
-            overdueMessage = 'Nunca realizou pagamento';
-        }
+        overdueMessage = buildOverdueMessage({ lastPaymentDate, firstSaleDate, overdueDays });
     }
 
     const isOverdue = baseDebtCents > 0 && overdueDays >= manager.getOverdueAlertDays();
@@ -1351,24 +1351,10 @@ function renderClientsList(clientRows) {
         }
 
         if (isOverdue) {
-            const lastPayment = manager.getLastPaymentDate(client.id);
             const interestDetails = interestCents > 0
                 ? ` · juros ${formatOverdueInterestPercent(manager.getOverdueInterestPercent())}`
                 : '';
-            let daysSince = 0;
-            let overdueMsg = '';
-            if (lastPayment) {
-                daysSince = Math.floor((new Date() - lastPayment) / (1000 * 60 * 60 * 24));
-                overdueMsg = `Último pagamento há ${formatDaysToMonths(daysSince)}`;
-            } else {
-                const firstSale = (client.sales || []).find(s => s.type === 'sale');
-                if (firstSale) {
-                    daysSince = Math.floor((new Date() - new Date(firstSale.date)) / (1000 * 60 * 60 * 24));
-                    overdueMsg = `Sem pagamento há ${formatDaysToMonths(daysSince)}`;
-                } else {
-                    overdueMsg = 'Nunca realizou pagamento';
-                }
-            }
+            const overdueMsg = row.overdueMessage || 'Nunca realizou pagamento';
             const overdueTitle = interestCents > 0
                 ? `${overdueMsg}. Juros: R$ ${formatCurrency(interestCents / 100)} (${formatOverdueInterestPercent(manager.getOverdueInterestPercent())}).`
                 : overdueMsg;
