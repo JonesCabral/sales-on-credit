@@ -34,6 +34,7 @@ const productsStatus = document.getElementById('productsStatus');
 const productsSearch = document.getElementById('productsSearch');
 const productsList = document.getElementById('productsList');
 const productsCount = document.getElementById('productsCount');
+const toast = document.getElementById('toast');
 const themeToggle = document.getElementById('themeToggle');
 const productsMenu = document.getElementById('productsMenu');
 const productsMenuOverlay = document.getElementById('productsMenuOverlay');
@@ -92,6 +93,28 @@ function setStatus(message, type = 'neutral') {
     if (!productsStatus) return;
     productsStatus.textContent = message;
     productsStatus.dataset.status = type;
+}
+
+function showToast(message = 'Salvo com sucesso!', type = 'success') {
+    if (!toast) return;
+
+    const toastMessage = toast.querySelector('.toast-message');
+    const toastIcon = toast.querySelector('.toast-icon');
+
+    if (toastMessage) toastMessage.textContent = message;
+    if (toastIcon) toastIcon.textContent = type === 'error' ? '!' : '\u2713';
+
+    toast.classList.remove('toast-success', 'toast-error', 'show');
+    toast.classList.add(type === 'error' ? 'toast-error' : 'toast-success');
+
+    window.requestAnimationFrame(() => {
+        toast.classList.add('show');
+    });
+
+    window.clearTimeout(showToast.hideTimeout);
+    showToast.hideTimeout = window.setTimeout(() => {
+        toast.classList.remove('show');
+    }, 3000);
 }
 
 function setFormDisabled(disabled) {
@@ -190,10 +213,12 @@ async function saveProduct() {
         if (!savedSnapshot.exists()) throw new Error('Produto nao confirmado no Firebase.');
 
         setStatus(editingId ? 'Produto atualizado com sucesso.' : 'Produto cadastrado com sucesso.', 'success');
+        showToast(editingId ? 'Produto atualizado com sucesso!' : 'Produto cadastrado com sucesso!', 'success');
         resetProductForm();
     } catch (error) {
         console.error('Erro ao salvar produto:', error);
         setStatus(error.message || 'Erro ao salvar produto. Tente novamente.', 'error');
+        showToast(error.message || 'Erro ao salvar produto. Tente novamente.', 'error');
     } finally {
         setFormDisabled(false);
     }
@@ -209,9 +234,11 @@ async function deleteProduct(productId) {
         await remove(getProductRef(productId));
         if (productIdInput.value === productId) resetProductForm();
         setStatus('Produto excluido com sucesso.', 'success');
+        showToast('Produto excluido com sucesso!', 'success');
     } catch (error) {
         console.error('Erro ao excluir produto:', error);
         setStatus('Erro ao excluir produto. Tente novamente.', 'error');
+        showToast('Erro ao excluir produto. Tente novamente.', 'error');
     }
 }
 
@@ -326,6 +353,7 @@ productForm?.addEventListener('submit', async (event) => {
         await saveProduct();
     } catch (error) {
         setStatus(error.message || 'Verifique os dados do produto.', 'error');
+        showToast(error.message || 'Verifique os dados do produto.', 'error');
     }
 });
 
