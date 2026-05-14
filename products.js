@@ -289,8 +289,11 @@ function renderProducts() {
                     ${product.description ? `<p class="product-description">${sanitizeHTML(product.description)}</p>` : ''}
                 </div>
                 <div class="product-actions">
-                    <button class="btn btn-secondary btn-product-edit" type="button" data-action="edit" data-product-id="${sanitizeHTML(product.id)}">Editar</button>
-                    <button class="btn btn-danger btn-product-delete" type="button" data-action="delete" data-product-id="${sanitizeHTML(product.id)}">Excluir</button>
+                    <button class="product-actions-toggle" type="button" data-action="toggle-actions" data-product-id="${sanitizeHTML(product.id)}" title="Abrir opcoes" aria-label="Abrir opcoes do produto" aria-expanded="false">&#9998;</button>
+                    <div class="product-actions-menu" hidden>
+                        <button class="btn btn-secondary btn-product-edit" type="button" data-action="edit" data-product-id="${sanitizeHTML(product.id)}">Editar</button>
+                        <button class="btn btn-danger btn-product-delete" type="button" data-action="delete" data-product-id="${sanitizeHTML(product.id)}">Excluir</button>
+                    </div>
                 </div>
             </article>
         `;
@@ -363,8 +366,35 @@ productsList?.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-action]');
     if (!button) return;
     const productId = button.dataset.productId;
+    if (button.dataset.action === 'toggle-actions') {
+        const actions = button.closest('.product-actions');
+        const menu = actions?.querySelector('.product-actions-menu');
+        if (!actions || !menu) return;
+
+        document.querySelectorAll('.product-actions.is-open').forEach((openActions) => {
+            if (openActions === actions) return;
+            openActions.classList.remove('is-open');
+            openActions.querySelector('.product-actions-menu')?.setAttribute('hidden', '');
+            openActions.querySelector('.product-actions-toggle')?.setAttribute('aria-expanded', 'false');
+        });
+
+        const shouldOpen = !actions.classList.contains('is-open');
+        actions.classList.toggle('is-open', shouldOpen);
+        menu.hidden = !shouldOpen;
+        button.setAttribute('aria-expanded', String(shouldOpen));
+        return;
+    }
     if (button.dataset.action === 'edit') editProduct(productId);
     if (button.dataset.action === 'delete') deleteProduct(productId);
+});
+
+document.addEventListener('click', (event) => {
+    if (event.target.closest('.product-actions')) return;
+    document.querySelectorAll('.product-actions.is-open').forEach((actions) => {
+        actions.classList.remove('is-open');
+        actions.querySelector('.product-actions-menu')?.setAttribute('hidden', '');
+        actions.querySelector('.product-actions-toggle')?.setAttribute('aria-expanded', 'false');
+    });
 });
 
 applyCurrencyMask(productPriceInput);

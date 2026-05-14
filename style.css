@@ -2227,10 +2227,50 @@ input:focus, select:focus, textarea:focus {
 }
 
 .product-actions {
+    position: relative;
     display: flex;
     gap: 0.5rem;
-    flex-wrap: wrap;
     justify-content: flex-end;
+}
+
+.product-actions-toggle {
+    width: 46px;
+    height: 46px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--background);
+    color: var(--text-primary);
+    font-size: 1.45rem;
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.product-actions-toggle:hover,
+.product-actions.is-open .product-actions-toggle {
+    transform: translateY(-1px);
+    border-color: rgba(37, 99, 235, 0.35);
+    box-shadow: var(--shadow-md);
+}
+
+.product-actions-menu {
+    position: absolute;
+    top: calc(100% + 0.45rem);
+    right: 0;
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.55rem;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--card-bg);
+    box-shadow: var(--shadow-lg);
+    z-index: 5;
+}
+
+.product-actions-menu[hidden] {
+    display: none;
 }
 
 .product-actions .btn {
@@ -2254,12 +2294,16 @@ input:focus, select:focus, textarea:focus {
     }
 
     .product-actions {
-        justify-content: stretch;
+        justify-content: flex-end;
     }
 
-    .product-actions .btn,
     .product-form-actions .btn {
         flex: 1 1 100%;
+    }
+
+    .product-actions-menu {
+        flex-direction: column;
+        min-width: 150px;
     }
 
     .settings-current-value {
