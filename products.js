@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getDatabase, ref, onValue, push, set, update, remove, get } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+import { getDatabase, ref, onValue, push, set, remove, get } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
 const firebaseConfig = {
@@ -27,15 +27,11 @@ const productForm = document.getElementById('productForm');
 const productIdInput = document.getElementById('productId');
 const productNameInput = document.getElementById('productName');
 const productPriceInput = document.getElementById('productPrice');
-const productStockInput = document.getElementById('productStock');
-const productSkuInput = document.getElementById('productSku');
 const productDescriptionInput = document.getElementById('productDescription');
-const productActiveInput = document.getElementById('productActive');
 const saveProductBtn = document.getElementById('saveProductBtn');
 const cancelProductEdit = document.getElementById('cancelProductEdit');
 const productsStatus = document.getElementById('productsStatus');
 const productsSearch = document.getElementById('productsSearch');
-const showInactiveProducts = document.getElementById('showInactiveProducts');
 const productsList = document.getElementById('productsList');
 const productsCount = document.getElementById('productsCount');
 const themeToggle = document.getElementById('themeToggle');
@@ -100,7 +96,7 @@ function setStatus(message, type = 'neutral') {
 
 function setFormDisabled(disabled) {
     isSaving = disabled;
-    [productNameInput, productPriceInput, productStockInput, productSkuInput, productDescriptionInput, productActiveInput, saveProductBtn, cancelProductEdit]
+    [productNameInput, productPriceInput, productDescriptionInput, saveProductBtn, cancelProductEdit]
         .forEach((element) => {
             if (element) element.disabled = disabled;
         });
@@ -124,12 +120,10 @@ function getSortedProducts() {
 
 function getFilteredProducts() {
     const search = normalizeSearchText(productsSearch?.value || '');
-    const includeInactive = showInactiveProducts?.checked !== false;
 
     return getSortedProducts().filter((product) => {
-        if (!includeInactive && product.active === false) return false;
         if (!search) return true;
-        const haystack = normalizeSearchText([product.name, product.sku, product.description].join(' '));
+        const haystack = normalizeSearchText([product.name, product.description].join(' '));
         return haystack.includes(search);
     });
 }
@@ -137,7 +131,6 @@ function getFilteredProducts() {
 function resetProductForm() {
     productForm.reset();
     productIdInput.value = '';
-    productActiveInput.checked = true;
     saveProductBtn.textContent = 'Salvar produto';
     cancelProductEdit.hidden = true;
 }
@@ -145,9 +138,6 @@ function resetProductForm() {
 function buildProductPayload() {
     const name = productNameInput.value.trim();
     const price = parseCurrency(productPriceInput.value);
-    const stockValue = productStockInput.value.trim();
-    const stock = stockValue === '' ? null : Number.parseInt(stockValue, 10);
-    const sku = productSkuInput.value.trim();
     const description = productDescriptionInput.value.trim();
 
     if (!name) throw new Error('Informe o nome do produto.');
@@ -155,16 +145,12 @@ function buildProductPayload() {
     if (name.length > MAX_NAME_LENGTH) throw new Error(`O nome nao pode ter mais que ${MAX_NAME_LENGTH} caracteres.`);
     if (!Number.isFinite(price) || price <= 0) throw new Error('Informe um valor valido maior que zero.');
     if (price > MAX_PRICE) throw new Error('O valor nao pode ser maior que R$ 1.000.000,00.');
-    if (stock !== null && (!Number.isInteger(stock) || stock < 0)) throw new Error('Informe um estoque valido.');
     if (description.length > MAX_DESCRIPTION_LENGTH) throw new Error(`A descricao nao pode ter mais que ${MAX_DESCRIPTION_LENGTH} caracteres.`);
 
     return {
         name,
         price: Math.round((price + Number.EPSILON) * 100) / 100,
-        stock,
-        sku,
         description,
-        active: productActiveInput.checked,
         updatedAt: new Date().toISOString()
     };
 }
@@ -191,7 +177,7 @@ async function saveProduct() {
         let savedRef = null;
         if (editingId) {
             savedRef = getProductRef(editingId);
-            await update(savedRef, payload);
+            await set(savedRef, { ...payload, createdAt: products[editingId]?.createdAt || payload.updatedAt });
         } else {
             savedRef = push(getProductsRef());
             await set(savedRef, { ...payload, createdAt: payload.updatedAt });
@@ -233,10 +219,7 @@ function editProduct(productId) {
     productIdInput.value = productId;
     productNameInput.value = product.name || '';
     productPriceInput.value = `R$ ${formatCurrency(product.price)}`;
-    productStockInput.value = product.stock === null || product.stock === undefined ? '' : String(product.stock);
-    productSkuInput.value = product.sku || '';
     productDescriptionInput.value = product.description || '';
-    productActiveInput.checked = product.active !== false;
     saveProductBtn.textContent = 'Atualizar produto';
     cancelProductEdit.hidden = false;
     document.querySelector('.products-form-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -248,7 +231,6 @@ function renderProducts() {
     const filteredProducts = getFilteredProducts();
     const allProducts = getSortedProducts();
     const totalProducts = allProducts.length;
-    const activeProducts = allProducts.filter((product) => product.active !== false).length;
 
     if (productsCount) {
         productsCount.textContent = `${filteredProducts.length} de ${totalProducts} produto${totalProducts === 1 ? '' : 's'}`;
@@ -262,26 +244,17 @@ function renderProducts() {
 
     if (filteredProducts.length === 0) {
         productsList.innerHTML = '<p class="empty-message">Nenhum produto encontrado.</p>';
-        setStatus(`${activeProducts} produto${activeProducts === 1 ? '' : 's'} ativo${activeProducts === 1 ? '' : 's'} no cadastro.`, 'success');
+        setStatus(`${totalProducts} produto${totalProducts === 1 ? '' : 's'} no cadastro.`, 'success');
         return;
     }
 
     productsList.innerHTML = filteredProducts.map((product) => {
-        const isInactive = product.active === false;
-        const stockText = product.stock === null || product.stock === undefined ? 'Estoque nao informado' : `${product.stock} em estoque`;
-        const skuText = product.sku ? `Codigo: ${sanitizeHTML(product.sku)}` : 'Sem codigo';
-
         return `
-            <article class="product-item ${isInactive ? 'is-inactive' : ''}" data-product-id="${sanitizeHTML(product.id)}">
+            <article class="product-item" data-product-id="${sanitizeHTML(product.id)}">
                 <div class="product-item-main">
                     <div class="product-title-row">
                         <h3>${sanitizeHTML(product.name)}</h3>
                         <span class="product-price">R$ ${formatCurrency(product.price)}</span>
-                    </div>
-                    <div class="product-meta">
-                        <span>${skuText}</span>
-                        <span>${sanitizeHTML(stockText)}</span>
-                        ${isInactive ? '<span class="product-status-inactive">Inativo</span>' : '<span class="product-status-active">Ativo</span>'}
                     </div>
                     ${product.description ? `<p class="product-description">${sanitizeHTML(product.description)}</p>` : ''}
                 </div>
@@ -293,7 +266,7 @@ function renderProducts() {
         `;
     }).join('');
 
-    setStatus(`${activeProducts} produto${activeProducts === 1 ? '' : 's'} ativo${activeProducts === 1 ? '' : 's'} no cadastro.`, 'success');
+    setStatus(`${totalProducts} produto${totalProducts === 1 ? '' : 's'} no cadastro.`, 'success');
 }
 
 function subscribeProducts(userId) {
@@ -355,7 +328,6 @@ productForm?.addEventListener('submit', async (event) => {
 
 cancelProductEdit?.addEventListener('click', resetProductForm);
 productsSearch?.addEventListener('input', debounce(renderProducts, SEARCH_DEBOUNCE_MS));
-showInactiveProducts?.addEventListener('change', renderProducts);
 productsList?.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-action]');
     if (!button) return;

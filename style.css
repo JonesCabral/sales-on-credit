@@ -2140,18 +2140,10 @@ input:focus, select:focus, textarea:focus {
 
 .products-controls {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
     gap: 0.85rem;
     align-items: center;
     margin-bottom: 1rem;
-}
-
-.products-active-filter {
-    padding: 0.75rem 0.85rem;
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    background: var(--background);
-    white-space: nowrap;
 }
 
 .products-list {
@@ -2178,11 +2170,6 @@ input:focus, select:focus, textarea:focus {
     border-color: rgba(37, 99, 235, 0.35);
 }
 
-.product-item.is-inactive {
-    opacity: 0.72;
-    background: var(--archived-bg);
-}
-
 .product-title-row {
     display: flex;
     justify-content: space-between;
@@ -2202,33 +2189,6 @@ input:focus, select:focus, textarea:focus {
     color: var(--success-dark);
     font-weight: 800;
     font-size: 1.05rem;
-}
-
-.product-meta {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    margin-top: 0.45rem;
-    color: var(--text-secondary);
-    font-size: 0.85rem;
-}
-
-.product-meta span {
-    padding: 0.18rem 0.5rem;
-    border-radius: 999px;
-    background: var(--background);
-}
-
-.product-status-active {
-    color: var(--success-dark);
-    background: var(--success-surface) !important;
-    font-weight: 800;
-}
-
-.product-status-inactive {
-    color: var(--archived-badge);
-    background: var(--archived-bg-hover) !important;
-    font-weight: 800;
 }
 
 .product-description {
@@ -3810,16 +3770,6 @@ input:focus, select:focus, textarea:focus {
 [data-theme="dark"] .product-item {
     background: var(--card-bg);
     border-color: #334155;
-}
-
-[data-theme="dark"] .product-item.is-inactive {
-    background: #142033;
-}
-
-[data-theme="dark"] .product-meta span,
-[data-theme="dark"] .products-active-filter {
-    background: #0f1a2d;
-    border-color: #2a3c55;
 }
 
 [data-theme="dark"] .sale-item {

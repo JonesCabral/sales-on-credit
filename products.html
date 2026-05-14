@@ -63,7 +63,7 @@
                 <div class="section-header">
                     <div>
                         <h2 id="productFormTitle">Cadastrar produto</h2>
-                        <p class="section-subtitle">Informe nome, valor e dados opcionais para reutilizar nas vendas.</p>
+                        <p class="section-subtitle">Informe nome, valor e descricao para reutilizar nas vendas.</p>
                     </div>
                 </div>
 
@@ -80,24 +80,11 @@
                             <label for="productPrice">Valor</label>
                             <input type="text" id="productPrice" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off" required>
                         </div>
-                        <div class="product-field">
-                            <label for="productStock">Estoque</label>
-                            <input type="number" id="productStock" placeholder="0" min="0" max="999999" step="1" inputmode="numeric">
-                        </div>
-                        <div class="product-field">
-                            <label for="productSku">Codigo</label>
-                            <input type="text" id="productSku" placeholder="SKU opcional" maxlength="40" autocomplete="off">
-                        </div>
                         <div class="product-field product-field-wide">
                             <label for="productDescription">Descricao</label>
                             <textarea id="productDescription" placeholder="Detalhes do produto (opcional)" maxlength="240" rows="3"></textarea>
                         </div>
                     </div>
-
-                    <label class="settings-checkbox-label product-active-field">
-                        <input type="checkbox" id="productActive" checked>
-                        <span>Produto ativo para venda</span>
-                    </label>
 
                     <div class="product-form-actions">
                         <button id="saveProductBtn" type="submit" class="btn btn-primary">Salvar produto</button>
@@ -115,11 +102,7 @@
                     <span id="productsCount" class="activity-summary">0 produtos</span>
                 </div>
                 <div class="products-controls">
-                    <input type="search" id="productsSearch" class="search-input" placeholder="Buscar por nome, codigo ou descricao..." autocomplete="off" aria-label="Buscar produtos">
-                    <label class="filter-checkbox-label products-active-filter">
-                        <input type="checkbox" id="showInactiveProducts" checked>
-                        <span>Mostrar inativos</span>
-                    </label>
+                    <input type="search" id="productsSearch" class="search-input" placeholder="Buscar por nome ou descricao..." autocomplete="off" aria-label="Buscar produtos">
                 </div>
                 <div id="productsList" class="products-list">
                     <p class="empty-message">Carregando produtos...</p>
