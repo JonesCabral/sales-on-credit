@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="theme-color" content="#0f766e">
+    <title>Produtos - Vivi Variedades</title>
+    <link rel="manifest" href="./manifest.json">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=2.1.13">
+    <script>
+        (function() {
+            const saved = localStorage.getItem('theme');
+            if (saved) {
+                document.documentElement.setAttribute('data-theme', saved);
+            } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+    </script>
+</head>
+<body class="products-page">
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="header-brand">
+                    <span class="header-logo" aria-hidden="true">&#128722;</span>
+                    <div>
+                        <h1>Produtos</h1>
+                        <p class="subtitle">Cadastro e consulta de itens vendidos</p>
+                    </div>
+                </div>
+                <div class="products-toolbar">
+                    <button id="productsMenuToggle" class="btn-menu-toggle" title="Abrir menu" aria-label="Abrir menu" aria-expanded="false" aria-controls="productsMenu">&#9776;</button>
+                    <button id="themeToggle" class="btn-theme-toggle" title="Alternar tema claro/escuro" aria-label="Alternar tema">
+                        <span class="theme-icon-light">&#9728;&#65039;</span>
+                        <span class="theme-icon-dark">&#127769;</span>
+                    </button>
+                    <a href="index.html" class="btn btn-secondary">&larr; Voltar ao painel</a>
+                </div>
+            </div>
+        </header>
+
+        <div id="productsMenuOverlay" class="app-menu-overlay" hidden></div>
+        <aside id="productsMenu" class="app-menu" aria-hidden="true">
+            <div class="app-menu-header">
+                <h3>Menu</h3>
+                <button id="productsMenuClose" class="btn-menu-close" title="Fechar menu" aria-label="Fechar menu">&times;</button>
+            </div>
+            <nav class="app-menu-links" aria-label="Navegacao principal">
+                <a href="index.html" class="app-menu-link">&#127968; Painel principal</a>
+                <a href="products.html" class="app-menu-link">&#128722; Produtos</a>
+                <a href="history.html" class="app-menu-link">&#128200; Historico geral</a>
+                <a href="settings.html" class="app-menu-link">&#9881;&#65039; Configuracoes</a>
+                <button id="productsMenuThemeShortcut" class="app-menu-link app-menu-link-button" type="button">&#127765; Alternar tema</button>
+            </nav>
+        </aside>
+
+        <main>
+            <section class="card products-form-card" aria-labelledby="productFormTitle">
+                <div class="section-header">
+                    <div>
+                        <h2 id="productFormTitle">Cadastrar produto</h2>
+                        <p class="section-subtitle">Informe nome, valor e dados opcionais para reutilizar nas vendas.</p>
+                    </div>
+                </div>
+
+                <p id="productsStatus" class="settings-status" role="status" aria-live="polite">Carregando produtos...</p>
+
+                <form id="productForm" class="product-form">
+                    <input type="hidden" id="productId">
+                    <div class="product-form-grid">
+                        <div class="product-field product-field-wide">
+                            <label for="productName">Nome do produto</label>
+                            <input type="text" id="productName" placeholder="Ex.: Blusa feminina" maxlength="100" autocomplete="off" required>
+                        </div>
+                        <div class="product-field">
+                            <label for="productPrice">Valor</label>
+                            <input type="text" id="productPrice" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off" required>
+                        </div>
+                        <div class="product-field">
+                            <label for="productStock">Estoque</label>
+                            <input type="number" id="productStock" placeholder="0" min="0" max="999999" step="1" inputmode="numeric">
+                        </div>
+                        <div class="product-field">
+                            <label for="productSku">Codigo</label>
+                            <input type="text" id="productSku" placeholder="SKU opcional" maxlength="40" autocomplete="off">
+                        </div>
+                        <div class="product-field product-field-wide">
+                            <label for="productDescription">Descricao</label>
+                            <textarea id="productDescription" placeholder="Detalhes do produto (opcional)" maxlength="240" rows="3"></textarea>
+                        </div>
+                    </div>
+
+                    <label class="settings-checkbox-label product-active-field">
+                        <input type="checkbox" id="productActive" checked>
+                        <span>Produto ativo para venda</span>
+                    </label>
+
+                    <div class="product-form-actions">
+                        <button id="saveProductBtn" type="submit" class="btn btn-primary">Salvar produto</button>
+                        <button id="cancelProductEdit" type="button" class="btn btn-secondary" hidden>Cancelar edicao</button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="card products-list-card" aria-labelledby="productsListTitle">
+                <div class="section-header products-list-header">
+                    <div>
+                        <h2 id="productsListTitle">Produtos cadastrados</h2>
+                        <p class="section-subtitle">Busque, edite ou remova itens do cadastro.</p>
+                    </div>
+                    <span id="productsCount" class="activity-summary">0 produtos</span>
+                </div>
+                <div class="products-controls">
+                    <input type="search" id="productsSearch" class="search-input" placeholder="Buscar por nome, codigo ou descricao..." autocomplete="off" aria-label="Buscar produtos">
+                    <label class="filter-checkbox-label products-active-filter">
+                        <input type="checkbox" id="showInactiveProducts" checked>
+                        <span>Mostrar inativos</span>
+                    </label>
+                </div>
+                <div id="productsList" class="products-list">
+                    <p class="empty-message">Carregando produtos...</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script type="module" src="products.js?v=2.1.13"></script>
+</body>
+</html>

@@ -29,7 +29,7 @@
         .spinner { width: 60px; height: 60px; margin: 0 auto 20px; border: 5px solid rgba(255,255,255,0.2); border-top: 5px solid white; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
-    <link rel="stylesheet" href="style.css?v=2.1.12">
+    <link rel="stylesheet" href="style.css?v=2.1.13">
     <script>
         // Registrar Service Worker para PWA
         if ('serviceWorker' in navigator) {
@@ -45,7 +45,7 @@
         }
         
         // Controle de versão
-        const CURRENT_VERSION = '2.1.12';
+        const CURRENT_VERSION = '2.1.13';
         localStorage.setItem('appVersion', CURRENT_VERSION);
 
         // Theme: apply saved preference or system preference immediately to avoid flash
@@ -127,6 +127,7 @@
                 <button id="menuClose" class="btn-menu-close" title="Fechar menu" aria-label="Fechar menu">✕</button>
             </div>
             <nav class="app-menu-links" aria-label="Navegação principal">
+                <a href="products.html" class="app-menu-link">🛒 Produtos</a>
                 <a href="history.html" class="app-menu-link">📈 Histórico de movimentações</a>
                 <a href="settings.html" class="app-menu-link">⚙️ Configurações</a>
                 <button id="menuThemeShortcut" class="app-menu-link app-menu-link-button" type="button">🌗 Alternar tema</button>
@@ -358,7 +359,7 @@
     </div>
 
     <!-- Firebase SDK -->
-    <script type="module" src="app.js?v=2.1.12"></script>
+    <script type="module" src="app.js?v=2.1.13"></script>
 
     <!-- Indicador Offline -->
     <div id="offlineBanner" class="offline-banner" role="alert" aria-live="assertive" style="display: none;">
