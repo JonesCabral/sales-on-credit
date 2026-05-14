@@ -29,7 +29,7 @@
         .spinner { width: 60px; height: 60px; margin: 0 auto 20px; border: 5px solid rgba(255,255,255,0.2); border-top: 5px solid white; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
-    <link rel="stylesheet" href="style.css?v=2.1.13">
+    <link rel="stylesheet" href="style.css?v=2.1.14">
     <script>
         // Registrar Service Worker para PWA
         if ('serviceWorker' in navigator) {
@@ -45,7 +45,7 @@
         }
         
         // Controle de versão
-        const CURRENT_VERSION = '2.1.13';
+        const CURRENT_VERSION = '2.1.14';
         localStorage.setItem('appVersion', CURRENT_VERSION);
 
         // Theme: apply saved preference or system preference immediately to avoid flash
@@ -150,7 +150,10 @@
                         <div id="clientSuggestions" class="suggestions-dropdown"></div>
                     </div>
                     <input type="text" id="saleAmount" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off">
-                    <textarea id="saleDescription" placeholder="Descrição ou produto (opcional)" rows="3"></textarea>
+                    <div class="product-picker-wrapper">
+                        <textarea id="saleDescription" placeholder="Descrição ou produto (opcional)" rows="3"></textarea>
+                        <div id="saleProductSuggestions" class="suggestions-dropdown product-suggestions-dropdown"></div>
+                    </div>
                     <button type="submit" class="btn btn-primary">+ Registrar Venda</button>
                 </form>
                 </details>
@@ -272,7 +275,10 @@
                             <h3>💵 Adicionar Nova Venda</h3>
                             <form id="modalAddSaleForm">
                                 <input type="text" id="modalSaleAmount" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off">
-                                <textarea id="modalSaleDescription" placeholder="Descrição ou produto (opcional)" rows="3"></textarea>
+                                <div class="product-picker-wrapper">
+                                    <textarea id="modalSaleDescription" placeholder="Descrição ou produto (opcional)" rows="3"></textarea>
+                                    <div id="modalSaleProductSuggestions" class="suggestions-dropdown product-suggestions-dropdown"></div>
+                                </div>
                                 <button type="submit" class="btn btn-primary btn-sale-action">💵 Adicionar Venda</button>
                             </form>
                         </div>
@@ -359,7 +365,7 @@
     </div>
 
     <!-- Firebase SDK -->
-    <script type="module" src="app.js?v=2.1.13"></script>
+    <script type="module" src="app.js?v=2.1.14"></script>
 
     <!-- Indicador Offline -->
     <div id="offlineBanner" class="offline-banner" role="alert" aria-live="assertive" style="display: none;">

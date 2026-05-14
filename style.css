@@ -1091,6 +1091,15 @@ form {
     width: 100%;
 }
 
+.product-picker-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.product-picker-wrapper textarea {
+    width: 100%;
+}
+
 .suggestions-dropdown {
     position: absolute;
     top: calc(100% + 4px);
@@ -1111,9 +1120,17 @@ form {
 }
 
 .suggestion-item {
+    width: 100%;
     padding: 0.75rem 1rem;
     cursor: pointer;
     border-bottom: 1px solid var(--border-color);
+    border-left: 0;
+    border-right: 0;
+    border-top: 0;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    text-align: left;
     transition: background var(--transition-fast);
 }
 
@@ -1139,6 +1156,18 @@ form {
     font-size: 0.85rem;
     color: var(--text-secondary);
     margin-top: 2px;
+}
+
+.product-suggestion-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.product-suggestion-item strong {
+    color: var(--success-dark);
+    white-space: nowrap;
 }
 
 .client-debt-preview.has-debt {

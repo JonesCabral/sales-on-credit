@@ -23,7 +23,7 @@ const database = getDatabase(app);
 const auth = getAuth(app);
 
 // Versão da aplicação
-const APP_VERSION = '2.1.13';
+const APP_VERSION = '2.1.14';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -738,9 +738,11 @@ const paymentForm = document.getElementById('paymentForm');
 const modalAddSaleForm = document.getElementById('modalAddSaleForm');
 const modalSaleAmountInput = document.getElementById('modalSaleAmount');
 const modalSaleDescriptionInput = document.getElementById('modalSaleDescription');
+const modalSaleProductSuggestions = document.getElementById('modalSaleProductSuggestions');
 const justNoteProductCheckbox = document.getElementById('justNoteProduct');
 const saleAmountInput = document.getElementById('saleAmount');
 const saleDescriptionInput = document.getElementById('saleDescription');
+const saleProductSuggestions = document.getElementById('saleProductSuggestions');
 const clientNameInput = document.getElementById('clientNameInput');
 const modal = document.getElementById('clientModal');
 const closeModal = document.querySelector('.close');
@@ -784,6 +786,8 @@ const menuCloseBtn = document.getElementById('menuClose');
 const overdueFilterText = document.getElementById('overdueFilterText');
 let currentEditingSaleId = null;
 let alertDismissed = false;
+let productsUnsubscribe = null;
+let savedProducts = {};
 const SALE_DESCRIPTION_DRAFT_KEY = 'salesOnCredit:addSaleDescriptionDraft';
 
 function loadSaleDescriptionDraft() {
@@ -866,6 +870,8 @@ function syncSettingsUI() {
 initializeAppMenu();
 loadSaleDescriptionDraft();
 syncSettingsUI();
+setupProductPicker(saleDescriptionInput, saleAmountInput, saleProductSuggestions);
+setupProductPicker(modalSaleDescriptionInput, modalSaleAmountInput, modalSaleProductSuggestions);
 
 if (saleDescriptionInput) {
     saleDescriptionInput.addEventListener('input', saveSaleDescriptionDraft);
@@ -1067,6 +1073,135 @@ function parseCurrency(value) {
 function numberToCurrencyInput(num) {
     if (isNaN(num) || num === null || num === undefined) return '0,00';
     return num.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+function normalizeProductSearch(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+}
+
+function getSortedProducts() {
+    return Object.entries(savedProducts || {})
+        .map(([id, product]) => ({ id, ...product }))
+        .filter((product) => product.active !== false && product.name && Number.isFinite(Number(product.price)))
+        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'pt-BR'));
+}
+
+function subscribeProducts(userId) {
+    if (productsUnsubscribe) {
+        productsUnsubscribe();
+        productsUnsubscribe = null;
+    }
+
+    savedProducts = {};
+
+    if (!userId) return;
+
+    productsUnsubscribe = onValue(ref(database, `users/${userId}/products`), (snapshot) => {
+        savedProducts = snapshot.val() || {};
+    }, (error) => {
+        console.error('Erro ao carregar produtos:', error);
+        savedProducts = {};
+    });
+}
+
+function getProductSearchTerm(textarea) {
+    const lines = String(textarea?.value || '').split('\n');
+    return lines[lines.length - 1].trim();
+}
+
+function hideProductSuggestions(dropdown) {
+    if (!dropdown) return;
+    dropdown.classList.remove('show');
+    dropdown.innerHTML = '';
+}
+
+function renderProductSuggestions(textarea, amountInput, dropdown) {
+    if (!textarea || !amountInput || !dropdown) return;
+
+    const search = normalizeProductSearch(getProductSearchTerm(textarea));
+    if (!search) {
+        hideProductSuggestions(dropdown);
+        return;
+    }
+
+    const matches = getSortedProducts()
+        .filter((product) => normalizeProductSearch([product.name, product.description].join(' ')).includes(search))
+        .slice(0, 8);
+
+    if (matches.length === 0) {
+        hideProductSuggestions(dropdown);
+        return;
+    }
+
+    dropdown.innerHTML = matches.map((product) => `
+        <button class="suggestion-item product-suggestion-item" type="button" data-product-id="${sanitizeHTML(product.id)}">
+            <span>${sanitizeHTML(product.name)}</span>
+            <strong>R$ ${formatCurrency(product.price)}</strong>
+        </button>
+    `).join('');
+    dropdown.classList.add('show');
+}
+
+function appendSelectedProduct(textarea, amountInput, product) {
+    if (!textarea || !amountInput || !product) return;
+
+    const lines = String(textarea.value || '').split('\n');
+    const currentTerm = getProductSearchTerm(textarea);
+    const productName = String(product.name || '').trim();
+    const productPrice = Number(product.price);
+
+    if (!productName || !Number.isFinite(productPrice)) return;
+
+    if (currentTerm) {
+        lines[lines.length - 1] = productName;
+    } else {
+        lines.push(productName);
+    }
+
+    const nextDescription = lines.map((line) => line.trim()).filter(Boolean).join('\n');
+    if (nextDescription.length > 200) {
+        showToast('A descrição não pode ter mais de 200 caracteres.', 'error');
+        return;
+    }
+
+    if (amountInput === saleAmountInput && justNoteProductCheckbox?.checked) {
+        justNoteProductCheckbox.checked = false;
+        justNoteProductCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    const currentAmount = parseCurrency(amountInput.value);
+    const nextAmount = (Number.isFinite(currentAmount) ? currentAmount : 0) + productPrice;
+
+    textarea.value = nextDescription ? `${nextDescription}\n` : '';
+    amountInput.value = numberToCurrencyInput(nextAmount);
+
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function setupProductPicker(textarea, amountInput, dropdown) {
+    if (!textarea || !amountInput || !dropdown) return;
+
+    textarea.addEventListener('input', () => renderProductSuggestions(textarea, amountInput, dropdown));
+    textarea.addEventListener('focus', () => renderProductSuggestions(textarea, amountInput, dropdown));
+
+    dropdown.addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-product-id]');
+        if (!button) return;
+
+        const product = savedProducts[button.dataset.productId];
+        appendSelectedProduct(textarea, amountInput, product);
+        hideProductSuggestions(dropdown);
+        textarea.focus();
+    });
+
+    document.addEventListener('click', (event) => {
+        if (textarea.contains(event.target) || dropdown.contains(event.target)) return;
+        hideProductSuggestions(dropdown);
+    });
 }
 
 function formatDate(isoString) {
@@ -1738,6 +1873,7 @@ onAuthStateChanged(auth, (user) => {
     if (user) {
         currentUser = user;
         manager.setUser(user.uid);
+        subscribeProducts(user.uid);
         if (loginScreen) loginScreen.style.display = 'none';
         if (appScreen) appScreen.style.display = 'block';
         if (userEmailSpan) userEmailSpan.textContent = user.email || '';
@@ -1748,6 +1884,7 @@ onAuthStateChanged(auth, (user) => {
         }
     } else {
         currentUser = null;
+        subscribeProducts(null);
         // Limpar listeners ao fazer logout
         manager.cleanup();
         manager.dataLoaded = false;
@@ -2072,6 +2209,7 @@ addSaleForm.addEventListener('submit', async (e) => {
         hideLoader();
         showToast('Venda registrada com sucesso!', 'success');
         addSaleForm.reset();
+        hideProductSuggestions(saleProductSuggestions);
         clearSaleDescriptionDraft();
         selectedClientId = null;
         clientSuggestions.classList.remove('show');
@@ -2333,6 +2471,7 @@ if (modalAddSaleForm) {
             hideLoader();
             showToast('Venda registrada com sucesso!', 'success');
             modalAddSaleForm.reset();
+            hideProductSuggestions(modalSaleProductSuggestions);
             openClientModal(manager.currentClientId); // Reabrir para atualizar
             updateClientsList();
         } catch (error) {
