@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getDatabase, ref, onValue, push, set, remove, get } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+import { getDatabase, ref, onValue, push, set, update, remove, get } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
 const firebaseConfig = {
@@ -150,7 +150,10 @@ function buildProductPayload() {
     return {
         name,
         price: Math.round((price + Number.EPSILON) * 100) / 100,
+        stock: null,
+        sku: '',
         description,
+        active: true,
         updatedAt: new Date().toISOString()
     };
 }
@@ -177,7 +180,7 @@ async function saveProduct() {
         let savedRef = null;
         if (editingId) {
             savedRef = getProductRef(editingId);
-            await set(savedRef, { ...payload, createdAt: products[editingId]?.createdAt || payload.updatedAt });
+            await update(savedRef, payload);
         } else {
             savedRef = push(getProductsRef());
             await set(savedRef, { ...payload, createdAt: payload.updatedAt });
