@@ -2889,8 +2889,38 @@ input:focus, select:focus, textarea:focus {
         text-align: center;
     }
 
+    .totals-container {
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .total-card {
+        padding: 0.75rem 1rem;
+        border-radius: 12px;
+    }
+
+    .total-card::before {
+        height: 3px;
+    }
+
+    .total-card-header {
+        gap: 0.4rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .total-icon {
+        font-size: 1.15rem;
+    }
+
+    .total-label {
+        margin-bottom: 0;
+        font-size: 0.72rem;
+        letter-spacing: 0.25px;
+    }
+
     .total-value {
-        font-size: 1.5rem;
+        font-size: 1.3rem;
+        line-height: 1.1;
     }
 
     .client-item {
@@ -3198,11 +3228,11 @@ input:focus, select:focus, textarea:focus {
     }
 
     .total-value {
-        font-size: 1.35rem;
+        font-size: 1.2rem;
     }
 
     .total-label {
-        font-size: 0.8rem;
+        font-size: 0.7rem;
     }
 
     .modal-content {
@@ -3458,11 +3488,11 @@ input:focus, select:focus, textarea:focus {
     }
 
     .total-value {
-        font-size: 1.2rem;
+        font-size: 1.1rem;
     }
 
     .total-card {
-        padding: 1rem;
+        padding: 0.65rem 0.85rem;
     }
 
     .confirm-modal-content {
