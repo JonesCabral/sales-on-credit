@@ -419,7 +419,7 @@ class SalesManager {
             description: sanitizedDescription,
             type: 'sale',
             isNote: numericAmount === 0,
-            hasUnpricedItems: numericAmount === 0 || hasUnpricedProductLine(sanitizedDescription),
+            hasUnpricedItems: numericAmount === 0 || hasMixedPricedAndUnpricedLines(sanitizedDescription),
             date: new Date().toISOString()
         };
 
@@ -612,7 +612,7 @@ class SalesManager {
         if (sale.type === 'sale') {
             sale.description = sanitizedDescription;
             sale.isNote = numericAmount === 0;
-            sale.hasUnpricedItems = numericAmount === 0 || hasUnpricedProductLine(sanitizedDescription);
+            sale.hasUnpricedItems = numericAmount === 0 || hasMixedPricedAndUnpricedLines(sanitizedDescription);
         }
         sale.editedAt = new Date().toISOString();
         
@@ -1000,12 +1000,19 @@ function hasUnpricedProductLine(description) {
     return lines.length > 0 && lines.some((line) => !descriptionLineHasPrice(line));
 }
 
+function hasPricedProductLine(description) {
+    return getProductDescriptionLines(description).some((line) => descriptionLineHasPrice(line));
+}
+
+function hasMixedPricedAndUnpricedLines(description) {
+    return hasPricedProductLine(description) && hasUnpricedProductLine(description);
+}
+
 function saleHasUnpricedProducts(sale) {
     if (!sale || sale.type !== 'sale') return false;
-    return Boolean(sale.hasUnpricedItems)
-        || Boolean(sale.isNote)
+    return Boolean(sale.isNote)
         || Number(sale.amount) === 0
-        || hasUnpricedProductLine(sale.description);
+        || hasMixedPricedAndUnpricedLines(sale.description);
 }
 
 // Debounce utility: atrasa execução até parar de digitar
