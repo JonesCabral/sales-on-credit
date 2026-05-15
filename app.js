@@ -23,7 +23,7 @@ const database = getDatabase(app);
 const auth = getAuth(app);
 
 // Versão da aplicação
-const APP_VERSION = '2.1.14';
+const APP_VERSION = '2.1.15';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -1138,28 +1138,45 @@ function renderProductSuggestions(textarea, amountInput, dropdown) {
     }
 
     dropdown.innerHTML = matches.map((product) => `
-        <button class="suggestion-item product-suggestion-item" type="button" data-product-id="${sanitizeHTML(product.id)}">
-            <span>${sanitizeHTML(product.name)}</span>
-            <strong>R$ ${formatCurrency(product.price)}</strong>
-        </button>
+        <div class="suggestion-item product-suggestion-item" data-product-id="${sanitizeHTML(product.id)}">
+            <div class="product-suggestion-info">
+                <span>${sanitizeHTML(product.name)}</span>
+                <strong>R$ ${formatCurrency(product.price)}</strong>
+            </div>
+            <div class="product-quantity-controls" aria-label="Quantidade">
+                <button class="product-quantity-btn" type="button" data-quantity-action="decrease" aria-label="Diminuir quantidade">-</button>
+                <input class="product-quantity-input" type="number" inputmode="numeric" min="1" max="999" value="1" aria-label="Quantidade de ${sanitizeHTML(product.name)}">
+                <button class="product-quantity-btn" type="button" data-quantity-action="increase" aria-label="Aumentar quantidade">+</button>
+                <button class="product-add-btn" type="button" data-quantity-action="add">Adicionar</button>
+            </div>
+        </div>
     `).join('');
     dropdown.classList.add('show');
 }
 
-function appendSelectedProduct(textarea, amountInput, product) {
+function getSafeProductQuantity(value) {
+    const quantity = Number.parseInt(value, 10);
+    if (!Number.isFinite(quantity)) return 1;
+    return Math.min(999, Math.max(1, quantity));
+}
+
+function appendSelectedProduct(textarea, amountInput, product, quantity = 1) {
     if (!textarea || !amountInput || !product) return;
 
     const lines = String(textarea.value || '').split('\n');
     const currentTerm = getProductSearchTerm(textarea);
     const productName = String(product.name || '').trim();
     const productPrice = Number(product.price);
+    const safeQuantity = getSafeProductQuantity(quantity);
 
     if (!productName || !Number.isFinite(productPrice)) return;
 
+    const descriptionLine = safeQuantity > 1 ? `${safeQuantity}x ${productName}` : productName;
+
     if (currentTerm) {
-        lines[lines.length - 1] = productName;
+        lines[lines.length - 1] = descriptionLine;
     } else {
-        lines.push(productName);
+        lines.push(descriptionLine);
     }
 
     const nextDescription = lines.map((line) => line.trim()).filter(Boolean).join('\n');
@@ -1174,7 +1191,12 @@ function appendSelectedProduct(textarea, amountInput, product) {
     }
 
     const currentAmount = parseCurrency(amountInput.value);
-    const nextAmount = (Number.isFinite(currentAmount) ? currentAmount : 0) + productPrice;
+    const nextAmount = (Number.isFinite(currentAmount) ? currentAmount : 0) + (productPrice * safeQuantity);
+
+    if (nextAmount > 1000000) {
+        showToast('O valor da venda nao pode ser maior que R$ 1.000.000,00.', 'error');
+        return;
+    }
 
     textarea.value = nextDescription ? `${nextDescription}\n` : '';
     amountInput.value = numberToCurrencyInput(nextAmount);
@@ -1189,13 +1211,41 @@ function setupProductPicker(textarea, amountInput, dropdown) {
     textarea.addEventListener('focus', () => renderProductSuggestions(textarea, amountInput, dropdown));
 
     dropdown.addEventListener('click', (event) => {
-        const button = event.target.closest('button[data-product-id]');
-        if (!button) return;
+        const item = event.target.closest('[data-product-id]');
+        if (!item || !dropdown.contains(item)) return;
 
-        const product = savedProducts[button.dataset.productId];
-        appendSelectedProduct(textarea, amountInput, product);
-        hideProductSuggestions(dropdown);
-        textarea.focus();
+        const quantityInput = item.querySelector('.product-quantity-input');
+        const actionButton = event.target.closest('[data-quantity-action]');
+        const product = savedProducts[item.dataset.productId];
+
+        if (actionButton?.dataset.quantityAction === 'decrease') {
+            quantityInput.value = String(Math.max(1, getSafeProductQuantity(quantityInput.value) - 1));
+            return;
+        }
+
+        if (actionButton?.dataset.quantityAction === 'increase') {
+            quantityInput.value = String(Math.min(999, getSafeProductQuantity(quantityInput.value) + 1));
+            return;
+        }
+
+        if (actionButton?.dataset.quantityAction === 'add') {
+            appendSelectedProduct(textarea, amountInput, product, quantityInput.value);
+            hideProductSuggestions(dropdown);
+            textarea.focus();
+            return;
+        }
+
+        if (!event.target.closest('.product-quantity-controls')) {
+            appendSelectedProduct(textarea, amountInput, product, quantityInput.value);
+            hideProductSuggestions(dropdown);
+            textarea.focus();
+        }
+    });
+
+    dropdown.addEventListener('input', (event) => {
+        const quantityInput = event.target.closest('.product-quantity-input');
+        if (!quantityInput) return;
+        quantityInput.value = String(getSafeProductQuantity(quantityInput.value));
     });
 
     document.addEventListener('click', (event) => {

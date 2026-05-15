@@ -1163,11 +1163,73 @@ form {
     justify-content: space-between;
     gap: 0.75rem;
     align-items: center;
+    flex-wrap: wrap;
 }
 
-.product-suggestion-item strong {
+.product-suggestion-info {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.product-suggestion-info span {
+    overflow-wrap: anywhere;
+}
+
+.product-suggestion-info strong {
     color: var(--success-dark);
     white-space: nowrap;
+}
+
+.product-quantity-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
+.product-quantity-btn,
+.product-add-btn {
+    min-height: 34px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font-weight: 700;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.product-quantity-btn {
+    width: 34px;
+    padding: 0;
+}
+
+.product-add-btn {
+    padding: 0 0.7rem;
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.product-quantity-btn:hover {
+    border-color: var(--primary-light);
+    background: var(--background);
+}
+
+.product-add-btn:hover {
+    background: var(--primary-dark);
+    border-color: var(--primary-dark);
+}
+
+.product-quantity-input {
+    width: 58px;
+    min-height: 34px;
+    padding: 0.35rem;
+    border-width: 1px;
+    border-radius: 8px;
+    text-align: center;
+    font-weight: 700;
 }
 
 .client-debt-preview.has-debt {
