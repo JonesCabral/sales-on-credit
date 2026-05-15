@@ -1508,6 +1508,21 @@ function updateSearchFilterInteractivity() {
     });
 }
 
+function scrollClientSearchIntoView() {
+    if (!searchClients) return;
+
+    const isMobileViewport = window.matchMedia('(max-width: 768px)').matches;
+    if (!isMobileViewport) return;
+
+    setTimeout(() => {
+        searchClients.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+            inline: 'nearest'
+        });
+    }, 120);
+}
+
 function applyExclusiveClientFilter(changedCheckbox) {
     if (!changedCheckbox?.checked) return;
 
@@ -2275,7 +2290,10 @@ if (searchClients) {
         debouncedUpdateClientsList();
     });
 
-    searchClients.addEventListener('focus', updateSearchFilterInteractivity);
+    searchClients.addEventListener('focus', () => {
+        updateSearchFilterInteractivity();
+        scrollClientSearchIntoView();
+    });
     searchClients.addEventListener('blur', () => {
         setTimeout(updateSearchFilterInteractivity, 80);
     });
