@@ -257,12 +257,13 @@
 
                 <div class="modal-body">
                     <div class="client-modal-tabs" role="tablist" aria-label="Navegação de detalhes do cliente">
-                        <button id="clientScreenTabActions" class="client-modal-tab active" type="button" role="tab" aria-selected="true" aria-controls="clientScreenActions">Movimentação</button>
+                        <button id="clientScreenTabPayment" class="client-modal-tab active" type="button" role="tab" aria-selected="true" aria-controls="clientScreenPayment">Pagamento</button>
+                        <button id="clientScreenTabSale" class="client-modal-tab" type="button" role="tab" aria-selected="false" aria-controls="clientScreenSale">Venda</button>
                         <button id="clientScreenTabHistory" class="client-modal-tab" type="button" role="tab" aria-selected="false" aria-controls="clientScreenHistory">Histórico</button>
                         <button id="clientScreenTabSettings" class="client-modal-tab" type="button" role="tab" aria-selected="false" aria-controls="clientScreenSettings">Configurações</button>
                     </div>
 
-                    <div id="clientScreenActions" class="client-modal-screen active" role="tabpanel" aria-labelledby="clientScreenTabActions">
+                    <div id="clientScreenPayment" class="client-modal-screen active" role="tabpanel" aria-labelledby="clientScreenTabPayment">
                         <div class="modal-section modal-section-payment">
                             <h3>➕ Registrar Pagamento</h3>
                             <form id="paymentForm">
@@ -270,7 +271,9 @@
                                 <button type="submit" class="btn btn-success btn-payment-action">✓ Registrar Pagamento</button>
                             </form>
                         </div>
+                    </div>
 
+                    <div id="clientScreenSale" class="client-modal-screen" role="tabpanel" aria-labelledby="clientScreenTabSale" hidden>
                         <div class="modal-section modal-section-sale">
                             <h3>💵 Adicionar Nova Venda</h3>
                             <form id="modalAddSaleForm">

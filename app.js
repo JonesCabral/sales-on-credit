@@ -751,10 +751,12 @@ const deleteClientBtn = document.getElementById('deleteClient');
 const archiveClientBtn = document.getElementById('archiveClient');
 const clearHistoryBtn = document.getElementById('clearHistory');
 const shareHistoryBtn = document.getElementById('shareHistory');
-const clientScreenTabActions = document.getElementById('clientScreenTabActions');
+const clientScreenTabPayment = document.getElementById('clientScreenTabPayment');
+const clientScreenTabSale = document.getElementById('clientScreenTabSale');
 const clientScreenTabHistory = document.getElementById('clientScreenTabHistory');
 const clientScreenTabSettings = document.getElementById('clientScreenTabSettings');
-const clientScreenActions = document.getElementById('clientScreenActions');
+const clientScreenPayment = document.getElementById('clientScreenPayment');
+const clientScreenSale = document.getElementById('clientScreenSale');
 const clientScreenHistory = document.getElementById('clientScreenHistory');
 const clientScreenSettings = document.getElementById('clientScreenSettings');
 const loader = document.getElementById('loader');
@@ -1379,23 +1381,28 @@ function formatDate(isoString) {
 }
 
 function setClientModalScreen(screen) {
-    if (!clientScreenActions || !clientScreenHistory || !clientScreenSettings || !clientScreenTabActions || !clientScreenTabHistory || !clientScreenTabSettings) {
+    if (!clientScreenPayment || !clientScreenSale || !clientScreenHistory || !clientScreenSettings || !clientScreenTabPayment || !clientScreenTabSale || !clientScreenTabHistory || !clientScreenTabSettings) {
         return;
     }
 
-    const showActions = screen === 'actions';
+    const showPayment = screen === 'payment';
+    const showSale = screen === 'sale';
     const showHistory = screen === 'history';
     const showSettings = screen === 'settings';
 
-    clientScreenActions.classList.toggle('active', showActions);
-    clientScreenActions.hidden = !showActions;
+    clientScreenPayment.classList.toggle('active', showPayment);
+    clientScreenPayment.hidden = !showPayment;
+    clientScreenSale.classList.toggle('active', showSale);
+    clientScreenSale.hidden = !showSale;
     clientScreenHistory.classList.toggle('active', showHistory);
     clientScreenHistory.hidden = !showHistory;
     clientScreenSettings.classList.toggle('active', showSettings);
     clientScreenSettings.hidden = !showSettings;
 
-    clientScreenTabActions.classList.toggle('active', showActions);
-    clientScreenTabActions.setAttribute('aria-selected', String(showActions));
+    clientScreenTabPayment.classList.toggle('active', showPayment);
+    clientScreenTabPayment.setAttribute('aria-selected', String(showPayment));
+    clientScreenTabSale.classList.toggle('active', showSale);
+    clientScreenTabSale.setAttribute('aria-selected', String(showSale));
     clientScreenTabHistory.classList.toggle('active', showHistory);
     clientScreenTabHistory.setAttribute('aria-selected', String(showHistory));
     clientScreenTabSettings.classList.toggle('active', showSettings);
@@ -1917,7 +1924,7 @@ function openClientModal(clientId, options = {}) {
         }
     }
 
-    setClientModalScreen('actions');
+    setClientModalScreen('payment');
 
     modal.style.display = 'block';
     document.body.classList.add('modal-open');
@@ -1953,7 +1960,7 @@ function closeClientModal() {
         editNameForm.style.display = 'none';
         editNameForm.reset();
     }
-    setClientModalScreen('actions');
+    setClientModalScreen('payment');
     const nameSection = document.querySelector('.client-name-section');
     if (nameSection) {
         nameSection.style.display = 'flex';
@@ -2513,9 +2520,15 @@ if (shareHistoryBtn) {
     });
 }
 
-if (clientScreenTabActions) {
-    clientScreenTabActions.addEventListener('click', () => {
-        setClientModalScreen('actions');
+if (clientScreenTabPayment) {
+    clientScreenTabPayment.addEventListener('click', () => {
+        setClientModalScreen('payment');
+    });
+}
+
+if (clientScreenTabSale) {
+    clientScreenTabSale.addEventListener('click', () => {
+        setClientModalScreen('sale');
     });
 }
 
