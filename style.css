@@ -3177,8 +3177,15 @@ input:focus, select:focus, textarea:focus {
     }
 
     .product-picker-wrapper:has(.product-suggestions-dropdown.show) #modalSaleDescription {
-        min-height: 64px;
-        max-height: 96px;
+        height: 112px;
+        min-height: 112px;
+        max-height: 112px;
+        resize: none;
+    }
+
+    .product-picker-wrapper:has(.product-suggestions-dropdown.show) .description-price-highlight {
+        height: 112px;
+        inset: 0 0 auto;
     }
 
     .product-picker-wrapper:has(.product-suggestions-dropdown.show) {
@@ -3515,8 +3522,13 @@ input:focus, select:focus, textarea:focus {
     }
 
     .product-picker-wrapper:has(.product-suggestions-dropdown.show) #modalSaleDescription {
-        min-height: 58px;
-        max-height: 82px;
+        height: 96px;
+        min-height: 96px;
+        max-height: 96px;
+    }
+
+    .product-picker-wrapper:has(.product-suggestions-dropdown.show) .description-price-highlight {
+        height: 96px;
     }
 
     .product-suggestion-info {
