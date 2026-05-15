@@ -875,6 +875,7 @@ loadSaleDescriptionDraft();
 syncSettingsUI();
 setupProductPicker(saleDescriptionInput, saleAmountInput, saleProductSuggestions);
 setupProductPicker(modalSaleDescriptionInput, modalSaleAmountInput, modalSaleProductSuggestions);
+setupClientModalProductSearchCompaction();
 setupDescriptionPriceHighlight(saleDescriptionInput);
 setupDescriptionPriceHighlight(modalSaleDescriptionInput);
 
@@ -1186,6 +1187,10 @@ function hideProductSuggestions(dropdown) {
     dropdown.innerHTML = '';
 }
 
+function setClientModalProductSearchActive(isActive) {
+    modal?.classList.toggle('is-product-searching', Boolean(isActive));
+}
+
 function renderDescriptionPriceHighlight(textarea, highlight) {
     if (!textarea || !highlight) return;
 
@@ -1420,6 +1425,42 @@ function setupProductPicker(textarea, amountInput, dropdown) {
     });
 }
 
+function setupClientModalProductSearchCompaction() {
+    if (!modal || !modalSaleDescriptionInput || !modalSaleProductSuggestions) return;
+
+    const activate = () => setClientModalProductSearchActive(true);
+    const deactivateIfUnused = () => {
+        setTimeout(() => {
+            const activeElement = document.activeElement;
+            const isUsingPicker =
+                activeElement === modalSaleDescriptionInput ||
+                modalSaleProductSuggestions.contains(activeElement);
+
+            if (!isUsingPicker) {
+                setClientModalProductSearchActive(false);
+            }
+        }, 80);
+    };
+
+    modalSaleDescriptionInput.addEventListener('focus', activate);
+    modalSaleDescriptionInput.addEventListener('input', activate);
+    modalSaleDescriptionInput.addEventListener('blur', deactivateIfUnused);
+    modalSaleProductSuggestions.addEventListener('pointerdown', activate);
+    modalSaleProductSuggestions.addEventListener('focusin', activate);
+    modalSaleProductSuggestions.addEventListener('focusout', deactivateIfUnused);
+
+    document.addEventListener('click', (event) => {
+        if (
+            modalSaleDescriptionInput.contains(event.target) ||
+            modalSaleProductSuggestions.contains(event.target)
+        ) {
+            return;
+        }
+
+        setClientModalProductSearchActive(false);
+    });
+}
+
 function formatDate(isoString) {
     const date = new Date(isoString);
     return Number.isNaN(date.getTime()) ? 'Data indisponÃ­vel' : dateTimeFormatter.format(date);
@@ -1452,6 +1493,10 @@ function setClientModalScreen(screen) {
     clientScreenTabHistory.setAttribute('aria-selected', String(showHistory));
     clientScreenTabSettings.classList.toggle('active', showSettings);
     clientScreenTabSettings.setAttribute('aria-selected', String(showSettings));
+
+    if (!showSale) {
+        setClientModalProductSearchActive(false);
+    }
 }
 
 function updateSearchFilterInteractivity() {
@@ -1973,6 +2018,7 @@ function openClientModal(clientId, options = {}) {
     }
 
     setClientModalScreen('sale');
+    setClientModalProductSearchActive(false);
 
     modal.style.display = 'block';
     document.body.classList.add('modal-open');
@@ -1995,6 +2041,7 @@ function openClientModal(clientId, options = {}) {
 // Fechar modal
 function closeClientModal() {
     modal.style.display = 'none';
+    setClientModalProductSearchActive(false);
     document.body.classList.remove('modal-open');
     const scrollY = document.body.dataset.scrollY || '0';
     document.body.style.top = '';
@@ -2703,6 +2750,7 @@ if (modalAddSaleForm) {
             showToast('Venda registrada com sucesso!', 'success');
             modalAddSaleForm.reset();
             hideProductSuggestions(modalSaleProductSuggestions);
+            setClientModalProductSearchActive(false);
             openClientModal(manager.currentClientId); // Reabrir para atualizar
             updateClientsList();
         } catch (error) {

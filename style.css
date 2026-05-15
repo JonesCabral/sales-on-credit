@@ -2960,6 +2960,35 @@ input:focus, select:focus, textarea:focus {
         flex-shrink: 0;
     }
 
+    #clientModal .modal-fixed-section,
+    #clientModal .client-modal-tabs {
+        overflow: hidden;
+        opacity: 1;
+        transition: max-height 180ms ease, opacity 150ms ease, padding 180ms ease, border-width 180ms ease;
+    }
+
+    #clientModal .modal-fixed-section {
+        max-height: 120px;
+    }
+
+    #clientModal .client-modal-tabs {
+        max-height: 76px;
+    }
+
+    #clientModal.is-product-searching .modal-fixed-section,
+    #clientModal.is-product-searching .client-modal-tabs {
+        max-height: 0;
+        opacity: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        border-bottom-width: 0;
+        pointer-events: none;
+    }
+
+    #clientModal.is-product-searching .product-suggestions-dropdown {
+        max-height: min(44dvh, 320px);
+    }
+
     #clientModal .modal-body {
         display: flex;
         flex-direction: column;
