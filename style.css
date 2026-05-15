@@ -1144,6 +1144,23 @@ form {
     color: var(--text-primary);
 }
 
+.description-line-added {
+    color: var(--success-dark);
+    font-weight: 800;
+    position: relative;
+    padding-right: 1.35rem;
+    border-radius: 6px;
+    background: linear-gradient(90deg, rgba(22, 163, 74, 0.08), transparent);
+}
+
+.description-line-added::after {
+    content: "✓";
+    position: absolute;
+    right: 0.3rem;
+    top: 0;
+    color: var(--success-color);
+}
+
 .description-highlight-textarea.has-unpriced-lines {
     border-color: var(--danger-color);
     box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);

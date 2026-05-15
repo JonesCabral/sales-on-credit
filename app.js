@@ -1151,6 +1151,35 @@ function getProductSearchTerm(textarea) {
     return lines[lines.length - 1].trim();
 }
 
+function moveTextareaCursorToEnd(textarea) {
+    if (!textarea) return;
+
+    const endPosition = textarea.value.length;
+    textarea.focus();
+    textarea.setSelectionRange(endPosition, endPosition);
+    textarea.scrollTop = textarea.scrollHeight;
+}
+
+function keepProductLinesAboveDraft(textarea) {
+    if (!textarea || !hasPricedProductLine(textarea.value)) return false;
+
+    const endsWithNewLine = textarea.value.endsWith('\n');
+    const lines = String(textarea.value || '')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+    const pricedLines = lines.filter((line) => descriptionLineHasPrice(line));
+    const draftLines = lines.filter((line) => !descriptionLineHasPrice(line));
+    const nextValue = `${[...pricedLines, ...draftLines].join('\n')}${endsWithNewLine ? '\n' : ''}`;
+
+    if (nextValue === textarea.value) return false;
+
+    textarea.value = nextValue;
+    moveTextareaCursorToEnd(textarea);
+    return true;
+}
+
 function hideProductSuggestions(dropdown) {
     if (!dropdown) return;
     dropdown.classList.remove('show');
@@ -1163,9 +1192,12 @@ function renderDescriptionPriceHighlight(textarea, highlight) {
     const lines = String(textarea.value || '').split('\n');
     highlight.innerHTML = lines.map((line) => {
         const safeLine = sanitizeHTML(line || ' ');
-        const className = line.trim() && !descriptionLineHasPrice(line)
+        const hasLinePrice = descriptionLineHasPrice(line);
+        const className = line.trim() && !hasLinePrice
             ? 'description-line-unpriced'
-            : 'description-line-priced';
+            : hasLinePrice
+                ? 'description-line-priced description-line-added'
+                : 'description-line-priced';
 
         return `<div class="${className}">${safeLine}</div>`;
     }).join('');
@@ -1253,8 +1285,11 @@ function getSafeProductQuantity(value) {
 function appendSelectedProduct(textarea, amountInput, product, quantity = 1) {
     if (!textarea || !amountInput || !product) return false;
 
-    const lines = String(textarea.value || '').split('\n');
     const currentTerm = getProductSearchTerm(textarea);
+    const lines = String(textarea.value || '')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line && line !== currentTerm);
     const productName = String(product.name || '').trim();
     const productPrice = Number(product.price);
     const safeQuantity = getSafeProductQuantity(quantity);
@@ -1268,11 +1303,7 @@ function appendSelectedProduct(textarea, amountInput, product, quantity = 1) {
         ? `${quantityLabel} = R$ ${formatCurrency(productTotal)}`
         : quantityLabel;
 
-    if (currentTerm) {
-        lines[lines.length - 1] = descriptionLine;
-    } else {
-        lines.push(descriptionLine);
-    }
+    lines.push(descriptionLine);
 
     const nextDescription = lines.map((line) => line.trim()).filter(Boolean).join('\n');
     if (nextDescription.length > 200) {
@@ -1294,6 +1325,7 @@ function appendSelectedProduct(textarea, amountInput, product, quantity = 1) {
     }
 
     textarea.value = nextDescription ? `${nextDescription}\n` : '';
+    moveTextareaCursorToEnd(textarea);
     if (hasProductPrice) {
         amountInput.value = numberToCurrencyInput(nextAmount);
         amountInput.classList.add('input-summed');
@@ -1310,7 +1342,7 @@ function showProductAddedFeedback(item, hasPrice) {
     item.classList.add('product-suggestion-added');
     const feedback = document.createElement('span');
     feedback.className = 'product-added-feedback';
-    feedback.textContent = hasPrice ? 'Somado' : 'Adicionar valor';
+    feedback.textContent = hasPrice ? '✓ Somado' : 'Adicionar valor';
     item.appendChild(feedback);
 }
 
@@ -1332,8 +1364,21 @@ function addSelectedProductWithFeedback(item, textarea, amountInput, dropdown, p
 function setupProductPicker(textarea, amountInput, dropdown) {
     if (!textarea || !amountInput || !dropdown) return;
 
-    textarea.addEventListener('input', () => renderProductSuggestions(textarea, amountInput, dropdown));
-    textarea.addEventListener('focus', () => renderProductSuggestions(textarea, amountInput, dropdown));
+    textarea.addEventListener('input', () => {
+        keepProductLinesAboveDraft(textarea);
+        renderProductSuggestions(textarea, amountInput, dropdown);
+    });
+    textarea.addEventListener('focus', () => {
+        if (hasPricedProductLine(textarea.value)) {
+            moveTextareaCursorToEnd(textarea);
+        }
+        renderProductSuggestions(textarea, amountInput, dropdown);
+    });
+    textarea.addEventListener('pointerup', () => {
+        if (hasPricedProductLine(textarea.value)) {
+            moveTextareaCursorToEnd(textarea);
+        }
+    });
 
     dropdown.addEventListener('click', (event) => {
         const item = event.target.closest('[data-product-id]');
