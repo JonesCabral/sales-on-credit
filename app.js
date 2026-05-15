@@ -403,7 +403,6 @@ class SalesManager {
         
         // Validar e sanitizar descrição
         const sanitizedDescription = ValidationUtils.validateText(description, {
-            maxLength: 200,
             required: numericAmount === 0,
             fieldName: 'Descrição'
         });
@@ -599,10 +598,6 @@ class SalesManager {
         
         // Validar e sanitizar descrição (apenas para vendas)
         const sanitizedDescription = (description || '').trim();
-        if (sanitizedDescription.length > 200) {
-            throw new Error('Descrição não pode ter mais de 200 caracteres');
-        }
-        
         // Se o valor é 0, a descrição é obrigatória
         if (numericAmount === 0 && !sanitizedDescription && sale.type === 'sale') {
             throw new Error('Para anotações sem valor, a descrição do produto é obrigatória');
@@ -963,7 +958,7 @@ const ValidationUtils = {
     },
     
     validateText(text, options = {}) {
-        const { minLength = 0, maxLength = 200, required = false, fieldName = 'Campo' } = options;
+        const { minLength = 0, maxLength = Infinity, required = false, fieldName = 'Campo' } = options;
         const trimmed = (text || '').trim();
         
         if (required && !trimmed) {
@@ -972,7 +967,7 @@ const ValidationUtils = {
         if (trimmed && trimmed.length < minLength) {
             throw new Error(`${fieldName} deve ter pelo menos ${minLength} caracteres`);
         }
-        if (trimmed.length > maxLength) {
+        if (Number.isFinite(maxLength) && trimmed.length > maxLength) {
             throw new Error(`${fieldName} não pode ter mais de ${maxLength} caracteres`);
         }
         return trimmed;
@@ -1311,11 +1306,6 @@ function appendSelectedProduct(textarea, amountInput, product, quantity = 1) {
     lines.push(descriptionLine);
 
     const nextDescription = lines.map((line) => line.trim()).filter(Boolean).join('\n');
-    if (nextDescription.length > 200) {
-        showToast('A descrição não pode ter mais de 200 caracteres.', 'error');
-        return false;
-    }
-
     if (amountInput === saleAmountInput && justNoteProductCheckbox?.checked) {
         justNoteProductCheckbox.checked = false;
         justNoteProductCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
@@ -2455,14 +2445,6 @@ addSaleForm.addEventListener('submit', async (e) => {
             return;
         }
     }
-    
-    // Validar descrição (opcional, mas se fornecida, validar tamanho)
-    if (description.length > 200) {
-        showToast('A descrição não pode ter mais de 200 caracteres.', 'error');
-        document.getElementById('saleDescription').focus();
-        return;
-    }
-    
     showLoader('Salvando...');
     try {
         let clientId;
@@ -2743,14 +2725,6 @@ if (modalAddSaleForm) {
                 return;
             }
         }
-        
-        // Validar descrição (opcional, mas se fornecida, validar tamanho)
-        if (description.length > 200) {
-            showToast('A descrição não pode ter mais de 200 caracteres.', 'error');
-            modalSaleDescriptionInput.focus();
-            return;
-        }
-        
         showLoader('Salvando...');
         try {
             await manager.addSale(manager.currentClientId, numericAmount, description);
@@ -2902,14 +2876,6 @@ if (editSaleForm) {
             editSaleAmount.focus();
             return;
         }
-        
-        // Validar descrição (apenas se o campo estiver visível)
-        if (editSaleDescription.parentElement.style.display !== 'none' && description.length > 200) {
-            showToast('A descrição não pode ter mais de 200 caracteres.', 'error');
-            editSaleDescription.focus();
-            return;
-        }
-        
         showLoader('Salvando...');
         try {
             await manager.updateSaleItem(manager.currentClientId, currentEditingSaleId, numericAmount, description);
