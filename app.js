@@ -1924,7 +1924,7 @@ function openClientModal(clientId, options = {}) {
         }
     }
 
-    setClientModalScreen('payment');
+    setClientModalScreen('sale');
 
     modal.style.display = 'block';
     document.body.classList.add('modal-open');
@@ -1960,7 +1960,7 @@ function closeClientModal() {
         editNameForm.style.display = 'none';
         editNameForm.reset();
     }
-    setClientModalScreen('payment');
+    setClientModalScreen('sale');
     const nameSection = document.querySelector('.client-name-section');
     if (nameSection) {
         nameSection.style.display = 'flex';
