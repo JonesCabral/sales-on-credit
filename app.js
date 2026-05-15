@@ -1504,8 +1504,11 @@ function updateSearchFilterInteractivity() {
     const clientsSection = document.getElementById('clientsSection');
     const filterIds = ['filterDebtOnly', 'filterUnpriced', 'filterOverdue', 'filterArchived'];
     const hasSearchTerm = (searchInput?.value || '').trim().length > 0;
+    const isSearchFocused = document.activeElement === searchInput;
+    const isSearchActive = hasSearchTerm || isSearchFocused;
 
-    clientsSection?.classList.toggle('is-searching', hasSearchTerm);
+    clientsSection?.classList.toggle('is-searching', isSearchActive);
+    document.body.classList.toggle('client-search-active', isSearchActive);
 
     filterIds.forEach((id) => {
         const checkbox = document.getElementById(id);
@@ -2280,6 +2283,11 @@ if (searchClients) {
     searchClients.addEventListener('input', () => {
         updateSearchFilterInteractivity();
         debouncedUpdateClientsList();
+    });
+
+    searchClients.addEventListener('focus', updateSearchFilterInteractivity);
+    searchClients.addEventListener('blur', () => {
+        setTimeout(updateSearchFilterInteractivity, 80);
     });
     
     if (filterDebtOnlyCheckbox) {

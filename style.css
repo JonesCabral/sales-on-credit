@@ -3111,6 +3111,21 @@ input:focus, select:focus, textarea:focus {
         display: none;
     }
 
+    body.client-search-active #unpricedNotesAlert,
+    body.client-search-active .totals-container,
+    body.client-search-active #clientsSection .section-header {
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
+        margin-top: 0;
+        margin-bottom: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        border-width: 0;
+        pointer-events: none;
+        transition: max-height 180ms ease, opacity 150ms ease, margin 180ms ease, padding 180ms ease, border-width 180ms ease;
+    }
+
     /* Toast mobile */
     .toast {
         max-width: 92%;
