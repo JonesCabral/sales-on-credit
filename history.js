@@ -162,7 +162,7 @@ function hasMixedPricedAndUnpricedLines(description) {
 
 function activityHasUnpricedProducts(item) {
     if (!item || item.type !== 'sale') return false;
-    return Boolean(item.isNote) || Number(item.amount) === 0 || hasMixedPricedAndUnpricedLines(item.description);
+    return Boolean(item.isNote) || Number(item.amount) === 0 || (!item.editedAt && hasMixedPricedAndUnpricedLines(item.description));
 }
 
 function matchesActivityType(item, typeFilter) {
@@ -316,7 +316,8 @@ function normalizeActivityEntry(activity) {
     const timestamp = Number(activity.timestamp) || new Date(activity.date || 0).getTime() || 0;
     const date = activity.date || (timestamp ? new Date(timestamp).toISOString() : '');
     const type = activity.type === 'payment' ? 'payment' : 'sale';
-    const hasUnpricedItems = type === 'sale' && hasMixedPricedAndUnpricedLines(activity.description);
+    const editedAt = activity.editedAt || null;
+    const hasUnpricedItems = type === 'sale' && !editedAt && hasMixedPricedAndUnpricedLines(activity.description);
     const isNote = Boolean(activity.isNote) || (type === 'sale' && amount === 0);
     const clientName = activity.clientName || 'Cliente';
     const description = activity.description || '';
@@ -332,6 +333,7 @@ function normalizeActivityEntry(activity) {
         hasUnpricedItems,
         date,
         timestamp,
+        editedAt,
         searchText: normalizeSearchText(`${clientName} ${description}`)
     };
 }
@@ -356,9 +358,10 @@ function mapActivitiesFromClients(clientsMap) {
                 amount,
                 description: item.description || '',
                 isNote: Boolean(item.isNote) || (type === 'sale' && amount === 0),
-                hasUnpricedItems: type === 'sale' && hasMixedPricedAndUnpricedLines(item.description),
+                hasUnpricedItems: type === 'sale' && !item.editedAt && hasMixedPricedAndUnpricedLines(item.description),
                 date: item.date,
-                timestamp: new Date(item.date || 0).getTime() || 0
+                timestamp: new Date(item.date || 0).getTime() || 0,
+                editedAt: item.editedAt || null
             }));
         });
     });
@@ -435,7 +438,7 @@ async function hydrateActivitiesIndexFromClients(userId) {
                 amount: Number(saleItem.amount) || 0,
                 description: saleItem.description || '',
                 isNote: Boolean(saleItem.isNote) || (saleItem.type === 'sale' && Number(saleItem.amount) === 0),
-                hasUnpricedItems: saleItem.type === 'sale' && hasMixedPricedAndUnpricedLines(saleItem.description),
+                hasUnpricedItems: saleItem.type === 'sale' && !saleItem.editedAt && hasMixedPricedAndUnpricedLines(saleItem.description),
                 date: saleItem.date || new Date().toISOString(),
                 timestamp: Number.isFinite(timestamp) ? timestamp : Date.now(),
                 editedAt: saleItem.editedAt || null

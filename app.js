@@ -612,7 +612,7 @@ class SalesManager {
         if (sale.type === 'sale') {
             sale.description = sanitizedDescription;
             sale.isNote = numericAmount === 0;
-            sale.hasUnpricedItems = numericAmount === 0 || hasMixedPricedAndUnpricedLines(sanitizedDescription);
+            sale.hasUnpricedItems = numericAmount === 0;
         }
         sale.editedAt = new Date().toISOString();
         
@@ -1012,7 +1012,7 @@ function saleHasUnpricedProducts(sale) {
     if (!sale || sale.type !== 'sale') return false;
     return Boolean(sale.isNote)
         || Number(sale.amount) === 0
-        || hasMixedPricedAndUnpricedLines(sale.description);
+        || (!sale.editedAt && hasMixedPricedAndUnpricedLines(sale.description));
 }
 
 // Debounce utility: atrasa execução até parar de digitar
