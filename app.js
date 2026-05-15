@@ -23,7 +23,7 @@ const database = getDatabase(app);
 const auth = getAuth(app);
 
 // Versão da aplicação
-const APP_VERSION = '2.1.15';
+const APP_VERSION = '2.1.17';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -324,6 +324,7 @@ class SalesManager {
                 amount: Number(saleItem.amount) || 0,
                 description: saleItem.description || '',
                 isNote: Boolean(saleItem.isNote) || (saleItem.type === 'sale' && Number(saleItem.amount) === 0),
+                hasUnpricedItems: saleHasUnpricedProducts(saleItem),
                 date: saleItem.date || new Date().toISOString(),
                 timestamp: Number.isFinite(timestamp) ? timestamp : Date.now(),
                 editedAt: saleItem.editedAt || null
@@ -418,6 +419,7 @@ class SalesManager {
             description: sanitizedDescription,
             type: 'sale',
             isNote: numericAmount === 0,
+            hasUnpricedItems: numericAmount === 0 || hasUnpricedProductLine(sanitizedDescription),
             date: new Date().toISOString()
         };
 
@@ -610,6 +612,7 @@ class SalesManager {
         if (sale.type === 'sale') {
             sale.description = sanitizedDescription;
             sale.isNote = numericAmount === 0;
+            sale.hasUnpricedItems = numericAmount === 0 || hasUnpricedProductLine(sanitizedDescription);
         }
         sale.editedAt = new Date().toISOString();
         
@@ -670,9 +673,7 @@ class SalesManager {
     hasUnpricedNotes(clientId) {
         if (!this.clients[clientId]) return false;
         if (!this.clients[clientId].sales) return false;
-        return this.clients[clientId].sales.some(s => 
-            s.type === 'sale' && (s.isNote || s.amount === 0)
-        );
+        return this.clients[clientId].sales.some(s => saleHasUnpricedProducts(s));
     }
 
     getClientsWithUnpricedNotes() {
@@ -872,6 +873,8 @@ loadSaleDescriptionDraft();
 syncSettingsUI();
 setupProductPicker(saleDescriptionInput, saleAmountInput, saleProductSuggestions);
 setupProductPicker(modalSaleDescriptionInput, modalSaleAmountInput, modalSaleProductSuggestions);
+setupDescriptionPriceHighlight(saleDescriptionInput);
+setupDescriptionPriceHighlight(modalSaleDescriptionInput);
 
 if (saleDescriptionInput) {
     saleDescriptionInput.addEventListener('input', saveSaleDescriptionDraft);
@@ -977,6 +980,32 @@ function formatDescription(text) {
     // Sanitizar e preservar quebras de linha convertendo \n para <br>
     const sanitized = sanitizeHTML(text);
     return sanitized.replace(/\n/g, '<br>');
+}
+
+function getProductDescriptionLines(description) {
+    return String(description || '')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean);
+}
+
+function descriptionLineHasPrice(line) {
+    const text = String(line || '');
+    return /(?:^|[\s=])R\$\s*\d{1,3}(?:\.\d{3})*(?:,\d{2})?(?:\s|$)/i.test(text)
+        || /=\s*\d{1,3}(?:\.\d{3})*(?:,\d{2})?(?:\s|$)/.test(text);
+}
+
+function hasUnpricedProductLine(description) {
+    const lines = getProductDescriptionLines(description);
+    return lines.length > 0 && lines.some((line) => !descriptionLineHasPrice(line));
+}
+
+function saleHasUnpricedProducts(sale) {
+    if (!sale || sale.type !== 'sale') return false;
+    return Boolean(sale.hasUnpricedItems)
+        || Boolean(sale.isNote)
+        || Number(sale.amount) === 0
+        || hasUnpricedProductLine(sale.description);
 }
 
 // Debounce utility: atrasa execução até parar de digitar
@@ -1119,6 +1148,53 @@ function hideProductSuggestions(dropdown) {
     dropdown.innerHTML = '';
 }
 
+function renderDescriptionPriceHighlight(textarea, highlight) {
+    if (!textarea || !highlight) return;
+
+    const lines = String(textarea.value || '').split('\n');
+    highlight.innerHTML = lines.map((line) => {
+        const safeLine = sanitizeHTML(line || ' ');
+        const className = line.trim() && !descriptionLineHasPrice(line)
+            ? 'description-line-unpriced'
+            : 'description-line-priced';
+
+        return `<div class="${className}">${safeLine}</div>`;
+    }).join('');
+
+    textarea.classList.toggle('has-unpriced-lines', hasUnpricedProductLine(textarea.value));
+}
+
+function syncDescriptionHighlightScroll(textarea, highlight) {
+    if (!textarea || !highlight) return;
+    highlight.scrollTop = textarea.scrollTop;
+    highlight.scrollLeft = textarea.scrollLeft;
+}
+
+function setupDescriptionPriceHighlight(textarea) {
+    if (!textarea || textarea.dataset.priceHighlightReady === 'true') return;
+
+    const wrapper = textarea.closest('.product-picker-wrapper');
+    if (!wrapper) return;
+
+    const highlight = document.createElement('div');
+    highlight.className = 'description-price-highlight';
+    highlight.setAttribute('aria-hidden', 'true');
+    wrapper.insertBefore(highlight, textarea);
+
+    textarea.dataset.priceHighlightReady = 'true';
+    textarea.classList.add('description-highlight-textarea');
+
+    const updateHighlight = () => {
+        renderDescriptionPriceHighlight(textarea, highlight);
+        syncDescriptionHighlightScroll(textarea, highlight);
+    };
+
+    textarea.addEventListener('input', updateHighlight);
+    textarea.addEventListener('scroll', () => syncDescriptionHighlightScroll(textarea, highlight));
+    textarea.form?.addEventListener('reset', () => setTimeout(updateHighlight, 0));
+    updateHighlight();
+}
+
 function renderProductSuggestions(textarea, amountInput, dropdown) {
     if (!textarea || !amountInput || !dropdown) return;
 
@@ -1178,7 +1254,7 @@ function appendSelectedProduct(textarea, amountInput, product, quantity = 1) {
 
     if (!productName) return false;
 
-    const quantityLabel = safeQuantity > 1 ? `${safeQuantity}x ${productName}` : productName;
+    const quantityLabel = `${safeQuantity}x ${productName}`;
     const descriptionLine = hasProductPrice
         ? `${quantityLabel} = R$ ${formatCurrency(productTotal)}`
         : quantityLabel;
@@ -1359,7 +1435,7 @@ function getClientListModel(client, now = new Date()) {
         if (item.type === 'sale') {
             salesCount += 1;
             baseDebtCents += amountInCents;
-            hasNotes = hasNotes || item.isNote || amount === 0;
+            hasNotes = hasNotes || saleHasUnpricedProducts(item);
 
             if (!firstSaleDate && item.date) {
                 const date = new Date(item.date);
@@ -1691,9 +1767,7 @@ function fallbackCopyToClipboard(text) {
 function getLatestUnpricedSaleId(client) {
     if (!client || !Array.isArray(client.sales)) return null;
 
-    const unpricedSales = client.sales.filter((sale) =>
-        sale.type === 'sale' && (sale.isNote || Number(sale.amount) === 0)
-    );
+    const unpricedSales = client.sales.filter((sale) => saleHasUnpricedProducts(sale));
 
     if (unpricedSales.length === 0) return null;
 
@@ -1746,8 +1820,8 @@ function openClientModal(clientId, options = {}) {
     } else {
         // Ordenar: anotações sem valor primeiro, depois por data (mais recente primeiro)
         const sortedSales = [...sales].sort((a, b) => {
-            const aIsNote = a.isNote || (a.type === 'sale' && a.amount === 0);
-            const bIsNote = b.isNote || (b.type === 'sale' && b.amount === 0);
+            const aIsNote = saleHasUnpricedProducts(a);
+            const bIsNote = saleHasUnpricedProducts(b);
             
             // Anotações sem valor sempre no topo
             if (aIsNote && !bIsNote) return -1;
@@ -1758,16 +1832,19 @@ function openClientModal(clientId, options = {}) {
         });
 
         salesHistory.innerHTML = sortedSales.map(sale => {
-            const isNote = sale.isNote || (sale.type === 'sale' && sale.amount === 0);
+            const isNote = saleHasUnpricedProducts(sale);
             let saleTypeLabel = '';
             let saleAmountText = '';
             
             if (sale.type === 'payment') {
                 saleTypeLabel = '✓ Pagamento:';
                 saleAmountText = `R$ ${formatCurrency(sale.amount)}`;
-            } else if (isNote) {
+            } else if (sale.isNote || Number(sale.amount) === 0) {
                 saleTypeLabel = '📝 Anotação:';
                 saleAmountText = '<span class="note-badge">Sem valor</span>';
+            } else if (isNote) {
+                saleTypeLabel = 'Venda:';
+                saleAmountText = `R$ ${formatCurrency(sale.amount)} <span class="note-badge">Produto sem preco</span>`;
             } else {
                 saleTypeLabel = 'Venda:';
                 saleAmountText = `R$ ${formatCurrency(sale.amount)}`;

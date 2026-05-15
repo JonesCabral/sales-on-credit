@@ -1100,6 +1100,55 @@ form {
     width: 100%;
 }
 
+.description-price-highlight {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    padding: 0.75rem 1rem;
+    border: 2px solid transparent;
+    border-radius: 10px;
+    overflow: auto;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    font: inherit;
+    font-size: 16px;
+    line-height: normal;
+    pointer-events: none;
+    background: var(--card-bg);
+    color: var(--text-primary);
+    scrollbar-width: none;
+}
+
+.description-price-highlight::-webkit-scrollbar {
+    display: none;
+}
+
+.description-highlight-textarea {
+    position: relative;
+    z-index: 1;
+    background: transparent;
+    color: transparent;
+    caret-color: var(--text-primary);
+}
+
+.description-highlight-textarea::placeholder {
+    color: var(--text-secondary);
+}
+
+.description-line-unpriced {
+    color: var(--danger-color);
+    font-weight: 700;
+}
+
+.description-line-priced {
+    color: var(--text-primary);
+}
+
+.description-highlight-textarea.has-unpriced-lines {
+    border-color: var(--danger-color);
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
+}
+
 .suggestions-dropdown {
     position: absolute;
     top: calc(100% + 4px);

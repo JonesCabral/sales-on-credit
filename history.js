@@ -133,10 +133,30 @@ function getSelectedLimit() {
     return Number.isFinite(selectedLimit) && selectedLimit > 0 ? selectedLimit : 15;
 }
 
+function descriptionLineHasPrice(line) {
+    const text = String(line || '');
+    return /(?:^|[\s=])R\$\s*\d{1,3}(?:\.\d{3})*(?:,\d{2})?(?:\s|$)/i.test(text)
+        || /=\s*\d{1,3}(?:\.\d{3})*(?:,\d{2})?(?:\s|$)/.test(text);
+}
+
+function hasUnpricedProductLine(description) {
+    const lines = String(description || '')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+    return lines.length > 0 && lines.some((line) => !descriptionLineHasPrice(line));
+}
+
+function activityHasUnpricedProducts(item) {
+    if (!item || item.type !== 'sale') return false;
+    return Boolean(item.hasUnpricedItems) || Boolean(item.isNote) || Number(item.amount) === 0 || hasUnpricedProductLine(item.description);
+}
+
 function matchesActivityType(item, typeFilter) {
-    if (typeFilter === 'sale') return item.type === 'sale' && !item.isNote;
+    if (typeFilter === 'sale') return item.type === 'sale' && !activityHasUnpricedProducts(item);
     if (typeFilter === 'payment') return item.type === 'payment';
-    if (typeFilter === 'note') return item.isNote;
+    if (typeFilter === 'note') return activityHasUnpricedProducts(item);
     return true;
 }
 
@@ -154,7 +174,7 @@ function getActivityIcon(item) {
 
 function getActivityClass(item) {
     if (item.type === 'payment') return 'is-payment';
-    if (item.isNote) return 'is-note';
+    if (activityHasUnpricedProducts(item)) return 'is-note';
     return 'is-sale';
 }
 
@@ -172,13 +192,14 @@ function setEmptyState(message) {
 
 function createActivityItem(item) {
     const isPayment = item.type === 'payment';
+    const isAmountlessNote = item.isNote || (item.type === 'sale' && Number(item.amount) === 0);
     const article = createElement('article', `activity-item ${getActivityClass(item)}`);
     const main = createElement('div', 'activity-main');
     const titleRow = createElement('div', 'activity-title-row');
     const type = createElement('span', 'activity-type');
     const icon = createElement('span', 'activity-icon', getActivityIcon(item));
-    const amountClass = item.isNote ? 'activity-amount note' : `activity-amount ${isPayment ? 'in' : 'out'}`;
-    const amountText = item.isNote ? 'Sem valor' : `R$ ${formatCurrency(item.amount)}`;
+    const amountClass = isAmountlessNote ? 'activity-amount note' : `activity-amount ${isPayment ? 'in' : 'out'}`;
+    const amountText = isAmountlessNote ? 'Sem valor' : `R$ ${formatCurrency(item.amount)}`;
     const amount = createElement('span', amountClass, amountText);
     const client = createElement('div', 'activity-client', item.clientName);
     const time = createElement('time', 'activity-date', formatTime(item.date));
@@ -246,8 +267,11 @@ function renderActivities() {
     visibleActivities.forEach((item) => {
         if (item.type === 'payment') {
             paymentTotal += item.amount;
-        } else if (item.isNote) {
+        } else if (activityHasUnpricedProducts(item)) {
             notesCount += 1;
+            if (!item.isNote && Number(item.amount) > 0) {
+                saleTotal += item.amount;
+            }
         } else {
             saleTotal += item.amount;
         }
@@ -280,6 +304,7 @@ function normalizeActivityEntry(activity) {
     const timestamp = Number(activity.timestamp) || new Date(activity.date || 0).getTime() || 0;
     const date = activity.date || (timestamp ? new Date(timestamp).toISOString() : '');
     const type = activity.type === 'payment' ? 'payment' : 'sale';
+    const hasUnpricedItems = Boolean(activity.hasUnpricedItems) || (type === 'sale' && hasUnpricedProductLine(activity.description));
     const isNote = Boolean(activity.isNote) || (type === 'sale' && amount === 0);
     const clientName = activity.clientName || 'Cliente';
     const description = activity.description || '';
@@ -292,6 +317,7 @@ function normalizeActivityEntry(activity) {
         amount,
         description,
         isNote,
+        hasUnpricedItems,
         date,
         timestamp,
         searchText: normalizeSearchText(`${clientName} ${description}`)
@@ -318,6 +344,7 @@ function mapActivitiesFromClients(clientsMap) {
                 amount,
                 description: item.description || '',
                 isNote: Boolean(item.isNote) || (type === 'sale' && amount === 0),
+                hasUnpricedItems: Boolean(item.hasUnpricedItems) || (type === 'sale' && hasUnpricedProductLine(item.description)),
                 date: item.date,
                 timestamp: new Date(item.date || 0).getTime() || 0
             }));
@@ -396,6 +423,7 @@ async function hydrateActivitiesIndexFromClients(userId) {
                 amount: Number(saleItem.amount) || 0,
                 description: saleItem.description || '',
                 isNote: Boolean(saleItem.isNote) || (saleItem.type === 'sale' && Number(saleItem.amount) === 0),
+                hasUnpricedItems: Boolean(saleItem.hasUnpricedItems) || (saleItem.type === 'sale' && hasUnpricedProductLine(saleItem.description)),
                 date: saleItem.date || new Date().toISOString(),
                 timestamp: Number.isFinite(timestamp) ? timestamp : Date.now(),
                 editedAt: saleItem.editedAt || null
