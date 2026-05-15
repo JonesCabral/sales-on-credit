@@ -1086,7 +1086,7 @@ function normalizeProductSearch(value) {
 function getSortedProducts() {
     return Object.entries(savedProducts || {})
         .map(([id, product]) => ({ id, ...product }))
-        .filter((product) => product.active !== false && product.name && Number.isFinite(Number(product.price)))
+        .filter((product) => product.active !== false && product.name)
         .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'pt-BR'));
 }
 
@@ -1137,11 +1137,15 @@ function renderProductSuggestions(textarea, amountInput, dropdown) {
         return;
     }
 
-    dropdown.innerHTML = matches.map((product) => `
+    dropdown.innerHTML = matches.map((product) => {
+        const productPrice = Number(product.price);
+        const hasPrice = Number.isFinite(productPrice) && productPrice > 0;
+
+        return `
         <div class="suggestion-item product-suggestion-item" data-product-id="${sanitizeHTML(product.id)}">
             <div class="product-suggestion-info">
                 <span>${sanitizeHTML(product.name)}</span>
-                <strong>R$ ${formatCurrency(product.price)}</strong>
+                <strong class="${hasPrice ? '' : 'product-unpriced-label'}">${hasPrice ? `R$ ${formatCurrency(productPrice)}` : 'Sem preco'}</strong>
             </div>
             <div class="product-quantity-controls" aria-label="Quantidade">
                 <button class="product-quantity-btn" type="button" data-quantity-action="decrease" aria-label="Diminuir quantidade">-</button>
@@ -1150,7 +1154,8 @@ function renderProductSuggestions(textarea, amountInput, dropdown) {
                 <button class="product-add-btn" type="button" data-quantity-action="add">Adicionar</button>
             </div>
         </div>
-    `).join('');
+    `;
+    }).join('');
     dropdown.classList.add('show');
 }
 
@@ -1161,17 +1166,22 @@ function getSafeProductQuantity(value) {
 }
 
 function appendSelectedProduct(textarea, amountInput, product, quantity = 1) {
-    if (!textarea || !amountInput || !product) return;
+    if (!textarea || !amountInput || !product) return false;
 
     const lines = String(textarea.value || '').split('\n');
     const currentTerm = getProductSearchTerm(textarea);
     const productName = String(product.name || '').trim();
     const productPrice = Number(product.price);
     const safeQuantity = getSafeProductQuantity(quantity);
+    const hasProductPrice = Number.isFinite(productPrice) && productPrice > 0;
+    const productTotal = hasProductPrice ? productPrice * safeQuantity : 0;
 
-    if (!productName || !Number.isFinite(productPrice)) return;
+    if (!productName) return false;
 
-    const descriptionLine = safeQuantity > 1 ? `${safeQuantity}x ${productName}` : productName;
+    const quantityLabel = safeQuantity > 1 ? `${safeQuantity}x ${productName}` : productName;
+    const descriptionLine = hasProductPrice
+        ? `${quantityLabel} = R$ ${formatCurrency(productTotal)}`
+        : quantityLabel;
 
     if (currentTerm) {
         lines[lines.length - 1] = descriptionLine;
@@ -1182,7 +1192,7 @@ function appendSelectedProduct(textarea, amountInput, product, quantity = 1) {
     const nextDescription = lines.map((line) => line.trim()).filter(Boolean).join('\n');
     if (nextDescription.length > 200) {
         showToast('A descrição não pode ter mais de 200 caracteres.', 'error');
-        return;
+        return false;
     }
 
     if (amountInput === saleAmountInput && justNoteProductCheckbox?.checked) {
@@ -1191,17 +1201,47 @@ function appendSelectedProduct(textarea, amountInput, product, quantity = 1) {
     }
 
     const currentAmount = parseCurrency(amountInput.value);
-    const nextAmount = (Number.isFinite(currentAmount) ? currentAmount : 0) + (productPrice * safeQuantity);
+    const nextAmount = (Number.isFinite(currentAmount) ? currentAmount : 0) + productTotal;
 
     if (nextAmount > 1000000) {
         showToast('O valor da venda nao pode ser maior que R$ 1.000.000,00.', 'error');
-        return;
+        return false;
     }
 
     textarea.value = nextDescription ? `${nextDescription}\n` : '';
-    amountInput.value = numberToCurrencyInput(nextAmount);
+    if (hasProductPrice) {
+        amountInput.value = numberToCurrencyInput(nextAmount);
+        amountInput.classList.add('input-summed');
+        setTimeout(() => amountInput.classList.remove('input-summed'), 700);
+    }
 
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+}
+
+function showProductAddedFeedback(item, hasPrice) {
+    if (!item) return;
+
+    item.classList.add('product-suggestion-added');
+    const feedback = document.createElement('span');
+    feedback.className = 'product-added-feedback';
+    feedback.textContent = hasPrice ? 'Somado' : 'Adicionar valor';
+    item.appendChild(feedback);
+}
+
+function addSelectedProductWithFeedback(item, textarea, amountInput, dropdown, product, quantity) {
+    const productPrice = Number(product?.price);
+    const hasPrice = Number.isFinite(productPrice) && productPrice > 0;
+
+    const wasAdded = appendSelectedProduct(textarea, amountInput, product, quantity);
+    if (!wasAdded) return;
+
+    showProductAddedFeedback(item, hasPrice);
+
+    setTimeout(() => {
+        hideProductSuggestions(dropdown);
+        textarea.focus();
+    }, 450);
 }
 
 function setupProductPicker(textarea, amountInput, dropdown) {
@@ -1229,16 +1269,12 @@ function setupProductPicker(textarea, amountInput, dropdown) {
         }
 
         if (actionButton?.dataset.quantityAction === 'add') {
-            appendSelectedProduct(textarea, amountInput, product, quantityInput.value);
-            hideProductSuggestions(dropdown);
-            textarea.focus();
+            addSelectedProductWithFeedback(item, textarea, amountInput, dropdown, product, quantityInput.value);
             return;
         }
 
         if (!event.target.closest('.product-quantity-controls')) {
-            appendSelectedProduct(textarea, amountInput, product, quantityInput.value);
-            hideProductSuggestions(dropdown);
-            textarea.focus();
+            addSelectedProductWithFeedback(item, textarea, amountInput, dropdown, product, quantityInput.value);
         }
     });
 

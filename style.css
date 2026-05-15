@@ -1164,6 +1164,7 @@ form {
     gap: 0.75rem;
     align-items: center;
     flex-wrap: wrap;
+    position: relative;
 }
 
 .product-suggestion-info {
@@ -1179,6 +1180,10 @@ form {
 .product-suggestion-info strong {
     color: var(--success-dark);
     white-space: nowrap;
+}
+
+.product-suggestion-info .product-unpriced-label {
+    color: var(--warning-color);
 }
 
 .product-quantity-controls {
@@ -1230,6 +1235,29 @@ form {
     border-radius: 8px;
     text-align: center;
     font-weight: 700;
+}
+
+.product-suggestion-added {
+    border-left: 4px solid var(--success-color);
+    background: var(--success-surface);
+}
+
+.product-added-feedback {
+    position: absolute;
+    right: 0.75rem;
+    top: 0.5rem;
+    padding: 0.18rem 0.45rem;
+    border-radius: 999px;
+    background: var(--success-color);
+    color: white;
+    font-size: 0.72rem;
+    font-weight: 800;
+    pointer-events: none;
+}
+
+.input-summed {
+    border-color: var(--success-color);
+    box-shadow: 0 0 0 4px var(--success-surface);
 }
 
 .client-debt-preview.has-debt {
