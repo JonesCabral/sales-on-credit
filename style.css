@@ -3048,6 +3048,10 @@ input:focus, select:focus, textarea:focus {
         padding: 0.5rem 0.75rem 0.75rem;
     }
 
+    #clientsSection.is-searching .filter-fieldset {
+        display: none;
+    }
+
     /* Toast mobile */
     .toast {
         max-width: 92%;

@@ -1456,8 +1456,11 @@ function setClientModalScreen(screen) {
 
 function updateSearchFilterInteractivity() {
     const searchInput = document.getElementById('searchClients');
+    const clientsSection = document.getElementById('clientsSection');
     const filterIds = ['filterDebtOnly', 'filterUnpriced', 'filterOverdue', 'filterArchived'];
     const hasSearchTerm = (searchInput?.value || '').trim().length > 0;
+
+    clientsSection?.classList.toggle('is-searching', hasSearchTerm);
 
     filterIds.forEach((id) => {
         const checkbox = document.getElementById(id);
