@@ -803,6 +803,8 @@ let alertDismissed = false;
 let productsUnsubscribe = null;
 let savedProducts = {};
 const saleDraftItems = new WeakMap();
+const autosaveTimers = new WeakMap();
+const AUTOSAVE_DELAY_MS = 1800;
 const SALE_DESCRIPTION_DRAFT_KEY = 'salesOnCredit:addSaleDescriptionDraft';
 
 function loadSaleDescriptionDraft() {
@@ -893,8 +895,24 @@ if (saleDescriptionInput) {
     saleDescriptionInput.addEventListener('input', saveSaleDescriptionDraft);
 }
 
-addSaleForm?.addEventListener('reset', () => clearSaleDraftItems(saleProductSearchInput, saleItemsList, saleAmountInput));
-modalAddSaleForm?.addEventListener('reset', () => clearSaleDraftItems(modalSaleProductSearchInput, modalSaleItemsList, modalSaleAmountInput));
+clientSearch?.addEventListener('input', scheduleMainSaleAutosave);
+saleAmountInput?.addEventListener('input', scheduleMainSaleAutosave);
+saleDescriptionInput?.addEventListener('input', scheduleMainSaleAutosave);
+saleProductSearchInput?.addEventListener('input', scheduleMainSaleAutosave);
+modalSaleAmountInput?.addEventListener('input', scheduleModalSaleAutosave);
+modalSaleDescriptionInput?.addEventListener('input', scheduleModalSaleAutosave);
+modalSaleProductSearchInput?.addEventListener('input', scheduleModalSaleAutosave);
+document.getElementById('paymentAmount')?.addEventListener('input', schedulePaymentAutosave);
+
+addSaleForm?.addEventListener('reset', () => {
+    clearSaleDraftItems(saleProductSearchInput, saleItemsList, saleAmountInput);
+    clearFormAutosaveState(addSaleForm);
+});
+modalAddSaleForm?.addEventListener('reset', () => {
+    clearSaleDraftItems(modalSaleProductSearchInput, modalSaleItemsList, modalSaleAmountInput);
+    clearFormAutosaveState(modalAddSaleForm);
+});
+paymentForm?.addEventListener('reset', () => clearFormAutosaveState(paymentForm));
 
 // Aplicar máscara de moeda em todos os campos de valor
 [saleAmountInput, modalSaleAmountInput, editSaleAmount, document.getElementById('paymentAmount')].forEach(input => {
@@ -903,6 +921,7 @@ modalAddSaleForm?.addEventListener('reset', () => clearSaleDraftItems(modalSaleP
 
 [saleAmountInput, modalSaleAmountInput].forEach((input) => {
     input?.addEventListener('input', () => {
+        if (input.readOnly && input.dataset.autoSaleTotal === 'true') return;
         delete input.dataset.autoSaleTotal;
     });
 });
@@ -1219,6 +1238,8 @@ function clearSaleDraftItems(searchInput, listElement, amountInput) {
     if (amountInput?.dataset.autoSaleTotal === 'true') {
         amountInput.value = '';
         delete amountInput.dataset.autoSaleTotal;
+        amountInput.readOnly = false;
+        amountInput.classList.remove('input-readonly-total');
     }
     if (listElement) renderSaleItemsList(searchInput, listElement, amountInput);
 }
@@ -1227,15 +1248,157 @@ function getSaleItemsTotalCents(items) {
     return normalizeSaleItems(items).reduce((total, item) => total + item.totalCents, 0);
 }
 
+function getAutosaveAmountCents(value) {
+    const amount = parseCurrency(value);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 1000000) return 0;
+    return currencyToCents(amount);
+}
+
+function getSaleAutosaveAmountCents(amountInput, items) {
+    const itemsTotalCents = getSaleItemsTotalCents(items);
+    return itemsTotalCents > 0 ? itemsTotalCents : getAutosaveAmountCents(amountInput?.value);
+}
+
+function getSaleItemsSignature(items) {
+    return JSON.stringify(normalizeSaleItems(items).map((item) => ({
+        productId: item.productId,
+        name: item.name,
+        quantity: item.quantity,
+        unitPriceCents: item.unitPriceCents,
+        totalCents: item.totalCents,
+        priced: item.priced
+    })));
+}
+
+function beginFormSubmission(form) {
+    if (!form || form.dataset.submitting === 'true') return false;
+    form.dataset.submitting = 'true';
+    window.clearTimeout(autosaveTimers.get(form));
+    autosaveTimers.delete(form);
+    return true;
+}
+
+function finishFormSubmission(form) {
+    if (!form) return;
+    delete form.dataset.submitting;
+    delete form.dataset.pendingAutosaveSignature;
+}
+
+function clearFormAutosaveState(form) {
+    if (!form) return;
+    window.clearTimeout(autosaveTimers.get(form));
+    autosaveTimers.delete(form);
+    delete form.dataset.pendingAutosaveSignature;
+    delete form.dataset.lastAutosaveSignature;
+    delete form.dataset.submitting;
+}
+
+function scheduleFormAutosave(form, getSignature, isReady) {
+    if (!form) return;
+    window.clearTimeout(autosaveTimers.get(form));
+
+    autosaveTimers.set(form, window.setTimeout(() => {
+        if (form.dataset.submitting === 'true') return;
+        if (!isReady()) return;
+
+        const signature = getSignature();
+        if (!signature) return;
+        if (form.dataset.pendingAutosaveSignature === signature || form.dataset.lastAutosaveSignature === signature) return;
+
+        form.dataset.pendingAutosaveSignature = signature;
+        form.requestSubmit();
+    }, AUTOSAVE_DELAY_MS));
+}
+
+function scheduleMainSaleAutosave() {
+    scheduleFormAutosave(addSaleForm, getMainSaleAutosaveSignature, isMainSaleAutosaveReady);
+}
+
+function scheduleModalSaleAutosave() {
+    scheduleFormAutosave(modalAddSaleForm, getModalSaleAutosaveSignature, isModalSaleAutosaveReady);
+}
+
+function schedulePaymentAutosave() {
+    scheduleFormAutosave(paymentForm, getPaymentAutosaveSignature, isPaymentAutosaveReady);
+}
+
+function scheduleSaleAutosaveForAmountInput(amountInput) {
+    if (amountInput === saleAmountInput) scheduleMainSaleAutosave();
+    if (amountInput === modalSaleAmountInput) scheduleModalSaleAutosave();
+}
+
+function isMainSaleAutosaveReady() {
+    const clientName = (clientSearch?.value || '').trim();
+    if (clientName.length < 2 || clientName.length > 100) return false;
+    if ((saleProductSearchInput?.value || '').trim()) return false;
+
+    const items = getSaleDraftItems(saleProductSearchInput);
+    const description = (saleDescriptionInput?.value || '').trim();
+    const amountCents = getSaleAutosaveAmountCents(saleAmountInput, items);
+
+    return amountCents > 0 || items.length > 0 || description.length > 0;
+}
+
+function getMainSaleAutosaveSignature() {
+    if (!isMainSaleAutosaveReady()) return '';
+    const items = getSaleDraftItems(saleProductSearchInput);
+    return [
+        (selectedClientId || '').trim(),
+        (clientSearch?.value || '').trim().toLowerCase(),
+        getSaleAutosaveAmountCents(saleAmountInput, items),
+        (saleDescriptionInput?.value || '').trim(),
+        getSaleItemsSignature(items)
+    ].join('|');
+}
+
+function isModalSaleAutosaveReady() {
+    if (!manager.currentClientId) return false;
+    if ((modalSaleProductSearchInput?.value || '').trim()) return false;
+
+    const items = getSaleDraftItems(modalSaleProductSearchInput);
+    const description = (modalSaleDescriptionInput?.value || '').trim();
+    const amountCents = getSaleAutosaveAmountCents(modalSaleAmountInput, items);
+
+    return amountCents > 0 || items.length > 0 || description.length > 0;
+}
+
+function getModalSaleAutosaveSignature() {
+    if (!isModalSaleAutosaveReady()) return '';
+    const items = getSaleDraftItems(modalSaleProductSearchInput);
+    return [
+        manager.currentClientId || '',
+        getSaleAutosaveAmountCents(modalSaleAmountInput, items),
+        (modalSaleDescriptionInput?.value || '').trim(),
+        getSaleItemsSignature(items)
+    ].join('|');
+}
+
+function isPaymentAutosaveReady() {
+    if (!manager.currentClientId) return false;
+    return getAutosaveAmountCents(document.getElementById('paymentAmount')?.value) > 0;
+}
+
+function getPaymentAutosaveSignature() {
+    if (!isPaymentAutosaveReady()) return '';
+    return [
+        manager.currentClientId || '',
+        getAutosaveAmountCents(document.getElementById('paymentAmount')?.value)
+    ].join('|');
+}
+
 function syncSaleAmountFromItems(searchInput, amountInput) {
     if (!amountInput) return;
     const totalCents = getSaleItemsTotalCents(getSaleDraftItems(searchInput));
     if (totalCents > 0) {
         amountInput.value = numberToCurrencyInput(centsToAmount(totalCents));
         amountInput.dataset.autoSaleTotal = 'true';
+        amountInput.readOnly = true;
+        amountInput.classList.add('input-readonly-total');
     } else if (amountInput.dataset.autoSaleTotal === 'true') {
         amountInput.value = '';
         delete amountInput.dataset.autoSaleTotal;
+        amountInput.readOnly = false;
+        amountInput.classList.remove('input-readonly-total');
     }
 }
 
@@ -1482,11 +1645,14 @@ function appendSelectedProduct(searchInput, amountInput, product, quantity = 1) 
     if (hasProductPrice) {
         amountInput.value = numberToCurrencyInput(nextAmount);
         amountInput.dataset.autoSaleTotal = 'true';
+        amountInput.readOnly = true;
+        amountInput.classList.add('input-readonly-total');
         amountInput.classList.add('input-summed');
         setTimeout(() => amountInput.classList.remove('input-summed'), 700);
     }
 
     searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+    scheduleSaleAutosaveForAmountInput(amountInput);
     return true;
 }
 
@@ -1563,6 +1729,7 @@ function setupProductPicker(searchInput, amountInput, dropdown, listElement) {
         items.splice(index, 1);
         setSaleDraftItems(searchInput, items);
         renderSaleItemsList(searchInput, listElement, amountInput);
+        scheduleSaleAutosaveForAmountInput(amountInput);
     });
 
     dropdown.addEventListener('input', (event) => {
@@ -2574,6 +2741,7 @@ if (clientSearch) {
                     clientSearch.value = client.name;
                 }
                 clientSuggestions.classList.remove('show');
+                scheduleMainSaleAutosave();
             });
         });
     }, 200));
@@ -2653,6 +2821,7 @@ addSaleForm.addEventListener('submit', async (e) => {
         document.getElementById('saleAmount').value = numberToCurrencyInput(numericAmount);
     }
 
+    if (!beginFormSubmission(addSaleForm)) return;
     showLoader('Salvando...');
     try {
         let clientId;
@@ -2680,12 +2849,14 @@ addSaleForm.addEventListener('submit', async (e) => {
         showToast('Venda registrada com sucesso!', 'success');
         addSaleForm.reset();
         clearSaleDraftItems(saleProductSearchInput, saleItemsList, saleAmountInput);
+        clearFormAutosaveState(addSaleForm);
         hideProductSuggestions(saleProductSuggestions);
         clearSaleDescriptionDraft();
         selectedClientId = null;
         clientSuggestions.classList.remove('show');
     } catch (error) {
         hideLoader();
+        finishFormSubmission(addSaleForm);
         if (IS_DEV) console.error('Erro ao registrar venda:', error);
         showToast(getDatabaseErrorMessage(error, 'Erro ao registrar venda. Tente novamente.'), 'error');
     }
@@ -2727,15 +2898,18 @@ paymentForm.addEventListener('submit', async (e) => {
         return;
     }
     
+    if (!beginFormSubmission(paymentForm)) return;
     showLoader('Salvando...');
     try {
         await manager.addPayment(manager.currentClientId, numericAmount);
         hideLoader();
         showToast('Pagamento registrado com sucesso!', 'success');
         paymentForm.reset();
+        clearFormAutosaveState(paymentForm);
         openClientModal(manager.currentClientId); // Reabrir para atualizar
     } catch (error) {
         hideLoader();
+        finishFormSubmission(paymentForm);
         console.error('Erro ao registrar pagamento:', error);
         showToast(getDatabaseErrorMessage(error, 'Erro ao registrar pagamento. Tente novamente.'), 'error');
     }
@@ -2942,6 +3116,7 @@ if (modalAddSaleForm) {
             modalSaleAmountInput.value = numberToCurrencyInput(numericAmount);
         }
 
+        if (!beginFormSubmission(modalAddSaleForm)) return;
         showLoader('Salvando...');
         try {
             await manager.addSale(manager.currentClientId, numericAmount, description, saleItems);
@@ -2949,12 +3124,14 @@ if (modalAddSaleForm) {
             showToast('Venda registrada com sucesso!', 'success');
             modalAddSaleForm.reset();
             clearSaleDraftItems(modalSaleProductSearchInput, modalSaleItemsList, modalSaleAmountInput);
+            clearFormAutosaveState(modalAddSaleForm);
             hideProductSuggestions(modalSaleProductSuggestions);
             setClientModalProductSearchActive(false);
             openClientModal(manager.currentClientId); // Reabrir para atualizar
             updateClientsList();
         } catch (error) {
             hideLoader();
+            finishFormSubmission(modalAddSaleForm);
             console.error('Erro ao registrar venda:', error);
             showToast(getDatabaseErrorMessage(error, 'Erro ao registrar venda. Tente novamente.'), 'error');
         }

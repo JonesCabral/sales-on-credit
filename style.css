@@ -1402,6 +1402,12 @@ form {
     box-shadow: 0 0 0 4px var(--success-surface);
 }
 
+.input-readonly-total {
+    background: var(--background);
+    color: var(--text-primary);
+    cursor: not-allowed;
+}
+
 .client-debt-preview.has-debt {
     color: var(--danger-color);
 }
