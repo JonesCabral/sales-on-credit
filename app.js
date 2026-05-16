@@ -321,10 +321,12 @@ class SalesManager {
                 clientId,
                 clientName: client.name || 'Cliente',
                 type: saleItem.type,
-                amount: Number(saleItem.amount) || 0,
+                amount: getSaleAmount(saleItem),
+                amountCents: getSaleAmountCents(saleItem),
                 description: saleItem.description || '',
-                isNote: Boolean(saleItem.isNote) || (saleItem.type === 'sale' && Number(saleItem.amount) === 0),
+                isNote: Boolean(saleItem.isNote) || (saleItem.type === 'sale' && getSaleAmountCents(saleItem) === 0),
                 hasUnpricedItems: saleHasUnpricedProducts(saleItem),
+                items: Array.isArray(saleItem.items) ? saleItem.items : [],
                 date: saleItem.date || new Date().toISOString(),
                 timestamp: Number.isFinite(timestamp) ? timestamp : Date.now(),
                 editedAt: saleItem.editedAt || null
@@ -389,13 +391,13 @@ class SalesManager {
         return id;
     }
 
-    async addSale(clientId, amount, description = '') {
+    async addSale(clientId, amount, description = '', items = []) {
         if (!this.clients[clientId]) {
             throw new Error('Cliente não encontrado');
         }
         
         // Validar valor usando utility
-        const numericAmount = ValidationUtils.validateAmount(amount, {
+        let numericAmount = ValidationUtils.validateAmount(amount, {
             min: 0,
             max: 1000000,
             allowZero: true
@@ -407,6 +409,11 @@ class SalesManager {
             fieldName: 'Descrição'
         });
         
+        const normalizedItems = normalizeSaleItems(items);
+        const itemsTotalCents = getSaleItemsTotalCents(normalizedItems);
+        const amountCents = itemsTotalCents > 0 ? itemsTotalCents : currencyToCents(numericAmount);
+        numericAmount = centsToAmount(amountCents);
+
         // Garantir que sales existe
         if (!this.clients[clientId].sales) {
             this.clients[clientId].sales = [];
@@ -415,10 +422,12 @@ class SalesManager {
         const saleItem = {
             id: Date.now().toString(),
             amount: numericAmount,
+            amountCents,
             description: sanitizedDescription,
+            items: normalizedItems,
             type: 'sale',
-            isNote: numericAmount === 0,
-            hasUnpricedItems: numericAmount === 0 || hasMixedPricedAndUnpricedLines(sanitizedDescription),
+            isNote: amountCents === 0,
+            hasUnpricedItems: amountCents === 0 || saleItemsHaveUnpricedProducts(normalizedItems) || hasMixedPricedAndUnpricedLines(sanitizedDescription),
             date: new Date().toISOString()
         };
 
@@ -448,6 +457,7 @@ class SalesManager {
         const paymentItem = {
             id: Date.now().toString(),
             amount: numericAmount,
+            amountCents: currencyToCents(numericAmount),
             type: 'payment',
             date: new Date().toISOString()
         };
@@ -603,11 +613,13 @@ class SalesManager {
             throw new Error('Para anotações sem valor, a descrição do produto é obrigatória');
         }
         
+        const amountCents = currencyToCents(numericAmount);
         sale.amount = numericAmount;
+        sale.amountCents = amountCents;
         if (sale.type === 'sale') {
             sale.description = sanitizedDescription;
-            sale.isNote = numericAmount === 0;
-            sale.hasUnpricedItems = numericAmount === 0;
+            sale.isNote = amountCents === 0;
+            sale.hasUnpricedItems = amountCents === 0 || saleItemsHaveUnpricedProducts(sale.items) || hasMixedPricedAndUnpricedLines(sanitizedDescription);
         }
         sale.editedAt = new Date().toISOString();
         
@@ -625,8 +637,7 @@ class SalesManager {
         if (!this.clients[clientId].sales || this.clients[clientId].sales.length === 0) return 0;
 
         return this.clients[clientId].sales.reduce((total, item) => {
-            const amount = Number(item.amount) || 0;
-            const amountInCents = Math.round(amount * 100);
+            const amountInCents = getSaleAmountCents(item);
             return item.type === 'sale' 
                 ? total + amountInCents
                 : total - amountInCents;
@@ -786,6 +797,7 @@ let currentEditingSaleId = null;
 let alertDismissed = false;
 let productsUnsubscribe = null;
 let savedProducts = {};
+const saleDraftItems = new WeakMap();
 const SALE_DESCRIPTION_DRAFT_KEY = 'salesOnCredit:addSaleDescriptionDraft';
 
 function loadSaleDescriptionDraft() {
@@ -877,6 +889,9 @@ setupDescriptionPriceHighlight(modalSaleDescriptionInput);
 if (saleDescriptionInput) {
     saleDescriptionInput.addEventListener('input', saveSaleDescriptionDraft);
 }
+
+addSaleForm?.addEventListener('reset', () => clearSaleDraftItems(saleDescriptionInput));
+modalAddSaleForm?.addEventListener('reset', () => clearSaleDraftItems(modalSaleDescriptionInput));
 
 // Aplicar máscara de moeda em todos os campos de valor
 [saleAmountInput, modalSaleAmountInput, editSaleAmount, document.getElementById('paymentAmount')].forEach(input => {
@@ -1009,7 +1024,8 @@ function hasMixedPricedAndUnpricedLines(description) {
 function saleHasUnpricedProducts(sale) {
     if (!sale || sale.type !== 'sale') return false;
     return Boolean(sale.isNote)
-        || Number(sale.amount) === 0
+        || getSaleAmountCents(sale) === 0
+        || saleItemsHaveUnpricedProducts(sale.items)
         || (!sale.editedAt && hasMixedPricedAndUnpricedLines(sale.description));
 }
 
@@ -1107,6 +1123,71 @@ function parseCurrency(value) {
 function numberToCurrencyInput(num) {
     if (isNaN(num) || num === null || num === undefined) return '0,00';
     return num.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+function currencyToCents(value) {
+    const numericValue = typeof value === 'number' ? value : parseCurrency(value);
+    if (!Number.isFinite(numericValue)) return 0;
+    return Math.round((numericValue + Number.EPSILON) * 100);
+}
+
+function centsToAmount(cents) {
+    const numericCents = Number(cents);
+    if (!Number.isFinite(numericCents)) return 0;
+    return Math.round(numericCents) / 100;
+}
+
+function getSaleAmountCents(saleItem) {
+    const directCents = Number(saleItem?.amountCents);
+    if (Number.isFinite(directCents)) return Math.round(directCents);
+    return currencyToCents(saleItem?.amount);
+}
+
+function getSaleAmount(saleItem) {
+    return centsToAmount(getSaleAmountCents(saleItem));
+}
+
+function saleItemsHaveUnpricedProducts(items) {
+    return Array.isArray(items) && items.some((item) => item && item.priced === false);
+}
+
+function normalizeSaleItems(items) {
+    if (!Array.isArray(items)) return [];
+
+    return items.map((item) => {
+        const quantity = getSafeProductQuantity(item?.quantity);
+        const unitPriceCents = Math.max(0, Math.round(Number(item?.unitPriceCents) || 0));
+        const hasPrice = item?.priced !== false && unitPriceCents > 0;
+        const totalCents = hasPrice ? unitPriceCents * quantity : 0;
+
+        return {
+            productId: String(item?.productId || ''),
+            name: String(item?.name || '').trim(),
+            quantity,
+            unitPriceCents: hasPrice ? unitPriceCents : 0,
+            totalCents,
+            priced: hasPrice
+        };
+    }).filter((item) => item.name);
+}
+
+function getSaleDraftItems(textarea) {
+    if (!textarea) return [];
+    return normalizeSaleItems(saleDraftItems.get(textarea) || []);
+}
+
+function setSaleDraftItems(textarea, items) {
+    if (!textarea) return;
+    saleDraftItems.set(textarea, normalizeSaleItems(items));
+}
+
+function clearSaleDraftItems(textarea) {
+    if (!textarea) return;
+    saleDraftItems.delete(textarea);
+}
+
+function getSaleItemsTotalCents(items) {
+    return normalizeSaleItems(items).reduce((total, item) => total + item.totalCents, 0);
 }
 
 function normalizeProductSearch(value) {
@@ -1294,7 +1375,9 @@ function appendSelectedProduct(textarea, amountInput, product, quantity = 1) {
     const productPrice = Number(product.price);
     const safeQuantity = getSafeProductQuantity(quantity);
     const hasProductPrice = Number.isFinite(productPrice) && productPrice > 0;
-    const productTotal = hasProductPrice ? productPrice * safeQuantity : 0;
+    const unitPriceCents = hasProductPrice ? currencyToCents(productPrice) : 0;
+    const productTotalCents = unitPriceCents * safeQuantity;
+    const productTotal = centsToAmount(productTotalCents);
 
     if (!productName) return false;
 
@@ -1311,8 +1394,20 @@ function appendSelectedProduct(textarea, amountInput, product, quantity = 1) {
         justNoteProductCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
-    const currentAmount = parseCurrency(amountInput.value);
-    const nextAmount = (Number.isFinite(currentAmount) ? currentAmount : 0) + productTotal;
+    const nextItems = [
+        ...getSaleDraftItems(textarea),
+        {
+            productId: String(product.id || ''),
+            name: productName,
+            quantity: safeQuantity,
+            unitPriceCents,
+            totalCents: productTotalCents,
+            priced: hasProductPrice
+        }
+    ];
+    const currentAmountCents = currencyToCents(amountInput.value);
+    const nextAmountCents = currentAmountCents + productTotalCents;
+    const nextAmount = centsToAmount(nextAmountCents);
 
     if (nextAmount > 1000000) {
         showToast('O valor da venda nao pode ser maior que R$ 1.000.000,00.', 'error');
@@ -1321,6 +1416,7 @@ function appendSelectedProduct(textarea, amountInput, product, quantity = 1) {
 
     textarea.value = nextDescription ? `${nextDescription}\n` : '';
     moveTextareaCursorToEnd(textarea);
+    setSaleDraftItems(textarea, nextItems);
     if (hasProductPrice) {
         amountInput.value = numberToCurrencyInput(nextAmount);
         amountInput.classList.add('input-summed');
@@ -1381,7 +1477,7 @@ function setupProductPicker(textarea, amountInput, dropdown) {
 
         const quantityInput = item.querySelector('.product-quantity-input');
         const actionButton = event.target.closest('[data-quantity-action]');
-        const product = savedProducts[item.dataset.productId];
+        const product = { ...(savedProducts[item.dataset.productId] || {}), id: item.dataset.productId };
 
         if (actionButton?.dataset.quantityAction === 'decrease') {
             quantityInput.value = String(Math.max(1, getSafeProductQuantity(quantityInput.value) - 1));
@@ -1563,8 +1659,7 @@ function getClientListModel(client, now = new Date()) {
     let lastPaymentDate = null;
 
     for (const item of sales) {
-        const amount = Number(item.amount) || 0;
-        const amountInCents = Math.round(amount * 100);
+        const amountInCents = getSaleAmountCents(item);
 
         if (item.type === 'sale') {
             salesCount += 1;
@@ -1967,21 +2062,22 @@ function openClientModal(clientId, options = {}) {
 
         salesHistory.innerHTML = sortedSales.map(sale => {
             const isNote = saleHasUnpricedProducts(sale);
+            const saleAmount = getSaleAmount(sale);
             let saleTypeLabel = '';
             let saleAmountText = '';
             
             if (sale.type === 'payment') {
                 saleTypeLabel = '✓ Pagamento:';
-                saleAmountText = `R$ ${formatCurrency(sale.amount)}`;
-            } else if (sale.isNote || Number(sale.amount) === 0) {
+                saleAmountText = `R$ ${formatCurrency(saleAmount)}`;
+            } else if (sale.isNote || getSaleAmountCents(sale) === 0) {
                 saleTypeLabel = '📝 Anotação:';
                 saleAmountText = '<span class="note-badge">Sem valor</span>';
             } else if (isNote) {
                 saleTypeLabel = 'Venda:';
-                saleAmountText = `R$ ${formatCurrency(sale.amount)} <span class="note-badge">Produto sem preco</span>`;
+                saleAmountText = `R$ ${formatCurrency(saleAmount)} <span class="note-badge">Produto sem preco</span>`;
             } else {
                 saleTypeLabel = 'Venda:';
-                saleAmountText = `R$ ${formatCurrency(sale.amount)}`;
+                saleAmountText = `R$ ${formatCurrency(saleAmount)}`;
             }
             
             return `
@@ -2100,7 +2196,7 @@ function openEditSaleModal(saleId) {
     if (!sale) return;
     
     currentEditingSaleId = saleId;
-    editSaleAmount.value = numberToCurrencyInput(sale.amount);
+    editSaleAmount.value = numberToCurrencyInput(getSaleAmount(sale));
     editSaleType.textContent = sale.type === 'payment' ? 'Pagamento' : 'Venda';
     
     if (sale.type === 'sale') {
@@ -2148,7 +2244,7 @@ async function deleteSaleItem(saleId) {
     const type = sale.type === 'payment' ? 'pagamento' : 'venda';
     const confirmed = await showConfirm(
         'Excluir Item',
-        `Tem certeza que deseja excluir este ${type} de R$ ${formatCurrency(sale.amount)}?`
+        `Tem certeza que deseja excluir este ${type} de R$ ${formatCurrency(getSaleAmount(sale))}?`
     );
     
     if (!confirmed) return;
@@ -2452,6 +2548,7 @@ addSaleForm.addEventListener('submit', async (e) => {
     }
     
     let numericAmount = 0;
+    const saleItems = getSaleDraftItems(saleDescriptionInput);
     
     // Se for apenas anotação, valor é 0 e descrição obrigatória
     if (isJustNote) {
@@ -2482,6 +2579,13 @@ addSaleForm.addEventListener('submit', async (e) => {
             return;
         }
     }
+
+    const saleItemsTotalCents = getSaleItemsTotalCents(saleItems);
+    if (!isJustNote && saleItemsTotalCents > 0) {
+        numericAmount = centsToAmount(saleItemsTotalCents);
+        document.getElementById('saleAmount').value = numberToCurrencyInput(numericAmount);
+    }
+
     showLoader('Salvando...');
     try {
         let clientId;
@@ -2504,10 +2608,11 @@ addSaleForm.addEventListener('submit', async (e) => {
         }
         
         // Adicionar venda
-        await manager.addSale(clientId, numericAmount, description);
+        await manager.addSale(clientId, numericAmount, description, saleItems);
         hideLoader();
         showToast('Venda registrada com sucesso!', 'success');
         addSaleForm.reset();
+        clearSaleDraftItems(saleDescriptionInput);
         hideProductSuggestions(saleProductSuggestions);
         clearSaleDescriptionDraft();
         selectedClientId = null;
@@ -2736,6 +2841,7 @@ if (modalAddSaleForm) {
         }
         
         let numericAmount = 0;
+        const saleItems = getSaleDraftItems(modalSaleDescriptionInput);
         
         // Se for apenas anotação, valor é 0 e descrição obrigatória
         if (isJustNote) {
@@ -2762,12 +2868,20 @@ if (modalAddSaleForm) {
                 return;
             }
         }
+
+        const saleItemsTotalCents = getSaleItemsTotalCents(saleItems);
+        if (!isJustNote && saleItemsTotalCents > 0) {
+            numericAmount = centsToAmount(saleItemsTotalCents);
+            modalSaleAmountInput.value = numberToCurrencyInput(numericAmount);
+        }
+
         showLoader('Salvando...');
         try {
-            await manager.addSale(manager.currentClientId, numericAmount, description);
+            await manager.addSale(manager.currentClientId, numericAmount, description, saleItems);
             hideLoader();
             showToast('Venda registrada com sucesso!', 'success');
             modalAddSaleForm.reset();
+            clearSaleDraftItems(modalSaleDescriptionInput);
             hideProductSuggestions(modalSaleProductSuggestions);
             setClientModalProductSearchActive(false);
             openClientModal(manager.currentClientId); // Reabrir para atualizar
