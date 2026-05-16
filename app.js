@@ -1419,6 +1419,10 @@ function setupClientModalProductSearchCompaction() {
     if (!modal || !modalSaleDescriptionInput || !modalSaleProductSuggestions) return;
 
     const activate = () => setClientModalProductSearchActive(true);
+    const activateAndScroll = () => {
+        activate();
+        scrollModalSaleDescriptionIntoView();
+    };
     const deactivateIfUnused = () => {
         setTimeout(() => {
             const activeElement = document.activeElement;
@@ -1432,7 +1436,7 @@ function setupClientModalProductSearchCompaction() {
         }, 80);
     };
 
-    modalSaleDescriptionInput.addEventListener('focus', activate);
+    modalSaleDescriptionInput.addEventListener('focus', activateAndScroll);
     modalSaleDescriptionInput.addEventListener('input', activate);
     modalSaleDescriptionInput.addEventListener('blur', deactivateIfUnused);
     modalSaleProductSuggestions.addEventListener('pointerdown', activate);
@@ -1521,6 +1525,21 @@ function scrollClientSearchIntoView() {
             inline: 'nearest'
         });
     }, 120);
+}
+
+function scrollModalSaleDescriptionIntoView() {
+    if (!modalSaleDescriptionInput) return;
+
+    const isMobileViewport = window.matchMedia('(max-width: 768px)').matches;
+    if (!isMobileViewport) return;
+
+    setTimeout(() => {
+        modalSaleDescriptionInput.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+            inline: 'nearest'
+        });
+    }, 160);
 }
 
 function applyExclusiveClientFilter(changedCheckbox) {
