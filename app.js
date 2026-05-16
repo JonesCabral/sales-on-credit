@@ -403,13 +403,14 @@ class SalesManager {
             allowZero: true
         });
         
+        const normalizedItems = normalizeSaleItems(items);
+
         // Validar e sanitizar descrição
         const sanitizedDescription = ValidationUtils.validateText(description, {
-            required: numericAmount === 0,
+            required: numericAmount === 0 && normalizedItems.length === 0,
             fieldName: 'Descrição'
         });
         
-        const normalizedItems = normalizeSaleItems(items);
         const itemsTotalCents = getSaleItemsTotalCents(normalizedItems);
         const amountCents = itemsTotalCents > 0 ? itemsTotalCents : currencyToCents(numericAmount);
         numericAmount = centsToAmount(amountCents);
@@ -745,11 +746,15 @@ const paymentForm = document.getElementById('paymentForm');
 const modalAddSaleForm = document.getElementById('modalAddSaleForm');
 const modalSaleAmountInput = document.getElementById('modalSaleAmount');
 const modalSaleDescriptionInput = document.getElementById('modalSaleDescription');
+const modalSaleProductSearchInput = document.getElementById('modalSaleProductSearch');
 const modalSaleProductSuggestions = document.getElementById('modalSaleProductSuggestions');
+const modalSaleItemsList = document.getElementById('modalSaleItemsList');
 const justNoteProductCheckbox = document.getElementById('justNoteProduct');
 const saleAmountInput = document.getElementById('saleAmount');
 const saleDescriptionInput = document.getElementById('saleDescription');
+const saleProductSearchInput = document.getElementById('saleProductSearch');
 const saleProductSuggestions = document.getElementById('saleProductSuggestions');
+const saleItemsList = document.getElementById('saleItemsList');
 const clientNameInput = document.getElementById('clientNameInput');
 const modal = document.getElementById('clientModal');
 const closeModal = document.querySelector('.close');
@@ -880,22 +885,26 @@ function syncSettingsUI() {
 initializeAppMenu();
 loadSaleDescriptionDraft();
 syncSettingsUI();
-setupProductPicker(saleDescriptionInput, saleAmountInput, saleProductSuggestions);
-setupProductPicker(modalSaleDescriptionInput, modalSaleAmountInput, modalSaleProductSuggestions);
+setupProductPicker(saleProductSearchInput, saleAmountInput, saleProductSuggestions, saleItemsList);
+setupProductPicker(modalSaleProductSearchInput, modalSaleAmountInput, modalSaleProductSuggestions, modalSaleItemsList);
 setupClientModalProductSearchCompaction();
-setupDescriptionPriceHighlight(saleDescriptionInput);
-setupDescriptionPriceHighlight(modalSaleDescriptionInput);
 
 if (saleDescriptionInput) {
     saleDescriptionInput.addEventListener('input', saveSaleDescriptionDraft);
 }
 
-addSaleForm?.addEventListener('reset', () => clearSaleDraftItems(saleDescriptionInput));
-modalAddSaleForm?.addEventListener('reset', () => clearSaleDraftItems(modalSaleDescriptionInput));
+addSaleForm?.addEventListener('reset', () => clearSaleDraftItems(saleProductSearchInput, saleItemsList, saleAmountInput));
+modalAddSaleForm?.addEventListener('reset', () => clearSaleDraftItems(modalSaleProductSearchInput, modalSaleItemsList, modalSaleAmountInput));
 
 // Aplicar máscara de moeda em todos os campos de valor
 [saleAmountInput, modalSaleAmountInput, editSaleAmount, document.getElementById('paymentAmount')].forEach(input => {
     if (input) currencyMask(input);
+});
+
+[saleAmountInput, modalSaleAmountInput].forEach((input) => {
+    input?.addEventListener('input', () => {
+        delete input.dataset.autoSaleTotal;
+    });
 });
 
 // Funções de UI
@@ -993,6 +1002,28 @@ function formatDescription(text) {
     // Sanitizar e preservar quebras de linha convertendo \n para <br>
     const sanitized = sanitizeHTML(text);
     return sanitized.replace(/\n/g, '<br>');
+}
+
+function formatSaleItems(items) {
+    const normalizedItems = normalizeSaleItems(items);
+    if (normalizedItems.length === 0) return '';
+
+    return `
+        <div class="sale-items-summary">
+            ${normalizedItems.map((item) => {
+                const priceText = item.priced
+                    ? `R$ ${formatCurrency(centsToAmount(item.totalCents))}`
+                    : 'Sem preco';
+
+                return `
+                    <div class="sale-items-summary-row">
+                        <span>${sanitizeHTML(item.quantity)}x ${sanitizeHTML(item.name)}</span>
+                        <strong>${priceText}</strong>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
 }
 
 function getProductDescriptionLines(description) {
@@ -1181,13 +1212,60 @@ function setSaleDraftItems(textarea, items) {
     saleDraftItems.set(textarea, normalizeSaleItems(items));
 }
 
-function clearSaleDraftItems(textarea) {
-    if (!textarea) return;
-    saleDraftItems.delete(textarea);
+function clearSaleDraftItems(searchInput, listElement, amountInput) {
+    if (!searchInput) return;
+    saleDraftItems.delete(searchInput);
+    if (searchInput) searchInput.value = '';
+    if (amountInput?.dataset.autoSaleTotal === 'true') {
+        amountInput.value = '';
+        delete amountInput.dataset.autoSaleTotal;
+    }
+    if (listElement) renderSaleItemsList(searchInput, listElement, amountInput);
 }
 
 function getSaleItemsTotalCents(items) {
     return normalizeSaleItems(items).reduce((total, item) => total + item.totalCents, 0);
+}
+
+function syncSaleAmountFromItems(searchInput, amountInput) {
+    if (!amountInput) return;
+    const totalCents = getSaleItemsTotalCents(getSaleDraftItems(searchInput));
+    if (totalCents > 0) {
+        amountInput.value = numberToCurrencyInput(centsToAmount(totalCents));
+        amountInput.dataset.autoSaleTotal = 'true';
+    } else if (amountInput.dataset.autoSaleTotal === 'true') {
+        amountInput.value = '';
+        delete amountInput.dataset.autoSaleTotal;
+    }
+}
+
+function renderSaleItemsList(searchInput, listElement, amountInput) {
+    if (!listElement) return;
+    const items = getSaleDraftItems(searchInput);
+    syncSaleAmountFromItems(searchInput, amountInput);
+
+    if (items.length === 0) {
+        listElement.innerHTML = '';
+        listElement.classList.remove('has-items');
+        return;
+    }
+
+    listElement.classList.add('has-items');
+    listElement.innerHTML = items.map((item, index) => {
+        const priceText = item.priced
+            ? `R$ ${formatCurrency(centsToAmount(item.totalCents))}`
+            : 'Sem preco';
+
+        return `
+            <div class="sale-cart-item">
+                <div class="sale-cart-item-info">
+                    <strong>${sanitizeHTML(item.quantity)}x ${sanitizeHTML(item.name)}</strong>
+                    <span>${priceText}</span>
+                </div>
+                <button class="sale-cart-remove" type="button" data-remove-sale-item="${index}" aria-label="Remover ${sanitizeHTML(item.name)}">&times;</button>
+            </div>
+        `;
+    }).join('');
 }
 
 function normalizeProductSearch(value) {
@@ -1317,10 +1395,10 @@ function setupDescriptionPriceHighlight(textarea) {
     updateHighlight();
 }
 
-function renderProductSuggestions(textarea, amountInput, dropdown) {
-    if (!textarea || !amountInput || !dropdown) return;
+function renderProductSuggestions(searchInput, amountInput, dropdown) {
+    if (!searchInput || !amountInput || !dropdown) return;
 
-    const search = normalizeProductSearch(getProductSearchTerm(textarea));
+    const search = normalizeProductSearch(getProductSearchTerm(searchInput));
     if (!search) {
         hideProductSuggestions(dropdown);
         return;
@@ -1363,39 +1441,25 @@ function getSafeProductQuantity(value) {
     return Math.min(999, Math.max(1, quantity));
 }
 
-function appendSelectedProduct(textarea, amountInput, product, quantity = 1) {
-    if (!textarea || !amountInput || !product) return false;
+function appendSelectedProduct(searchInput, amountInput, product, quantity = 1) {
+    if (!searchInput || !amountInput || !product) return false;
 
-    const currentTerm = getProductSearchTerm(textarea);
-    const lines = String(textarea.value || '')
-        .split('\n')
-        .map((line) => line.trim())
-        .filter((line) => line && line !== currentTerm);
     const productName = String(product.name || '').trim();
     const productPrice = Number(product.price);
     const safeQuantity = getSafeProductQuantity(quantity);
     const hasProductPrice = Number.isFinite(productPrice) && productPrice > 0;
     const unitPriceCents = hasProductPrice ? currencyToCents(productPrice) : 0;
     const productTotalCents = unitPriceCents * safeQuantity;
-    const productTotal = centsToAmount(productTotalCents);
 
     if (!productName) return false;
 
-    const quantityLabel = `${safeQuantity}x ${productName}`;
-    const descriptionLine = hasProductPrice
-        ? `${quantityLabel} = R$ ${formatCurrency(productTotal)}`
-        : quantityLabel;
-
-    lines.push(descriptionLine);
-
-    const nextDescription = lines.map((line) => line.trim()).filter(Boolean).join('\n');
     if (amountInput === saleAmountInput && justNoteProductCheckbox?.checked) {
         justNoteProductCheckbox.checked = false;
         justNoteProductCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
     const nextItems = [
-        ...getSaleDraftItems(textarea),
+        ...getSaleDraftItems(searchInput),
         {
             productId: String(product.id || ''),
             name: productName,
@@ -1405,8 +1469,7 @@ function appendSelectedProduct(textarea, amountInput, product, quantity = 1) {
             priced: hasProductPrice
         }
     ];
-    const currentAmountCents = currencyToCents(amountInput.value);
-    const nextAmountCents = currentAmountCents + productTotalCents;
+    const nextAmountCents = getSaleItemsTotalCents(nextItems);
     const nextAmount = centsToAmount(nextAmountCents);
 
     if (nextAmount > 1000000) {
@@ -1414,16 +1477,16 @@ function appendSelectedProduct(textarea, amountInput, product, quantity = 1) {
         return false;
     }
 
-    textarea.value = nextDescription ? `${nextDescription}\n` : '';
-    moveTextareaCursorToEnd(textarea);
-    setSaleDraftItems(textarea, nextItems);
+    searchInput.value = '';
+    setSaleDraftItems(searchInput, nextItems);
     if (hasProductPrice) {
         amountInput.value = numberToCurrencyInput(nextAmount);
+        amountInput.dataset.autoSaleTotal = 'true';
         amountInput.classList.add('input-summed');
         setTimeout(() => amountInput.classList.remove('input-summed'), 700);
     }
 
-    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
     return true;
 }
 
@@ -1437,38 +1500,30 @@ function showProductAddedFeedback(item, hasPrice) {
     item.appendChild(feedback);
 }
 
-function addSelectedProductWithFeedback(item, textarea, amountInput, dropdown, product, quantity) {
+function addSelectedProductWithFeedback(item, searchInput, amountInput, dropdown, listElement, product, quantity) {
     const productPrice = Number(product?.price);
     const hasPrice = Number.isFinite(productPrice) && productPrice > 0;
 
-    const wasAdded = appendSelectedProduct(textarea, amountInput, product, quantity);
+    const wasAdded = appendSelectedProduct(searchInput, amountInput, product, quantity);
     if (!wasAdded) return;
 
+    renderSaleItemsList(searchInput, listElement, amountInput);
     showProductAddedFeedback(item, hasPrice);
 
     setTimeout(() => {
         hideProductSuggestions(dropdown);
-        textarea.focus();
+        searchInput.focus();
     }, 450);
 }
 
-function setupProductPicker(textarea, amountInput, dropdown) {
-    if (!textarea || !amountInput || !dropdown) return;
+function setupProductPicker(searchInput, amountInput, dropdown, listElement) {
+    if (!searchInput || !amountInput || !dropdown) return;
 
-    textarea.addEventListener('input', () => {
-        keepProductLinesAboveDraft(textarea);
-        renderProductSuggestions(textarea, amountInput, dropdown);
+    searchInput.addEventListener('input', () => {
+        renderProductSuggestions(searchInput, amountInput, dropdown);
     });
-    textarea.addEventListener('focus', () => {
-        if (hasPricedProductLine(textarea.value)) {
-            moveTextareaCursorToEnd(textarea);
-        }
-        renderProductSuggestions(textarea, amountInput, dropdown);
-    });
-    textarea.addEventListener('pointerup', () => {
-        if (hasPricedProductLine(textarea.value)) {
-            moveTextareaCursorToEnd(textarea);
-        }
+    searchInput.addEventListener('focus', () => {
+        renderProductSuggestions(searchInput, amountInput, dropdown);
     });
 
     dropdown.addEventListener('click', (event) => {
@@ -1490,13 +1545,24 @@ function setupProductPicker(textarea, amountInput, dropdown) {
         }
 
         if (actionButton?.dataset.quantityAction === 'add') {
-            addSelectedProductWithFeedback(item, textarea, amountInput, dropdown, product, quantityInput.value);
+            addSelectedProductWithFeedback(item, searchInput, amountInput, dropdown, listElement, product, quantityInput.value);
             return;
         }
 
         if (!event.target.closest('.product-quantity-controls')) {
-            addSelectedProductWithFeedback(item, textarea, amountInput, dropdown, product, quantityInput.value);
+            addSelectedProductWithFeedback(item, searchInput, amountInput, dropdown, listElement, product, quantityInput.value);
         }
+    });
+
+    listElement?.addEventListener('click', (event) => {
+        const removeButton = event.target.closest('[data-remove-sale-item]');
+        if (!removeButton) return;
+        const index = Number.parseInt(removeButton.dataset.removeSaleItem, 10);
+        const items = getSaleDraftItems(searchInput);
+        if (!Number.isInteger(index) || index < 0 || index >= items.length) return;
+        items.splice(index, 1);
+        setSaleDraftItems(searchInput, items);
+        renderSaleItemsList(searchInput, listElement, amountInput);
     });
 
     dropdown.addEventListener('input', (event) => {
@@ -1506,13 +1572,13 @@ function setupProductPicker(textarea, amountInput, dropdown) {
     });
 
     document.addEventListener('click', (event) => {
-        if (textarea.contains(event.target) || dropdown.contains(event.target)) return;
+        if (searchInput.contains(event.target) || dropdown.contains(event.target)) return;
         hideProductSuggestions(dropdown);
     });
 }
 
 function setupClientModalProductSearchCompaction() {
-    if (!modal || !modalSaleDescriptionInput || !modalSaleProductSuggestions) return;
+    if (!modal || !modalSaleProductSearchInput || !modalSaleProductSuggestions) return;
 
     const activate = () => setClientModalProductSearchActive(true);
     const activateAndScroll = () => {
@@ -1523,7 +1589,7 @@ function setupClientModalProductSearchCompaction() {
         setTimeout(() => {
             const activeElement = document.activeElement;
             const isUsingPicker =
-                activeElement === modalSaleDescriptionInput ||
+                activeElement === modalSaleProductSearchInput ||
                 modalSaleProductSuggestions.contains(activeElement);
 
             if (!isUsingPicker) {
@@ -1532,16 +1598,16 @@ function setupClientModalProductSearchCompaction() {
         }, 80);
     };
 
-    modalSaleDescriptionInput.addEventListener('focus', activateAndScroll);
-    modalSaleDescriptionInput.addEventListener('input', activate);
-    modalSaleDescriptionInput.addEventListener('blur', deactivateIfUnused);
+    modalSaleProductSearchInput.addEventListener('focus', activateAndScroll);
+    modalSaleProductSearchInput.addEventListener('input', activate);
+    modalSaleProductSearchInput.addEventListener('blur', deactivateIfUnused);
     modalSaleProductSuggestions.addEventListener('pointerdown', activate);
     modalSaleProductSuggestions.addEventListener('focusin', activate);
     modalSaleProductSuggestions.addEventListener('focusout', deactivateIfUnused);
 
     document.addEventListener('click', (event) => {
         if (
-            modalSaleDescriptionInput.contains(event.target) ||
+            modalSaleProductSearchInput.contains(event.target) ||
             modalSaleProductSuggestions.contains(event.target)
         ) {
             return;
@@ -1624,13 +1690,13 @@ function scrollClientSearchIntoView() {
 }
 
 function scrollModalSaleDescriptionIntoView() {
-    if (!modalSaleDescriptionInput) return;
+    if (!modalSaleProductSearchInput) return;
 
     const isMobileViewport = window.matchMedia('(max-width: 768px)').matches;
     if (!isMobileViewport) return;
 
     setTimeout(() => {
-        modalSaleDescriptionInput.scrollIntoView({
+        modalSaleProductSearchInput.scrollIntoView({
             behavior: 'smooth',
             block: 'start',
             inline: 'nearest'
@@ -2087,6 +2153,7 @@ function openClientModal(clientId, options = {}) {
                     <div class="sale-amount">
                         ${saleTypeLabel} ${saleAmountText}
                     </div>
+                    ${formatSaleItems(sale.items)}
                     ${sale.description ? `<div class="sale-description">${formatDescription(sale.description)}</div>` : ''}
                 </div>
                 <div class="sale-actions">
@@ -2380,12 +2447,12 @@ if (justNoteProductCheckbox && saleAmountInput && saleDescriptionInput) {
             saleAmountInput.disabled = true;
             saleAmountInput.required = false;
             saleAmountInput.value = '';
-            saleDescriptionInput.placeholder = 'Descrição do produto (obrigatório)';
+            saleDescriptionInput.placeholder = 'Observação da venda (opcional)';
             saleDescriptionInput.required = true;
         } else {
             saleAmountInput.disabled = false;
             saleAmountInput.required = true;
-            saleDescriptionInput.placeholder = 'Descrição ou produto (opcional)';
+            saleDescriptionInput.placeholder = 'Observação da venda (opcional)';
             saleDescriptionInput.required = false;
         }
     });
@@ -2526,6 +2593,7 @@ addSaleForm.addEventListener('submit', async (e) => {
     const amount = document.getElementById('saleAmount').value;
     const description = document.getElementById('saleDescription').value.trim();
     const hasAmount = (amount || '').trim() !== '';
+    const saleItems = getSaleDraftItems(saleProductSearchInput);
     const isJustNote = (justNoteProductCheckbox?.checked || false) || !hasAmount;
     
     // Validar nome do cliente
@@ -2548,14 +2616,13 @@ addSaleForm.addEventListener('submit', async (e) => {
     }
     
     let numericAmount = 0;
-    const saleItems = getSaleDraftItems(saleDescriptionInput);
     
     // Se for apenas anotação, valor é 0 e descrição obrigatória
     if (isJustNote) {
         numericAmount = 0;
-        if (!description) {
-            showToast('Para anotações, a descrição do produto é obrigatória.', 'error');
-            document.getElementById('saleDescription').focus();
+        if (!description && saleItems.length === 0) {
+            showToast('Adicione um produto ou informe uma observação.', 'error');
+            (saleProductSearchInput || document.getElementById('saleDescription')).focus();
             return;
         }
     } else {
@@ -2612,7 +2679,7 @@ addSaleForm.addEventListener('submit', async (e) => {
         hideLoader();
         showToast('Venda registrada com sucesso!', 'success');
         addSaleForm.reset();
-        clearSaleDraftItems(saleDescriptionInput);
+        clearSaleDraftItems(saleProductSearchInput, saleItemsList, saleAmountInput);
         hideProductSuggestions(saleProductSuggestions);
         clearSaleDescriptionDraft();
         selectedClientId = null;
@@ -2832,6 +2899,7 @@ if (modalAddSaleForm) {
         const amount = modalSaleAmountInput?.value;
         const description = (modalSaleDescriptionInput?.value || '').trim();
         const hasAmount = (amount || '').trim() !== '';
+        const saleItems = getSaleDraftItems(modalSaleProductSearchInput);
         const isJustNote = !hasAmount;
         
         // Validar se há cliente selecionado
@@ -2841,14 +2909,13 @@ if (modalAddSaleForm) {
         }
         
         let numericAmount = 0;
-        const saleItems = getSaleDraftItems(modalSaleDescriptionInput);
         
         // Se for apenas anotação, valor é 0 e descrição obrigatória
         if (isJustNote) {
             numericAmount = 0;
-            if (!description) {
-                showToast('Para anotações, a descrição do produto é obrigatória.', 'error');
-                modalSaleDescriptionInput.focus();
+            if (!description && saleItems.length === 0) {
+                showToast('Adicione um produto ou informe uma observação.', 'error');
+                (modalSaleProductSearchInput || modalSaleDescriptionInput).focus();
                 return;
             }
         } else {
@@ -2881,7 +2948,7 @@ if (modalAddSaleForm) {
             hideLoader();
             showToast('Venda registrada com sucesso!', 'success');
             modalAddSaleForm.reset();
-            clearSaleDraftItems(modalSaleDescriptionInput);
+            clearSaleDraftItems(modalSaleProductSearchInput, modalSaleItemsList, modalSaleAmountInput);
             hideProductSuggestions(modalSaleProductSuggestions);
             setClientModalProductSearchActive(false);
             openClientModal(manager.currentClientId); // Reabrir para atualizar

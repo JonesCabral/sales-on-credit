@@ -1096,6 +1096,7 @@ form {
     width: 100%;
 }
 
+.product-picker-wrapper input,
 .product-picker-wrapper textarea {
     width: 100%;
 }
@@ -1318,6 +1319,82 @@ form {
     font-size: 0.72rem;
     font-weight: 800;
     pointer-events: none;
+}
+
+.sale-items-list {
+    display: none;
+    gap: 0.45rem;
+}
+
+.sale-items-list.has-items {
+    display: grid;
+}
+
+.sale-cart-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 36px;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--background);
+}
+
+.sale-cart-item-info {
+    display: grid;
+    gap: 0.12rem;
+    min-width: 0;
+}
+
+.sale-cart-item-info strong {
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
+}
+
+.sale-cart-item-info span {
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+}
+
+.sale-cart-remove {
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--card-bg);
+    color: var(--danger-color);
+    font-size: 1.2rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.sale-cart-remove:hover {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: var(--danger-color);
+}
+
+.sale-items-summary {
+    display: grid;
+    gap: 0.28rem;
+    margin-top: 0.35rem;
+}
+
+.sale-items-summary-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+}
+
+.sale-items-summary-row span {
+    overflow-wrap: anywhere;
+}
+
+.sale-items-summary-row strong {
+    color: var(--text-primary);
+    white-space: nowrap;
 }
 
 .input-summed {
@@ -3172,20 +3249,8 @@ input:focus, select:focus, textarea:focus {
 
     #modalSaleDescription {
         min-height: 76px;
-        max-height: 34dvh;
+        max-height: 24dvh;
         resize: vertical;
-    }
-
-    .product-picker-wrapper:has(.product-suggestions-dropdown.show) #modalSaleDescription {
-        height: 112px;
-        min-height: 112px;
-        max-height: 112px;
-        resize: none;
-    }
-
-    .product-picker-wrapper:has(.product-suggestions-dropdown.show) .description-price-highlight {
-        height: 112px;
-        inset: 0 0 auto;
     }
 
     .product-picker-wrapper:has(.product-suggestions-dropdown.show) {
@@ -3519,16 +3584,6 @@ input:focus, select:focus, textarea:focus {
 
     #modalSaleDescription {
         min-height: 68px;
-    }
-
-    .product-picker-wrapper:has(.product-suggestions-dropdown.show) #modalSaleDescription {
-        height: 96px;
-        min-height: 96px;
-        max-height: 96px;
-    }
-
-    .product-picker-wrapper:has(.product-suggestions-dropdown.show) .description-price-highlight {
-        height: 96px;
     }
 
     .product-suggestion-info {

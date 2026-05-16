@@ -151,9 +151,11 @@
                     </div>
                     <input type="text" id="saleAmount" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off">
                     <div class="product-picker-wrapper">
-                        <textarea id="saleDescription" placeholder="Descrição ou produto (opcional)" rows="3"></textarea>
+                        <input type="text" id="saleProductSearch" placeholder="Buscar produto para adicionar" autocomplete="off">
                         <div id="saleProductSuggestions" class="suggestions-dropdown product-suggestions-dropdown"></div>
                     </div>
+                    <div id="saleItemsList" class="sale-items-list" aria-live="polite"></div>
+                    <textarea id="saleDescription" placeholder="Observação da venda (opcional)" rows="2"></textarea>
                     <button type="submit" class="btn btn-primary">+ Registrar Venda</button>
                 </form>
                 </details>
@@ -279,9 +281,11 @@
                             <form id="modalAddSaleForm">
                                 <input type="text" id="modalSaleAmount" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off">
                                 <div class="product-picker-wrapper">
-                                    <textarea id="modalSaleDescription" placeholder="Descrição ou produto (opcional)" rows="3"></textarea>
+                                    <input type="text" id="modalSaleProductSearch" placeholder="Buscar produto para adicionar" autocomplete="off">
                                     <div id="modalSaleProductSuggestions" class="suggestions-dropdown product-suggestions-dropdown"></div>
                                 </div>
+                                <div id="modalSaleItemsList" class="sale-items-list" aria-live="polite"></div>
+                                <textarea id="modalSaleDescription" placeholder="Observação da venda (opcional)" rows="2"></textarea>
                                 <button type="submit" class="btn btn-primary btn-sale-action">💵 Adicionar Venda</button>
                             </form>
                         </div>
