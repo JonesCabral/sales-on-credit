@@ -895,15 +895,6 @@ if (saleDescriptionInput) {
     saleDescriptionInput.addEventListener('input', saveSaleDescriptionDraft);
 }
 
-clientSearch?.addEventListener('input', scheduleMainSaleAutosave);
-saleAmountInput?.addEventListener('input', scheduleMainSaleAutosave);
-saleDescriptionInput?.addEventListener('input', scheduleMainSaleAutosave);
-saleProductSearchInput?.addEventListener('input', scheduleMainSaleAutosave);
-modalSaleAmountInput?.addEventListener('input', scheduleModalSaleAutosave);
-modalSaleDescriptionInput?.addEventListener('input', scheduleModalSaleAutosave);
-modalSaleProductSearchInput?.addEventListener('input', scheduleModalSaleAutosave);
-document.getElementById('paymentAmount')?.addEventListener('input', schedulePaymentAutosave);
-
 addSaleForm?.addEventListener('reset', () => {
     clearSaleDraftItems(saleProductSearchInput, saleItemsList, saleAmountInput);
     clearFormAutosaveState(addSaleForm);
@@ -1386,6 +1377,80 @@ function getPaymentAutosaveSignature() {
     ].join('|');
 }
 
+function getModalSaleDraftPayload() {
+    const amount = modalSaleAmountInput?.value;
+    const description = (modalSaleDescriptionInput?.value || '').trim();
+    const hasAmount = (amount || '').trim() !== '';
+    const saleItems = getSaleDraftItems(modalSaleProductSearchInput);
+    const isJustNote = !hasAmount;
+    let numericAmount = 0;
+
+    if (isJustNote) {
+        if (!description && saleItems.length === 0) return null;
+    } else {
+        numericAmount = parseCurrency(amount);
+        if (!Number.isFinite(numericAmount) || numericAmount <= 0 || numericAmount > 1000000) return null;
+    }
+
+    const saleItemsTotalCents = getSaleItemsTotalCents(saleItems);
+    if (!isJustNote && saleItemsTotalCents > 0) {
+        numericAmount = centsToAmount(saleItemsTotalCents);
+        modalSaleAmountInput.value = numberToCurrencyInput(numericAmount);
+    }
+
+    return { numericAmount, description, saleItems };
+}
+
+function getPaymentDraftPayload() {
+    const paymentAmountInput = document.getElementById('paymentAmount');
+    const numericAmount = parseCurrency(paymentAmountInput?.value);
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0 || numericAmount > 1000000) return null;
+    return { numericAmount };
+}
+
+async function savePendingClientModalFormsOnClose() {
+    if (!manager.currentClientId) return true;
+
+    const salePayload = getModalSaleDraftPayload();
+    const paymentPayload = getPaymentDraftPayload();
+
+    if (!salePayload && !paymentPayload) return true;
+
+    showLoader('Salvando...');
+    try {
+        if (salePayload && beginFormSubmission(modalAddSaleForm)) {
+            await manager.addSale(
+                manager.currentClientId,
+                salePayload.numericAmount,
+                salePayload.description,
+                salePayload.saleItems
+            );
+            modalAddSaleForm.reset();
+            clearSaleDraftItems(modalSaleProductSearchInput, modalSaleItemsList, modalSaleAmountInput);
+            clearFormAutosaveState(modalAddSaleForm);
+        }
+
+        if (paymentPayload && beginFormSubmission(paymentForm)) {
+            await manager.addPayment(manager.currentClientId, paymentPayload.numericAmount);
+            paymentForm.reset();
+            clearFormAutosaveState(paymentForm);
+        }
+
+        await manager.loadData();
+        updateClientsList();
+        showToast('Dados salvos com sucesso!', 'success');
+        return true;
+    } catch (error) {
+        finishFormSubmission(modalAddSaleForm);
+        finishFormSubmission(paymentForm);
+        console.error('Erro ao salvar ao fechar:', error);
+        showToast(getDatabaseErrorMessage(error, 'Erro ao salvar antes de fechar. Tente novamente.'), 'error');
+        return false;
+    } finally {
+        hideLoader();
+    }
+}
+
 function syncSaleAmountFromItems(searchInput, amountInput) {
     if (!amountInput) return;
     const totalCents = getSaleItemsTotalCents(getSaleDraftItems(searchInput));
@@ -1652,7 +1717,6 @@ function appendSelectedProduct(searchInput, amountInput, product, quantity = 1) 
     }
 
     searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-    scheduleSaleAutosaveForAmountInput(amountInput);
     return true;
 }
 
@@ -1729,7 +1793,6 @@ function setupProductPicker(searchInput, amountInput, dropdown, listElement) {
         items.splice(index, 1);
         setSaleDraftItems(searchInput, items);
         renderSaleItemsList(searchInput, listElement, amountInput);
-        scheduleSaleAutosaveForAmountInput(amountInput);
     });
 
     dropdown.addEventListener('input', (event) => {
@@ -2741,7 +2804,6 @@ if (clientSearch) {
                     clientSearch.value = client.name;
                 }
                 clientSuggestions.classList.remove('show');
-                scheduleMainSaleAutosave();
             });
         });
     }, 200));
@@ -3296,7 +3358,10 @@ if (editSaleModal) {
     });
 }
 
-closeModal.addEventListener('click', closeClientModal);
+closeModal.addEventListener('click', async () => {
+    const saved = await savePendingClientModalFormsOnClose();
+    if (saved) closeClientModal();
+});
 
 window.addEventListener('click', (e) => {
     if (e.target === modal) {
