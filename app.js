@@ -332,6 +332,9 @@ class SalesManager {
                 items: Array.isArray(saleItem.items) ? saleItem.items : [],
                 interestPaidCents: Number.isFinite(Number(saleItem.interestPaidCents)) ? Math.round(Number(saleItem.interestPaidCents)) : 0,
                 principalPaidCents: Number.isFinite(Number(saleItem.principalPaidCents)) ? Math.round(Number(saleItem.principalPaidCents)) : 0,
+                relatedInterestId: saleItem.relatedInterestId || null,
+                relatedPaymentId: saleItem.relatedPaymentId || null,
+                automaticInterest: saleItem.automaticInterest === true,
                 date: saleItem.date || new Date().toISOString(),
                 timestamp: Number.isFinite(timestamp) ? timestamp : Date.now(),
                 editedAt: saleItem.editedAt || null
@@ -465,15 +468,19 @@ class SalesManager {
         const paymentDate = new Date().toISOString();
         const pendingInterestCents = this.getClientInterestCents(clientId);
         const itemsToSave = [];
+        const paymentId = createTransactionId(TRANSACTION_TYPE_PAYMENT);
+        const interestId = pendingInterestCents > 0 ? createTransactionId(TRANSACTION_TYPE_INTEREST) : null;
 
         if (pendingInterestCents > 0) {
             const interestPercent = this.getOverdueInterestPercent();
             itemsToSave.push({
-                id: createTransactionId(TRANSACTION_TYPE_INTEREST),
+                id: interestId,
                 amount: centsToAmount(pendingInterestCents),
                 amountCents: pendingInterestCents,
                 description: `Juros por atraso (${formatOverdueInterestPercent(interestPercent)})`,
                 type: TRANSACTION_TYPE_INTEREST,
+                relatedPaymentId: paymentId,
+                automaticInterest: true,
                 date: paymentDate
             });
         }
@@ -482,12 +489,13 @@ class SalesManager {
         const principalPaidCents = Math.max(0, paymentCents - interestPaidCents);
         
         const paymentItem = {
-            id: createTransactionId(TRANSACTION_TYPE_PAYMENT),
+            id: paymentId,
             amount: paymentAmount,
             amountCents: paymentCents,
             type: TRANSACTION_TYPE_PAYMENT,
             interestPaidCents,
             principalPaidCents,
+            relatedInterestId: interestId,
             date: paymentDate
         };
         itemsToSave.push(paymentItem);
@@ -585,11 +593,31 @@ class SalesManager {
         if (saleIndex === -1) {
             throw new Error('Item não encontrado no histórico');
         }
-        const [removedSale] = this.clients[clientId].sales.splice(saleIndex, 1);
+        const sale = this.clients[clientId].sales[saleIndex];
+        if (isAutomaticInterestTransaction(sale)) {
+            throw new Error('Juros automaticos devem ser excluidos junto com o pagamento relacionado.');
+        }
+
+        const removedItems = [];
+        if (paymentHasInterestSplit(sale)) {
+            const relatedInterestIndex = findRelatedInterestIndex(this.clients[clientId].sales, sale, saleIndex);
+            if (relatedInterestIndex === -1) {
+                throw new Error('Pagamento com juros sem vinculo seguro. Revise o historico antes de excluir.');
+            }
+
+            const indexesToRemove = [saleIndex, relatedInterestIndex].sort((a, b) => b - a);
+            indexesToRemove.forEach((index) => {
+                const [removedItem] = this.clients[clientId].sales.splice(index, 1);
+                if (removedItem) removedItems.push(removedItem);
+            });
+        } else {
+            const [removedSale] = this.clients[clientId].sales.splice(saleIndex, 1);
+            if (removedSale) removedItems.push(removedSale);
+        }
         await this.saveClientData(clientId);
 
-        if (removedSale?.id) {
-            await this.removeActivity(clientId, removedSale.id);
+        if (removedItems.length > 0) {
+            await Promise.all(removedItems.map((item) => this.removeActivity(clientId, item.id)));
         }
 
         return true;
@@ -625,6 +653,12 @@ class SalesManager {
         const sale = this.clients[clientId].sales.find(s => s.id === saleId);
         if (!sale) {
             throw new Error('Item não encontrado no histórico');
+        }
+        if (isAutomaticInterestTransaction(sale)) {
+            throw new Error('Juros automaticos nao podem ser editados diretamente.');
+        }
+        if (paymentHasInterestSplit(sale)) {
+            throw new Error('Pagamentos com juros automaticos nao podem ser editados diretamente.');
         }
         
         // Validar valor (pode ser 0 para anotações)
@@ -1262,6 +1296,42 @@ function getPrincipalDebtDeltaCents(item) {
     if (item?.type === TRANSACTION_TYPE_SALE) return getSaleAmountCents(item);
     if (item?.type === TRANSACTION_TYPE_PAYMENT) return -getPaymentPrincipalCents(item);
     return 0;
+}
+
+function isAutomaticInterestTransaction(item) {
+    return item?.type === TRANSACTION_TYPE_INTEREST
+        && (item.automaticInterest === true
+            || Boolean(item.relatedPaymentId)
+            || /^Juros por atraso/i.test(String(item.description || '')));
+}
+
+function paymentHasInterestSplit(item) {
+    return item?.type === TRANSACTION_TYPE_PAYMENT
+        && (Boolean(item.relatedInterestId)
+            || Math.round(Number(item.interestPaidCents) || 0) > 0);
+}
+
+function findRelatedInterestIndex(sales, paymentItem, paymentIndex = -1) {
+    if (!Array.isArray(sales) || !paymentItem) return -1;
+
+    if (paymentItem.relatedInterestId) {
+        const linkedIndex = sales.findIndex((item) => item.id === paymentItem.relatedInterestId);
+        if (linkedIndex !== -1) return linkedIndex;
+    }
+
+    const paymentDate = paymentItem.date || '';
+    const startIndex = paymentIndex > 0 ? paymentIndex - 1 : sales.length - 1;
+
+    for (let index = startIndex; index >= 0; index -= 1) {
+        const item = sales[index];
+        if (item?.type !== TRANSACTION_TYPE_INTEREST) continue;
+        if (item.relatedPaymentId && item.relatedPaymentId !== paymentItem.id) continue;
+        if (paymentDate && item.date !== paymentDate) continue;
+        if (!isAutomaticInterestTransaction(item)) continue;
+        return index;
+    }
+
+    return -1;
 }
 
 function saleItemsHaveUnpricedProducts(items) {
@@ -2435,6 +2505,8 @@ function openClientModal(clientId, options = {}) {
             const isNote = saleHasUnpricedProducts(sale);
             const isPayment = sale.type === TRANSACTION_TYPE_PAYMENT;
             const isInterest = sale.type === TRANSACTION_TYPE_INTEREST;
+            const canEditItem = !isInterest && !paymentHasInterestSplit(sale);
+            const canDeleteItem = !isInterest;
             const saleAmount = getSaleAmount(sale);
             let saleTypeLabel = '';
             let saleAmountText = '';
@@ -2455,7 +2527,23 @@ function openClientModal(clientId, options = {}) {
                 saleTypeLabel = 'Venda:';
                 saleAmountText = `R$ ${formatCurrency(saleAmount)}`;
             }
-            
+            const editAction = canEditItem ? `
+                    <button class="btn-icon btn-edit-sale" data-sale-id="${sale.id}" title="Editar" aria-label="Editar item">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                    </button>
+            ` : '';
+            const deleteAction = canDeleteItem ? `
+                    <button class="btn-icon btn-delete-sale" data-sale-id="${sale.id}" title="Excluir" aria-label="Excluir item">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                    </button>
+            ` : '';
+
             return `
             <div class="sale-item ${isPayment ? 'payment-item' : ''} ${isInterest ? 'interest-item' : ''} ${isNote ? 'note-item' : ''}">
                 <div class="sale-info">
@@ -2467,18 +2555,8 @@ function openClientModal(clientId, options = {}) {
                     ${sale.description ? `<div class="sale-description">${formatDescription(sale.description)}</div>` : ''}
                 </div>
                 <div class="sale-actions">
-                    <button class="btn-icon btn-edit-sale" data-sale-id="${sale.id}" title="Editar" aria-label="Editar item">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                        </svg>
-                    </button>
-                    <button class="btn-icon btn-delete-sale" data-sale-id="${sale.id}" title="Excluir" aria-label="Excluir item">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <polyline points="3 6 5 6 21 6"/>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                        </svg>
-                    </button>
+                    ${editAction}
+                    ${deleteAction}
                 </div>
             </div>
         `;
@@ -2627,9 +2705,12 @@ async function deleteSaleItem(saleId) {
         : sale.type === TRANSACTION_TYPE_INTEREST
             ? 'juros'
             : 'venda';
+    const relatedInterestWarning = paymentHasInterestSplit(sale)
+        ? ' O juros automatico relacionado tambem sera excluido.'
+        : '';
     const confirmed = await showConfirm(
         'Excluir Item',
-        `Tem certeza que deseja excluir este ${type} de R$ ${formatCurrency(getSaleAmount(sale))}?`
+        `Tem certeza que deseja excluir este ${type} de R$ ${formatCurrency(getSaleAmount(sale))}?${relatedInterestWarning}`
     );
     
     if (!confirmed) return;
