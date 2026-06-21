@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=2.1.14">
-    <link rel="stylesheet" href="client-view.css?v=2.1.21">
+    <link rel="stylesheet" href="client-view.css?v=2.1.22">
     <script>
         (function() {
             const saved = localStorage.getItem('theme');
@@ -446,13 +446,13 @@
             const overdueLimit = Number(debtDetails.overdueDays);
             const overdueLimitText = overdueLimit === 1 ? '1 dia' : `${overdueLimit} dias`;
             const resetRule = resetPaymentPercent <= 0
-                ? 'qualquer pagamento registrado renova o prazo sem juros.'
-                : `um pagamento de pelo menos ${formattedResetPayment} do saldo aberto renova o prazo sem juros.`;
+                ? 'qualquer pagamento renova o prazo sem juros.'
+                : `pague pelo menos ${formattedResetPayment} do saldo para renovar o prazo sem juros.`;
 
             return `
-                <p>Os juros aparecem somente se estiverem ativos nas configurações e a conta passar de ${overdueLimitText} sem um pagamento que renove o prazo.</p>
-                <p>Hoje, ${resetRule} Esse pagamento também é abatido do saldo.</p>
-                <p>O percentual de juros atual é ${formattedInterest}, mas ele é definido pelo administrador do sistema e pode variar conforme as configurações.</p>
+                <p>Se a conta passar de ${overdueLimitText} sem um pagamento que renove o prazo, pode haver juros.</p>
+                <p>A taxa de juros atual é ${formattedInterest}.</p>
+                <p>Para evitar novo atraso, ${resetRule} Esse valor também abate do saldo.</p>
             `;
         }
 
