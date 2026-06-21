@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=2.1.14">
-    <link rel="stylesheet" href="client-view.css?v=2.1.19">
+    <link rel="stylesheet" href="client-view.css?v=2.1.20">
     <script>
         (function() {
             const saved = localStorage.getItem('theme');
@@ -240,6 +240,14 @@
             })}%`;
         }
 
+        function formatOverdueResetPaymentPercent(percent) {
+            const safePercent = normalizeOverdueResetPaymentPercent(percent);
+            return `${safePercent.toLocaleString('pt-BR', {
+                minimumFractionDigits: Number.isInteger(safePercent) ? 0 : 2,
+                maximumFractionDigits: 2
+            })}%`;
+        }
+
         function getDefaultSettings() {
             return {
                 overdueAlertDays: DEFAULT_OVERDUE_ALERT_DAYS,
@@ -355,6 +363,7 @@
                 interestAmount: centsToAmount(interestCents),
                 interestPercent,
                 interestEnabled,
+                resetPaymentPercent,
                 daysSinceRef,
                 daysUntilInterest,
                 overdueDays,
@@ -388,22 +397,27 @@
             if (!debtDetails?.interestEnabled || debtDetails.baseDebt <= 0) return '';
 
             const formattedPercent = formatOverdueInterestPercent(debtDetails.interestPercent);
+            const resetPaymentPercent = normalizeOverdueResetPaymentPercent(debtDetails.resetPaymentPercent);
+            const minimumPaymentText = formatOverdueResetPaymentPercent(resetPaymentPercent);
+            const renewalText = resetPaymentPercent <= 0
+                ? 'Qualquer pagamento renova esse prazo.'
+                : `Um pagamento de pelo menos ${minimumPaymentText} do saldo renova esse prazo.`;
 
             if (debtDetails.isOverdue) {
                 return debtDetails.interestAmount > 0
-                    ? `Prazo sem juros vencido. O saldo já considera juros de ${formattedPercent} por atraso.`
-                    : `Prazo sem juros vencido. Juros de ${formattedPercent} podem ser aplicados ao saldo em aberto.`;
+                    ? `O prazo sem juros venceu e o saldo já considera ${formattedPercent} de juros. ${renewalText}`
+                    : `O prazo sem juros venceu. ${renewalText}`;
             }
 
             const daysUntilInterest = Number(debtDetails.daysUntilInterest);
             if (!Number.isFinite(daysUntilInterest)) return '';
 
             if (daysUntilInterest <= 0) {
-                return `Hoje é o último dia para pagar sem juros. Depois disso, juros de ${formattedPercent} podem entrar no saldo.`;
+                return `Hoje ainda dá para manter sem juros. ${renewalText}`;
             }
 
-            const dayText = daysUntilInterest === 1 ? 'Falta 1 dia' : `Faltam ${daysUntilInterest} dias`;
-            return `${dayText} para pagar sem juros. Depois disso, juros de ${formattedPercent} podem entrar no saldo.`;
+            const dayText = daysUntilInterest === 1 ? 'falta 1 dia' : `faltam ${daysUntilInterest} dias`;
+            return `Ainda dá tempo: ${dayText} sem juros. ${renewalText}`;
         }
 
         // Função para atualizar a interface
