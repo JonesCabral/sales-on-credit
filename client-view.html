@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=2.1.14">
-    <link rel="stylesheet" href="client-view.css?v=2.1.14">
+    <link rel="stylesheet" href="client-view.css?v=2.1.19">
     <script>
         (function() {
             const saved = localStorage.getItem('theme');
@@ -58,6 +58,7 @@
                 <div class="status-label">Saldo Atual</div>
                 <div class="status-value" id="statusValue">R$ 0,00</div>
                 <div class="status-text" id="statusText">Calculando...</div>
+                <div class="interest-deadline" id="interestDeadline" hidden></div>
             </div>
 
             <!-- Histórico de Transações -->
@@ -115,6 +116,7 @@
         const statusIcon = document.getElementById('statusIcon');
         const statusValue = document.getElementById('statusValue');
         const statusText = document.getElementById('statusText');
+        const interestDeadline = document.getElementById('interestDeadline');
         const transactionsList = document.getElementById('transactionsList');
         const clientNameCard = document.getElementById('clientNameCard');
         const clientFriendlyMessage = document.getElementById('clientFriendlyMessage');
@@ -343,13 +345,19 @@
             const interestCents = isOverdue && interestEnabled && interestBaseCents > 0
                 ? Math.round(interestBaseCents * (interestPercent / 100))
                 : 0;
+            const daysUntilInterest = interestEnabled && baseDebtCents > 0
+                ? Math.max(0, overdueDays - daysSinceRef)
+                : null;
 
             return {
                 baseDebt: centsToAmount(baseDebtCents),
                 totalDebt: centsToAmount(baseDebtCents + interestCents),
                 interestAmount: centsToAmount(interestCents),
                 interestPercent,
+                interestEnabled,
                 daysSinceRef,
+                daysUntilInterest,
+                overdueDays,
                 isOverdue
             };
         }
@@ -374,6 +382,28 @@
             }
             const months = Math.round(days / 30);
             return `${months} mês${months === 1 ? '' : 'es'}`;
+        }
+
+        function buildInterestDeadlineText(debtDetails) {
+            if (!debtDetails?.interestEnabled || debtDetails.baseDebt <= 0) return '';
+
+            const formattedPercent = formatOverdueInterestPercent(debtDetails.interestPercent);
+
+            if (debtDetails.isOverdue) {
+                return debtDetails.interestAmount > 0
+                    ? `Prazo sem juros vencido. O saldo já considera juros de ${formattedPercent} por atraso.`
+                    : `Prazo sem juros vencido. Juros de ${formattedPercent} podem ser aplicados ao saldo em aberto.`;
+            }
+
+            const daysUntilInterest = Number(debtDetails.daysUntilInterest);
+            if (!Number.isFinite(daysUntilInterest)) return '';
+
+            if (daysUntilInterest <= 0) {
+                return `Hoje é o último dia para pagar sem juros. Depois disso, juros de ${formattedPercent} podem entrar no saldo.`;
+            }
+
+            const dayText = daysUntilInterest === 1 ? 'Falta 1 dia' : `Faltam ${daysUntilInterest} dias`;
+            return `${dayText} para pagar sem juros. Depois disso, juros de ${formattedPercent} podem entrar no saldo.`;
         }
 
         // Função para atualizar a interface
@@ -445,6 +475,15 @@
             }
 
             // Atualizar histórico de transações
+            if (interestDeadline) {
+                const interestDeadlineText = (!isPaid && !isCredit)
+                    ? buildInterestDeadlineText(debtDetails)
+                    : '';
+                interestDeadline.textContent = interestDeadlineText;
+                interestDeadline.hidden = !interestDeadlineText;
+                interestDeadline.classList.toggle('overdue', isOverdue && Boolean(interestDeadlineText));
+            }
+
             if (sales.length === 0) {
                 transactionsList.innerHTML = `
                     <div class="empty-state">

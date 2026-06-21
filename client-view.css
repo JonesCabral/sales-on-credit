@@ -138,6 +138,29 @@
     font-weight: 600;
 }
 
+.client-view-page .interest-deadline {
+    margin: 0.8rem auto 0;
+    max-width: 34rem;
+    padding: 0.65rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid rgba(245, 158, 11, 0.32);
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--warning-dark, #d97706);
+    font-size: 0.88rem;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.client-view-page .interest-deadline.overdue {
+    border-color: rgba(239, 68, 68, 0.28);
+    background: rgba(239, 68, 68, 0.08);
+    color: var(--danger-color);
+}
+
+.client-view-page .interest-deadline[hidden] {
+    display: none;
+}
+
 .client-view-page .section-title {
     font-size: 1.2rem;
     font-weight: 800;
@@ -432,6 +455,16 @@
 [data-theme="dark"] .client-view-page .client-friendly-message {
     background: rgba(45, 212, 191, 0.12);
     border-color: #2a3c55;
+}
+
+[data-theme="dark"] .client-view-page .interest-deadline {
+    background: rgba(245, 158, 11, 0.14);
+    border-color: rgba(245, 158, 11, 0.34);
+}
+
+[data-theme="dark"] .client-view-page .interest-deadline.overdue {
+    background: rgba(239, 68, 68, 0.14);
+    border-color: rgba(239, 68, 68, 0.34);
 }
 
 [data-theme="dark"] .client-view-page .pix-card,
