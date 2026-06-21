@@ -139,6 +139,11 @@
 }
 
 .client-view-page .interest-deadline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.5rem;
     margin: 0.55rem auto 0;
     max-width: 34rem;
     padding: 0.45rem 0.6rem;
@@ -149,6 +154,93 @@
     font-size: 0.8rem;
     font-weight: 600;
     line-height: 1.35;
+}
+
+.client-view-page .interest-deadline-text {
+    overflow-wrap: anywhere;
+}
+
+.client-view-page .interest-rules-button {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: var(--primary-color);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-decoration: underline;
+    text-underline-offset: 0.14em;
+    cursor: pointer;
+}
+
+.client-view-page .interest-rules-button:hover,
+.client-view-page .interest-rules-button:focus-visible {
+    color: var(--primary-dark);
+}
+
+.client-view-page .interest-rules-tooltip {
+    position: fixed;
+    z-index: 1200;
+    left: 50%;
+    top: 50%;
+    width: min(31rem, calc(100vw - 2rem));
+    transform: translate(-50%, -50%);
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    box-shadow: var(--shadow-xl);
+    color: var(--text-primary);
+    text-align: left;
+}
+
+.client-view-page .interest-rules-tooltip[hidden] {
+    display: none;
+}
+
+.client-view-page .interest-rules-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.65rem;
+}
+
+.client-view-page .interest-rules-header h3 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 900;
+    color: var(--text-primary);
+}
+
+.client-view-page .interest-rules-close {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.28rem 0.55rem;
+    background: var(--card-bg);
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 0.76rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.client-view-page .interest-rules-close:hover,
+.client-view-page .interest-rules-close:focus-visible {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.client-view-page .interest-rules-content {
+    display: grid;
+    gap: 0.55rem;
+    color: var(--text-secondary);
+    font-size: 0.84rem;
+    line-height: 1.45;
+}
+
+.client-view-page .interest-rules-content p {
+    margin: 0;
 }
 
 .client-view-page .interest-deadline.overdue {
@@ -465,6 +557,12 @@
 [data-theme="dark"] .client-view-page .interest-deadline.overdue {
     background: rgba(245, 158, 11, 0.09);
     border-color: rgba(245, 158, 11, 0.16);
+}
+
+[data-theme="dark"] .client-view-page .interest-rules-tooltip,
+[data-theme="dark"] .client-view-page .interest-rules-close {
+    background: #0e1728;
+    border-color: #2a3c55;
 }
 
 [data-theme="dark"] .client-view-page .pix-card,

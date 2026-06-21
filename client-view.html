@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=2.1.14">
-    <link rel="stylesheet" href="client-view.css?v=2.1.20">
+    <link rel="stylesheet" href="client-view.css?v=2.1.21">
     <script>
         (function() {
             const saved = localStorage.getItem('theme');
@@ -58,7 +58,19 @@
                 <div class="status-label">Saldo Atual</div>
                 <div class="status-value" id="statusValue">R$ 0,00</div>
                 <div class="status-text" id="statusText">Calculando...</div>
-                <div class="interest-deadline" id="interestDeadline" hidden></div>
+                <div class="interest-deadline" id="interestDeadline" hidden>
+                    <span class="interest-deadline-text" id="interestDeadlineText"></span>
+                    <button type="button" class="interest-rules-button" id="interestRulesButton" aria-expanded="false" aria-controls="interestRulesTooltip">
+                        Como funciona?
+                    </button>
+                    <div class="interest-rules-tooltip" id="interestRulesTooltip" role="dialog" aria-modal="false" aria-labelledby="interestRulesTitle" hidden>
+                        <div class="interest-rules-header">
+                            <h3 id="interestRulesTitle">Regras dos juros</h3>
+                            <button type="button" class="interest-rules-close" id="interestRulesClose">Fechar</button>
+                        </div>
+                        <div class="interest-rules-content" id="interestRulesContent"></div>
+                    </div>
+                </div>
             </div>
 
             <!-- Histórico de Transações -->
@@ -117,6 +129,11 @@
         const statusValue = document.getElementById('statusValue');
         const statusText = document.getElementById('statusText');
         const interestDeadline = document.getElementById('interestDeadline');
+        const interestDeadlineText = document.getElementById('interestDeadlineText');
+        const interestRulesButton = document.getElementById('interestRulesButton');
+        const interestRulesTooltip = document.getElementById('interestRulesTooltip');
+        const interestRulesClose = document.getElementById('interestRulesClose');
+        const interestRulesContent = document.getElementById('interestRulesContent');
         const transactionsList = document.getElementById('transactionsList');
         const clientNameCard = document.getElementById('clientNameCard');
         const clientFriendlyMessage = document.getElementById('clientFriendlyMessage');
@@ -420,6 +437,52 @@
             return `Ainda dá tempo: ${dayText} sem juros. ${renewalText}`;
         }
 
+        function buildInterestRulesHTML(debtDetails) {
+            if (!debtDetails?.interestEnabled || debtDetails.baseDebt <= 0) return '';
+
+            const formattedInterest = formatOverdueInterestPercent(debtDetails.interestPercent);
+            const resetPaymentPercent = normalizeOverdueResetPaymentPercent(debtDetails.resetPaymentPercent);
+            const formattedResetPayment = formatOverdueResetPaymentPercent(resetPaymentPercent);
+            const overdueLimit = Number(debtDetails.overdueDays);
+            const overdueLimitText = overdueLimit === 1 ? '1 dia' : `${overdueLimit} dias`;
+            const resetRule = resetPaymentPercent <= 0
+                ? 'qualquer pagamento registrado renova o prazo sem juros.'
+                : `um pagamento de pelo menos ${formattedResetPayment} do saldo aberto renova o prazo sem juros.`;
+
+            return `
+                <p>Os juros aparecem somente se estiverem ativos nas configurações e a conta passar de ${overdueLimitText} sem um pagamento que renove o prazo.</p>
+                <p>Hoje, ${resetRule} Esse pagamento também é abatido do saldo.</p>
+                <p>O percentual de juros atual é ${formattedInterest}, mas ele é definido pelo administrador do sistema e pode variar conforme as configurações.</p>
+            `;
+        }
+
+        function setInterestRulesOpen(isOpen) {
+            if (!interestRulesTooltip || !interestRulesButton) return;
+            interestRulesTooltip.hidden = !isOpen;
+            interestRulesButton.setAttribute('aria-expanded', String(isOpen));
+        }
+
+        interestRulesButton?.addEventListener('click', () => {
+            setInterestRulesOpen(Boolean(interestRulesTooltip?.hidden));
+        });
+
+        interestRulesClose?.addEventListener('click', () => {
+            setInterestRulesOpen(false);
+            interestRulesButton?.focus();
+        });
+
+        document.addEventListener('click', (event) => {
+            if (interestRulesTooltip?.hidden) return;
+            if (interestDeadline?.contains(event.target)) return;
+            setInterestRulesOpen(false);
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                setInterestRulesOpen(false);
+            }
+        });
+
         // Função para atualizar a interface
         function updateUI(clientData) {
             if (!clientData) {
@@ -490,12 +553,27 @@
 
             // Atualizar histórico de transações
             if (interestDeadline) {
-                const interestDeadlineText = (!isPaid && !isCredit)
+                const deadlineText = (!isPaid && !isCredit)
                     ? buildInterestDeadlineText(debtDetails)
                     : '';
-                interestDeadline.textContent = interestDeadlineText;
-                interestDeadline.hidden = !interestDeadlineText;
-                interestDeadline.classList.toggle('overdue', isOverdue && Boolean(interestDeadlineText));
+
+                if (interestDeadlineText) {
+                    interestDeadlineText.textContent = deadlineText;
+                }
+
+                if (interestRulesContent) {
+                    interestRulesContent.innerHTML = deadlineText ? buildInterestRulesHTML(debtDetails) : '';
+                }
+
+                interestDeadline.hidden = !deadlineText;
+                if (interestRulesButton) {
+                    interestRulesButton.hidden = !deadlineText;
+                }
+                interestDeadline.classList.toggle('overdue', isOverdue && Boolean(deadlineText));
+
+                if (!deadlineText) {
+                    setInterestRulesOpen(false);
+                }
             }
 
             if (sales.length === 0) {

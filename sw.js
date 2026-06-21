@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vivi-variedades-v2.1.20';
+const CACHE_NAME = 'vivi-variedades-v2.1.21';
 const urlsToCache = [
   './',
   './index.html',
