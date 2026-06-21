@@ -126,6 +126,9 @@
         const DEFAULT_OVERDUE_INTEREST_PERCENT = 0;
         const MIN_OVERDUE_INTEREST_PERCENT = 0;
         const MAX_OVERDUE_INTEREST_PERCENT = 100;
+        const DEFAULT_OVERDUE_RESET_PAYMENT_PERCENT = 20;
+        const MIN_OVERDUE_RESET_PAYMENT_PERCENT = 0;
+        const MAX_OVERDUE_RESET_PAYMENT_PERCENT = 100;
         const TRANSACTION_TYPE_SALE = 'sale';
         const TRANSACTION_TYPE_PAYMENT = 'payment';
         const TRANSACTION_TYPE_INTEREST = 'interest';
@@ -185,6 +188,21 @@
             return 0;
         }
 
+        function getTransactionTime(item) {
+            const time = new Date(item?.date || 0).getTime();
+            return Number.isFinite(time) ? time : 0;
+        }
+
+        function getSortedTransactions(sales) {
+            return (Array.isArray(sales) ? sales : [])
+                .map((item, index) => ({ item, index }))
+                .sort((a, b) => {
+                    const timeDiff = getTransactionTime(a.item) - getTransactionTime(b.item);
+                    return timeDiff !== 0 ? timeDiff : a.index - b.index;
+                })
+                .map(({ item }) => item);
+        }
+
         function parseOverdueInterestPercent(value) {
             if (typeof value === 'string') {
                 return Number.parseFloat(value.replace(',', '.'));
@@ -205,6 +223,13 @@
             return Math.round(clampedValue * 100) / 100;
         }
 
+        function normalizeOverdueResetPaymentPercent(value) {
+            const parsedValue = parseOverdueInterestPercent(value);
+            if (!Number.isFinite(parsedValue)) return DEFAULT_OVERDUE_RESET_PAYMENT_PERCENT;
+            const clampedValue = Math.min(MAX_OVERDUE_RESET_PAYMENT_PERCENT, Math.max(MIN_OVERDUE_RESET_PAYMENT_PERCENT, parsedValue));
+            return Math.round(clampedValue * 100) / 100;
+        }
+
         function formatOverdueInterestPercent(percent) {
             const safePercent = normalizeOverdueInterestPercent(percent);
             return `${safePercent.toLocaleString('pt-BR', {
@@ -219,7 +244,8 @@
                 overdueInterest: {
                     enabled: DEFAULT_OVERDUE_INTEREST_ENABLED,
                     percent: DEFAULT_OVERDUE_INTEREST_PERCENT
-                }
+                },
+                overdueResetPaymentPercent: DEFAULT_OVERDUE_RESET_PAYMENT_PERCENT
             };
         }
 
@@ -230,7 +256,8 @@
                 overdueInterest: {
                     enabled: savedInterest.enabled === true,
                     percent: normalizeOverdueInterestPercent(savedInterest.percent)
-                }
+                },
+                overdueResetPaymentPercent: normalizeOverdueResetPaymentPercent(savedSettings.overdueResetPaymentPercent)
             };
         }
 
@@ -257,10 +284,56 @@
             return sales.reduce((total, sale) => total + getPrincipalDebtDeltaCents(sale), 0);
         }
 
+        function paymentMeetsOverdueResetThreshold(paymentItem, debtBeforePaymentCents, resetPercent) {
+            const paymentCents = getTransactionAmountCents(paymentItem);
+            if (paymentCents <= 0 || debtBeforePaymentCents <= 0) return false;
+
+            const safePercent = normalizeOverdueResetPaymentPercent(resetPercent);
+            if (safePercent <= 0) return true;
+
+            const minimumPaymentCents = Math.ceil(debtBeforePaymentCents * (safePercent / 100));
+            return paymentCents >= minimumPaymentCents;
+        }
+
+        function getOverdueReferenceDates(sales, resetPercent) {
+            let debtCents = 0;
+            let firstSaleDate = null;
+            let lastPaymentDate = null;
+
+            getSortedTransactions(sales).forEach((item) => {
+                const date = item?.date ? new Date(item.date) : null;
+                const hasValidDate = date && !Number.isNaN(date.getTime());
+                const debtBeforeTransactionCents = debtCents;
+
+                if (
+                    item?.type === TRANSACTION_TYPE_PAYMENT
+                    && hasValidDate
+                    && paymentMeetsOverdueResetThreshold(item, debtBeforeTransactionCents, resetPercent)
+                ) {
+                    lastPaymentDate = date;
+                }
+
+                debtCents += getDebtDeltaCents(item);
+
+                if (debtBeforeTransactionCents <= 0 && debtCents > 0 && hasValidDate) {
+                    firstSaleDate = date;
+                    lastPaymentDate = null;
+                }
+
+                if (debtCents <= 0) {
+                    firstSaleDate = null;
+                    lastPaymentDate = null;
+                }
+            });
+
+            return { firstSaleDate, lastPaymentDate };
+        }
+
         function calculateDebtDetails(sales, settings) {
             const baseDebtCents = calculateBaseDebtCents(sales);
             const principalDebtCents = calculatePrincipalDebtCents(sales);
-            const daysSinceRef = getDaysSinceReferencePayment(sales, baseDebtCents);
+            const resetPaymentPercent = normalizeOverdueResetPaymentPercent(settings?.overdueResetPaymentPercent);
+            const daysSinceRef = getDaysSinceReferencePayment(sales, baseDebtCents, resetPaymentPercent);
             const overdueDays = normalizeOverdueAlertDays(settings?.overdueAlertDays);
             const isOverdue = baseDebtCents > 0 && daysSinceRef >= overdueDays;
             const interestSettings = settings?.overdueInterest || {};
@@ -281,26 +354,15 @@
             };
         }
 
-        function getLastPaymentDate(sales) {
-            if (!sales || sales.length === 0) return null;
-            const payments = sales.filter(s => s.type === TRANSACTION_TYPE_PAYMENT && s.date);
-            if (payments.length === 0) return null;
-            return payments.reduce((latest, p) => {
-                const d = new Date(p.date);
-                return d > latest ? d : latest;
-            }, new Date(payments[0].date));
-        }
-
-        function getDaysSinceReferencePayment(sales, debt) {
+        function getDaysSinceReferencePayment(sales, debt, resetPercent) {
             if (debt <= 0) return 0;
             const now = new Date();
-            const lastPayment = getLastPaymentDate(sales);
-            if (lastPayment) {
-                return Math.floor((now - lastPayment) / (1000 * 60 * 60 * 24));
+            const { firstSaleDate, lastPaymentDate } = getOverdueReferenceDates(sales, resetPercent);
+            if (lastPaymentDate) {
+                return Math.floor((now - lastPaymentDate) / (1000 * 60 * 60 * 24));
             }
-            const firstSale = (sales || []).find(s => s.type === TRANSACTION_TYPE_SALE && s.date);
-            if (!firstSale) return 0;
-            return Math.floor((now - new Date(firstSale.date)) / (1000 * 60 * 60 * 24));
+            if (!firstSaleDate) return 0;
+            return Math.floor((now - firstSaleDate) / (1000 * 60 * 60 * 24));
         }
 
         function humanizeDays(days) {

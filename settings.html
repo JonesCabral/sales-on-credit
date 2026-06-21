@@ -110,11 +110,29 @@
                             <button id="saveInterestSettings" type="submit" class="btn btn-primary">Salvar</button>
                         </div>
                     </form>
+
+                    <form id="resetPaymentSettingsForm" class="settings-form">
+                        <div class="settings-form-header">
+                            <div>
+                                <h3>Pagamento minimo para renovar prazo</h3>
+                                <p class="settings-hint" id="resetPaymentSettingsHint">
+                                    Para reiniciar a contagem de atraso, o pagamento precisa atingir este percentual da divida aberta no momento do pagamento. Use 0% para qualquer pagamento renovar o prazo.
+                                </p>
+                            </div>
+                            <span id="resetPaymentCurrentValue" class="settings-current-value">Atual: 20%</span>
+                        </div>
+
+                        <div class="settings-inline-field">
+                            <label for="resetPaymentPercentInput">Percentual minimo</label>
+                            <input type="number" id="resetPaymentPercentInput" min="0" max="100" step="0.01" value="20" inputmode="decimal" aria-describedby="resetPaymentSettingsHint">
+                            <button id="saveResetPaymentSettings" type="submit" class="btn btn-primary">Salvar</button>
+                        </div>
+                    </form>
                 </div>
             </section>
         </main>
     </div>
 
-    <script type="module" src="settings.js?v=2.1.14"></script>
+    <script type="module" src="settings.js?v=2.1.18"></script>
 </body>
 </html>

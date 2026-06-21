@@ -20,6 +20,9 @@ const DEFAULT_OVERDUE_INTEREST_ENABLED = false;
 const DEFAULT_OVERDUE_INTEREST_PERCENT = 0;
 const MIN_OVERDUE_INTEREST_PERCENT = 0;
 const MAX_OVERDUE_INTEREST_PERCENT = 100;
+const DEFAULT_OVERDUE_RESET_PAYMENT_PERCENT = 20;
+const MIN_OVERDUE_RESET_PAYMENT_PERCENT = 0;
+const MAX_OVERDUE_RESET_PAYMENT_PERCENT = 100;
 
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
@@ -34,6 +37,10 @@ const interestEnabledInput = document.getElementById('interestEnabledInput');
 const interestPercentInput = document.getElementById('interestPercentInput');
 const interestCurrentValue = document.getElementById('interestCurrentValue');
 const saveInterestSettings = document.getElementById('saveInterestSettings');
+const resetPaymentSettingsForm = document.getElementById('resetPaymentSettingsForm');
+const resetPaymentPercentInput = document.getElementById('resetPaymentPercentInput');
+const resetPaymentCurrentValue = document.getElementById('resetPaymentCurrentValue');
+const saveResetPaymentSettings = document.getElementById('saveResetPaymentSettings');
 const settingsStatus = document.getElementById('settingsStatus');
 const themeToggle = document.getElementById('themeToggle');
 const settingsMenu = document.getElementById('settingsMenu');
@@ -47,6 +54,7 @@ let settingsUnsubscribe = null;
 let currentOverdueDays = DEFAULT_OVERDUE_ALERT_DAYS;
 let currentInterestEnabled = DEFAULT_OVERDUE_INTEREST_ENABLED;
 let currentInterestPercent = DEFAULT_OVERDUE_INTEREST_PERCENT;
+let currentResetPaymentPercent = DEFAULT_OVERDUE_RESET_PAYMENT_PERCENT;
 let formsDisabled = false;
 
 function normalizeOverdueAlertDays(value) {
@@ -74,8 +82,23 @@ function normalizeOverdueInterestPercent(value) {
     return Math.round(clampedValue * 100) / 100;
 }
 
+function normalizeOverdueResetPaymentPercent(value) {
+    const parsedValue = parseInterestPercent(value);
+    if (!Number.isFinite(parsedValue)) return DEFAULT_OVERDUE_RESET_PAYMENT_PERCENT;
+    const clampedValue = Math.min(MAX_OVERDUE_RESET_PAYMENT_PERCENT, Math.max(MIN_OVERDUE_RESET_PAYMENT_PERCENT, parsedValue));
+    return Math.round(clampedValue * 100) / 100;
+}
+
 function formatOverdueInterestPercent(percent) {
     const safePercent = normalizeOverdueInterestPercent(percent);
+    return `${safePercent.toLocaleString('pt-BR', {
+        minimumFractionDigits: Number.isInteger(safePercent) ? 0 : 2,
+        maximumFractionDigits: 2
+    })}%`;
+}
+
+function formatOverdueResetPaymentPercent(percent) {
+    const safePercent = normalizeOverdueResetPaymentPercent(percent);
     return `${safePercent.toLocaleString('pt-BR', {
         minimumFractionDigits: Number.isInteger(safePercent) ? 0 : 2,
         maximumFractionDigits: 2
@@ -88,7 +111,8 @@ function getDefaultSettings() {
         overdueInterest: {
             enabled: DEFAULT_OVERDUE_INTEREST_ENABLED,
             percent: DEFAULT_OVERDUE_INTEREST_PERCENT
-        }
+        },
+        overdueResetPaymentPercent: DEFAULT_OVERDUE_RESET_PAYMENT_PERCENT
     };
 }
 
@@ -103,7 +127,8 @@ function normalizeOverdueInterest(settings = {}) {
 function normalizeSettings(settings = {}) {
     return {
         overdueAlertDays: normalizeOverdueAlertDays(settings.overdueAlertDays),
-        overdueInterest: normalizeOverdueInterest(settings)
+        overdueInterest: normalizeOverdueInterest(settings),
+        overdueResetPaymentPercent: normalizeOverdueResetPaymentPercent(settings.overdueResetPaymentPercent)
     };
 }
 
@@ -115,6 +140,7 @@ function createSettingsPayload(overrides = {}) {
             enabled: Boolean(interestOverrides.enabled ?? currentInterestEnabled),
             percent: normalizeOverdueInterestPercent(interestOverrides.percent ?? currentInterestPercent)
         },
+        overdueResetPaymentPercent: normalizeOverdueResetPaymentPercent(overrides.overdueResetPaymentPercent ?? currentResetPaymentPercent),
         updatedAt: new Date().toISOString()
     };
 }
@@ -130,11 +156,13 @@ function settingsMatch(expectedSettings, savedSettings) {
 
     return hasOwn(savedSettings, 'overdueAlertDays')
         && hasOwn(savedSettings, 'overdueInterest')
+        && hasOwn(savedSettings, 'overdueResetPaymentPercent')
         && hasOwn(savedInterest, 'enabled')
         && hasOwn(savedInterest, 'percent')
         && expected.overdueAlertDays === saved.overdueAlertDays
         && expected.overdueInterest.enabled === saved.overdueInterest.enabled
-        && expected.overdueInterest.percent === saved.overdueInterest.percent;
+        && expected.overdueInterest.percent === saved.overdueInterest.percent
+        && expected.overdueResetPaymentPercent === saved.overdueResetPaymentPercent;
 }
 
 async function saveAndVerifySettings(settingsPayload) {
@@ -167,6 +195,8 @@ function setFormDisabled(isDisabled) {
     if (saveOverdueSettings) saveOverdueSettings.disabled = isDisabled;
     if (interestEnabledInput) interestEnabledInput.disabled = isDisabled;
     if (saveInterestSettings) saveInterestSettings.disabled = isDisabled;
+    if (resetPaymentPercentInput) resetPaymentPercentInput.disabled = isDisabled;
+    if (saveResetPaymentSettings) saveResetPaymentSettings.disabled = isDisabled;
     syncInterestPercentInputState();
 }
 
@@ -180,6 +210,7 @@ function syncSettingsForm(settings = getDefaultSettings()) {
     const interestSettings = normalizeOverdueInterest(settings);
     currentInterestEnabled = interestSettings.enabled;
     currentInterestPercent = interestSettings.percent;
+    currentResetPaymentPercent = normalizeOverdueResetPaymentPercent(settings.overdueResetPaymentPercent);
     const formattedDays = formatOverdueAlertDays(currentOverdueDays);
 
     if (overdueDaysInput && document.activeElement !== overdueDaysInput) {
@@ -202,6 +233,14 @@ function syncSettingsForm(settings = getDefaultSettings()) {
         interestCurrentValue.textContent = currentInterestEnabled && currentInterestPercent > 0
             ? `Atual: ${formatOverdueInterestPercent(currentInterestPercent)} ativo`
             : 'Atual: desativado';
+    }
+
+    if (resetPaymentPercentInput && document.activeElement !== resetPaymentPercentInput) {
+        resetPaymentPercentInput.value = String(currentResetPaymentPercent);
+    }
+
+    if (resetPaymentCurrentValue) {
+        resetPaymentCurrentValue.textContent = `Atual: ${formatOverdueResetPaymentPercent(currentResetPaymentPercent)}`;
     }
 
     syncInterestPercentInputState();
@@ -273,7 +312,8 @@ function subscribeSettings(userId) {
         const interestMessage = currentInterestEnabled && currentInterestPercent > 0
             ? ` Juros de ${formatOverdueInterestPercent(currentInterestPercent)} ativo para clientes atrasados.`
             : ' Juros desativados.';
-        setStatus(`Alerta ativo em ${formatOverdueAlertDays(currentOverdueDays)} sem pagamento.${interestMessage}`, 'success');
+        const resetMessage = ` Pagamento minimo para renovar prazo: ${formatOverdueResetPaymentPercent(currentResetPaymentPercent)}.`;
+        setStatus(`Alerta ativo em ${formatOverdueAlertDays(currentOverdueDays)} sem pagamento.${interestMessage}${resetMessage}`, 'success');
     }, (error) => {
         console.error('Erro ao carregar configurações:', error);
         syncSettingsForm(getDefaultSettings());
@@ -309,7 +349,8 @@ overdueSettingsForm?.addEventListener('submit', async (event) => {
             overdueInterest: {
                 enabled: currentInterestEnabled,
                 percent: currentInterestPercent
-            }
+            },
+            overdueResetPaymentPercent: currentResetPaymentPercent
         }));
         syncSettingsForm(savedSettings);
         setStatus(`Configuração salva: ${formatOverdueAlertDays(normalizedDays)} sem pagamento.`, 'success');
@@ -360,7 +401,8 @@ interestSettingsForm?.addEventListener('submit', async (event) => {
             overdueInterest: {
                 enabled,
                 percent: normalizedPercent
-            }
+            },
+            overdueResetPaymentPercent: currentResetPaymentPercent
         }));
         syncSettingsForm(savedSettings);
         const savedMessage = enabled
@@ -370,6 +412,47 @@ interestSettingsForm?.addEventListener('submit', async (event) => {
     } catch (error) {
         console.error('Erro ao salvar juros:', error);
         setStatus('Erro ao salvar juros. Tente novamente.', 'error');
+    } finally {
+        setFormDisabled(false);
+    }
+});
+
+resetPaymentSettingsForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    if (!currentUserId) {
+        setStatus('Faça login para salvar configurações.', 'error');
+        return;
+    }
+
+    const rawPercent = resetPaymentPercentInput?.value || '';
+    const numericPercent = parseInterestPercent(rawPercent);
+
+    if (!Number.isFinite(numericPercent) || numericPercent < MIN_OVERDUE_RESET_PAYMENT_PERCENT || numericPercent > MAX_OVERDUE_RESET_PAYMENT_PERCENT) {
+        setStatus(`Informe um percentual entre ${MIN_OVERDUE_RESET_PAYMENT_PERCENT}% e ${MAX_OVERDUE_RESET_PAYMENT_PERCENT}%.`, 'error');
+        resetPaymentPercentInput?.focus();
+        return;
+    }
+
+    const normalizedPercent = normalizeOverdueResetPaymentPercent(numericPercent);
+
+    setFormDisabled(true);
+    setStatus('Salvando pagamento minimo...');
+
+    try {
+        const savedSettings = await saveAndVerifySettings(createSettingsPayload({
+            overdueAlertDays: currentOverdueDays,
+            overdueInterest: {
+                enabled: currentInterestEnabled,
+                percent: currentInterestPercent
+            },
+            overdueResetPaymentPercent: normalizedPercent
+        }));
+        syncSettingsForm(savedSettings);
+        setStatus(`Pagamento minimo para renovar prazo salvo: ${formatOverdueResetPaymentPercent(normalizedPercent)} da divida.`, 'success');
+    } catch (error) {
+        console.error('Erro ao salvar pagamento minimo:', error);
+        setStatus('Erro ao salvar pagamento minimo. Tente novamente.', 'error');
     } finally {
         setFormDisabled(false);
     }
