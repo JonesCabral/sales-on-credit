@@ -621,6 +621,10 @@ header h1 {
     border-left-color: var(--danger-color);
 }
 
+.activity-item.is-interest {
+    border-left-color: var(--warning-color);
+}
+
 .activity-item.is-note {
     border-left-color: var(--warning-color);
 }
@@ -850,7 +854,7 @@ header h1 {
 
 .history-stats {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0;
     padding-top: 0.75rem;
     border-top: 1px solid var(--border-color);
@@ -892,6 +896,10 @@ header h1 {
     color: var(--success-dark);
 }
 
+.history-stat-interest strong {
+    color: var(--warning-dark);
+}
+
 .history-stat-note strong {
     color: var(--warning-dark);
 }
@@ -931,6 +939,10 @@ header h1 {
 @media (max-width: 760px) {
     .history-filters-grid {
         grid-template-columns: 1fr 1fr;
+    }
+
+    .history-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .history-search-wrapper {
@@ -2077,6 +2089,10 @@ input:focus, select:focus, textarea:focus {
 
 .payment-item {
     border-left-color: var(--success-color);
+}
+
+.interest-item {
+    border-left-color: var(--warning-color);
 }
 
 .note-item {
@@ -4691,6 +4707,10 @@ textarea:focus {
 
 [data-theme="dark"] .activity-item.is-sale {
     border-left-color: var(--danger-color);
+}
+
+[data-theme="dark"] .activity-item.is-interest {
+    border-left-color: var(--warning-color);
 }
 
 [data-theme="dark"] .activity-item.is-note {

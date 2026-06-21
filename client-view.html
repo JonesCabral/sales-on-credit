@@ -126,6 +126,9 @@
         const DEFAULT_OVERDUE_INTEREST_PERCENT = 0;
         const MIN_OVERDUE_INTEREST_PERCENT = 0;
         const MAX_OVERDUE_INTEREST_PERCENT = 100;
+        const TRANSACTION_TYPE_SALE = 'sale';
+        const TRANSACTION_TYPE_PAYMENT = 'payment';
+        const TRANSACTION_TYPE_INTEREST = 'interest';
 
         let currentClientData = null;
         let currentSettings = getDefaultSettings();
@@ -142,6 +145,44 @@
         // Função para formatar moeda
         function formatCurrency(value) {
             return value.toFixed(2).replace('.', ',');
+        }
+
+        function currencyToCents(value) {
+            const numericValue = Number(value);
+            if (!Number.isFinite(numericValue)) return 0;
+            return Math.round((numericValue + Number.EPSILON) * 100);
+        }
+
+        function centsToAmount(cents) {
+            const numericCents = Number(cents);
+            if (!Number.isFinite(numericCents)) return 0;
+            return Math.round(numericCents) / 100;
+        }
+
+        function getTransactionAmountCents(item) {
+            const directCents = Number(item?.amountCents);
+            if (Number.isFinite(directCents)) return Math.round(directCents);
+            return currencyToCents(item?.amount);
+        }
+
+        function getPaymentPrincipalCents(paymentItem) {
+            if (paymentItem?.type !== TRANSACTION_TYPE_PAYMENT) return 0;
+            const directPrincipal = Number(paymentItem?.principalPaidCents);
+            if (Number.isFinite(directPrincipal)) return Math.max(0, Math.round(directPrincipal));
+            return getTransactionAmountCents(paymentItem);
+        }
+
+        function getDebtDeltaCents(item) {
+            const amountCents = getTransactionAmountCents(item);
+            if (item?.type === TRANSACTION_TYPE_SALE || item?.type === TRANSACTION_TYPE_INTEREST) return amountCents;
+            if (item?.type === TRANSACTION_TYPE_PAYMENT) return -amountCents;
+            return 0;
+        }
+
+        function getPrincipalDebtDeltaCents(item) {
+            if (item?.type === TRANSACTION_TYPE_SALE) return getTransactionAmountCents(item);
+            if (item?.type === TRANSACTION_TYPE_PAYMENT) return -getPaymentPrincipalCents(item);
+            return 0;
         }
 
         function parseOverdueInterestPercent(value) {
@@ -206,32 +247,34 @@
         }
 
         // Função para calcular dívida do cliente
-        function calculateBaseDebt(sales) {
+        function calculateBaseDebtCents(sales) {
             if (!sales || sales.length === 0) return 0;
-            return sales.reduce((total, sale) => {
-                if (sale.type === 'payment') {
-                    return total - (Number(sale.amount) || 0);
-                }
-                return total + (Number(sale.amount) || 0);
-            }, 0);
+            return sales.reduce((total, sale) => total + getDebtDeltaCents(sale), 0);
+        }
+
+        function calculatePrincipalDebtCents(sales) {
+            if (!sales || sales.length === 0) return 0;
+            return sales.reduce((total, sale) => total + getPrincipalDebtDeltaCents(sale), 0);
         }
 
         function calculateDebtDetails(sales, settings) {
-            const baseDebt = calculateBaseDebt(sales);
-            const daysSinceRef = getDaysSinceReferencePayment(sales, baseDebt);
+            const baseDebtCents = calculateBaseDebtCents(sales);
+            const principalDebtCents = calculatePrincipalDebtCents(sales);
+            const daysSinceRef = getDaysSinceReferencePayment(sales, baseDebtCents);
             const overdueDays = normalizeOverdueAlertDays(settings?.overdueAlertDays);
-            const isOverdue = baseDebt > 0 && daysSinceRef >= overdueDays;
+            const isOverdue = baseDebtCents > 0 && daysSinceRef >= overdueDays;
             const interestSettings = settings?.overdueInterest || {};
             const interestPercent = normalizeOverdueInterestPercent(interestSettings.percent);
             const interestEnabled = interestSettings.enabled === true && interestPercent > 0;
-            const interestAmount = isOverdue && interestEnabled
-                ? Math.round(baseDebt * interestPercent) / 100
+            const interestBaseCents = Math.min(Math.max(0, principalDebtCents), baseDebtCents);
+            const interestCents = isOverdue && interestEnabled && interestBaseCents > 0
+                ? Math.round(interestBaseCents * (interestPercent / 100))
                 : 0;
 
             return {
-                baseDebt,
-                totalDebt: baseDebt + interestAmount,
-                interestAmount,
+                baseDebt: centsToAmount(baseDebtCents),
+                totalDebt: centsToAmount(baseDebtCents + interestCents),
+                interestAmount: centsToAmount(interestCents),
                 interestPercent,
                 daysSinceRef,
                 isOverdue
@@ -240,7 +283,7 @@
 
         function getLastPaymentDate(sales) {
             if (!sales || sales.length === 0) return null;
-            const payments = sales.filter(s => s.type === 'payment' && s.date);
+            const payments = sales.filter(s => s.type === TRANSACTION_TYPE_PAYMENT && s.date);
             if (payments.length === 0) return null;
             return payments.reduce((latest, p) => {
                 const d = new Date(p.date);
@@ -255,7 +298,7 @@
             if (lastPayment) {
                 return Math.floor((now - lastPayment) / (1000 * 60 * 60 * 24));
             }
-            const firstSale = (sales || []).find(s => s.type === 'sale' && s.date);
+            const firstSale = (sales || []).find(s => s.type === TRANSACTION_TYPE_SALE && s.date);
             if (!firstSale) return 0;
             return Math.floor((now - new Date(firstSale.date)) / (1000 * 60 * 60 * 24));
         }
@@ -354,17 +397,19 @@
                 );
 
                 transactionsList.innerHTML = sortedSales.map(sale => {
-                    const isPayment = sale.type === 'payment';
-                    const icon = isPayment ? '✅' : '🛒';
-                    const typeText = isPayment ? 'Pagamento' : 'Venda';
-                    const typeClass = isPayment ? 'payment' : 'sale';
+                    const isPayment = sale.type === TRANSACTION_TYPE_PAYMENT;
+                    const isInterest = sale.type === TRANSACTION_TYPE_INTEREST;
+                    const icon = isPayment ? '✅' : isInterest ? 'R$' : '🛒';
+                    const typeText = isPayment ? 'Pagamento' : isInterest ? 'Juros' : 'Venda';
+                    const typeClass = isPayment ? 'payment' : isInterest ? 'interest' : 'sale';
+                    const amount = centsToAmount(getTransactionAmountCents(sale));
                     const safeDescription = sale.description ? escapeHTML(sale.description) : '';
 
                     return `
                         <div class="transaction-item ${typeClass}">
                             <div class="transaction-header">
                                 <span class="transaction-type">${icon} ${typeText}</span>
-                                <span class="transaction-amount ${typeClass}">R$ ${formatCurrency(sale.amount)}</span>
+                                <span class="transaction-amount ${typeClass}">R$ ${formatCurrency(amount)}</span>
                             </div>
                             <div class="transaction-date">📅 ${formatDate(sale.date)}</div>
                             ${safeDescription ? `<div class="transaction-description">📝 ${safeDescription}</div>` : ''}

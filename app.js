@@ -82,6 +82,9 @@ const DEFAULT_OVERDUE_INTEREST_PERCENT = 0;
 const MIN_OVERDUE_INTEREST_PERCENT = 0;
 const MAX_OVERDUE_INTEREST_PERCENT = 100;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
+const TRANSACTION_TYPE_SALE = 'sale';
+const TRANSACTION_TYPE_PAYMENT = 'payment';
+const TRANSACTION_TYPE_INTEREST = 'interest';
 const currencyFormatter = new Intl.NumberFormat('pt-BR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
@@ -324,9 +327,11 @@ class SalesManager {
                 amount: getSaleAmount(saleItem),
                 amountCents: getSaleAmountCents(saleItem),
                 description: saleItem.description || '',
-                isNote: Boolean(saleItem.isNote) || (saleItem.type === 'sale' && getSaleAmountCents(saleItem) === 0),
+                isNote: Boolean(saleItem.isNote) || (saleItem.type === TRANSACTION_TYPE_SALE && getSaleAmountCents(saleItem) === 0),
                 hasUnpricedItems: saleHasUnpricedProducts(saleItem),
                 items: Array.isArray(saleItem.items) ? saleItem.items : [],
+                interestPaidCents: Number.isFinite(Number(saleItem.interestPaidCents)) ? Math.round(Number(saleItem.interestPaidCents)) : 0,
+                principalPaidCents: Number.isFinite(Number(saleItem.principalPaidCents)) ? Math.round(Number(saleItem.principalPaidCents)) : 0,
                 date: saleItem.date || new Date().toISOString(),
                 timestamp: Number.isFinite(timestamp) ? timestamp : Date.now(),
                 editedAt: saleItem.editedAt || null
@@ -421,12 +426,12 @@ class SalesManager {
         }
         
         const saleItem = {
-            id: Date.now().toString(),
+            id: createTransactionId(TRANSACTION_TYPE_SALE),
             amount: numericAmount,
             amountCents,
             description: sanitizedDescription,
             items: normalizedItems,
-            type: 'sale',
+            type: TRANSACTION_TYPE_SALE,
             isNote: amountCents === 0,
             hasUnpricedItems: amountCents === 0 || saleItemsHaveUnpricedProducts(normalizedItems) || hasMixedPricedAndUnpricedLines(sanitizedDescription),
             date: new Date().toISOString()
@@ -454,19 +459,46 @@ class SalesManager {
         if (!this.clients[clientId].sales) {
             this.clients[clientId].sales = [];
         }
+
+        const paymentCents = currencyToCents(numericAmount);
+        const paymentAmount = centsToAmount(paymentCents);
+        const paymentDate = new Date().toISOString();
+        const pendingInterestCents = this.getClientInterestCents(clientId);
+        const itemsToSave = [];
+
+        if (pendingInterestCents > 0) {
+            const interestPercent = this.getOverdueInterestPercent();
+            itemsToSave.push({
+                id: createTransactionId(TRANSACTION_TYPE_INTEREST),
+                amount: centsToAmount(pendingInterestCents),
+                amountCents: pendingInterestCents,
+                description: `Juros por atraso (${formatOverdueInterestPercent(interestPercent)})`,
+                type: TRANSACTION_TYPE_INTEREST,
+                date: paymentDate
+            });
+        }
+
+        const interestPaidCents = Math.min(paymentCents, pendingInterestCents);
+        const principalPaidCents = Math.max(0, paymentCents - interestPaidCents);
         
         const paymentItem = {
-            id: Date.now().toString(),
-            amount: numericAmount,
-            amountCents: currencyToCents(numericAmount),
-            type: 'payment',
-            date: new Date().toISOString()
+            id: createTransactionId(TRANSACTION_TYPE_PAYMENT),
+            amount: paymentAmount,
+            amountCents: paymentCents,
+            type: TRANSACTION_TYPE_PAYMENT,
+            interestPaidCents,
+            principalPaidCents,
+            date: paymentDate
         };
+        itemsToSave.push(paymentItem);
 
-        this.clients[clientId].sales.push(paymentItem);
+        this.clients[clientId].sales.push(...itemsToSave);
         await this.saveClientData(clientId);
-        await this.upsertActivity(clientId, paymentItem);
-        return true;
+        await Promise.all(itemsToSave.map((item) => this.upsertActivity(clientId, item)));
+        return {
+            success: true,
+            interestCents: pendingInterestCents
+        };
     }
 
     async deleteClient(clientId) {
@@ -610,17 +642,21 @@ class SalesManager {
         // Validar e sanitizar descrição (apenas para vendas)
         const sanitizedDescription = (description || '').trim();
         // Se o valor é 0, a descrição é obrigatória
-        if (numericAmount === 0 && !sanitizedDescription && sale.type === 'sale') {
+        if (numericAmount === 0 && !sanitizedDescription && sale.type === TRANSACTION_TYPE_SALE) {
             throw new Error('Para anotações sem valor, a descrição do produto é obrigatória');
         }
         
         const amountCents = currencyToCents(numericAmount);
         sale.amount = numericAmount;
         sale.amountCents = amountCents;
-        if (sale.type === 'sale') {
+        if (sale.type === TRANSACTION_TYPE_SALE) {
             sale.description = sanitizedDescription;
             sale.isNote = amountCents === 0;
             sale.hasUnpricedItems = amountCents === 0 || saleItemsHaveUnpricedProducts(sale.items) || hasMixedPricedAndUnpricedLines(sanitizedDescription);
+        } else if (sale.type === TRANSACTION_TYPE_PAYMENT) {
+            const previousInterestPaidCents = Math.max(0, Math.round(Number(sale.interestPaidCents) || 0));
+            sale.interestPaidCents = Math.min(amountCents, previousInterestPaidCents);
+            sale.principalPaidCents = Math.max(0, amountCents - sale.interestPaidCents);
         }
         sale.editedAt = new Date().toISOString();
         
@@ -637,21 +673,27 @@ class SalesManager {
         if (!this.clients[clientId]) return 0;
         if (!this.clients[clientId].sales || this.clients[clientId].sales.length === 0) return 0;
 
-        return this.clients[clientId].sales.reduce((total, item) => {
-            const amountInCents = getSaleAmountCents(item);
-            return item.type === 'sale' 
-                ? total + amountInCents
-                : total - amountInCents;
-        }, 0);
+        return this.clients[clientId].sales.reduce((total, item) => total + getTransactionDebtDeltaCents(item), 0);
+    }
+
+    getClientPrincipalDebtCents(clientId) {
+        if (!this.clients[clientId]) return 0;
+        if (!this.clients[clientId].sales || this.clients[clientId].sales.length === 0) return 0;
+
+        return this.clients[clientId].sales.reduce((total, item) => total + getPrincipalDebtDeltaCents(item), 0);
     }
 
     getClientInterestCents(clientId) {
-        const baseDebtCents = this.getBaseClientDebtCents(clientId);
-        if (baseDebtCents <= 0) return 0;
+        const debtCents = this.getBaseClientDebtCents(clientId);
+        if (debtCents <= 0) return 0;
         if (!this.isOverdueInterestEnabled()) return 0;
         if (!this.isOverdue(clientId)) return 0;
 
-        return Math.round(baseDebtCents * (this.getOverdueInterestPercent() / 100));
+        const principalDebtCents = this.getClientPrincipalDebtCents(clientId);
+        if (principalDebtCents <= 0) return 0;
+
+        const interestBaseCents = Math.min(principalDebtCents, debtCents);
+        return Math.round(interestBaseCents * (this.getOverdueInterestPercent() / 100));
     }
 
     getClientDebtCents(clientId) {
@@ -674,7 +716,7 @@ class SalesManager {
     getClientSalesCount(clientId) {
         if (!this.clients[clientId]) return 0;
         if (!this.clients[clientId].sales) return 0;
-        return this.clients[clientId].sales.filter(s => s.type === 'sale').length;
+        return this.clients[clientId].sales.filter(s => s.type === TRANSACTION_TYPE_SALE).length;
     }
 
     hasUnpricedNotes(clientId) {
@@ -692,7 +734,7 @@ class SalesManager {
     getLastPaymentDate(clientId) {
         if (!this.clients[clientId]) return null;
         if (!this.clients[clientId].sales) return null;
-        const payments = this.clients[clientId].sales.filter(s => s.type === 'payment');
+        const payments = this.clients[clientId].sales.filter(s => s.type === TRANSACTION_TYPE_PAYMENT);
         if (payments.length === 0) return null;
         // Retorna a data do pagamento mais recente
         return payments.reduce((latest, p) => {
@@ -716,7 +758,7 @@ class SalesManager {
         // Nunca pagou: usa a data da primeira venda
         const client = this.clients[clientId];
         if (!client?.sales || client.sales.length === 0) return 0;
-        const firstSale = client.sales.find(s => s.type === 'sale');
+        const firstSale = client.sales.find(s => s.type === TRANSACTION_TYPE_SALE);
         if (!firstSale) return 0;
 
         return Math.floor((now - new Date(firstSale.date)) / (1000 * 60 * 60 * 24));
@@ -1063,7 +1105,7 @@ function hasMixedPricedAndUnpricedLines(description) {
 }
 
 function saleHasUnpricedProducts(sale) {
-    if (!sale || sale.type !== 'sale') return false;
+    if (!sale || sale.type !== TRANSACTION_TYPE_SALE) return false;
     return Boolean(sale.isNote)
         || getSaleAmountCents(sale) === 0
         || saleItemsHaveUnpricedProducts(sale.items)
@@ -1186,6 +1228,40 @@ function getSaleAmountCents(saleItem) {
 
 function getSaleAmount(saleItem) {
     return centsToAmount(getSaleAmountCents(saleItem));
+}
+
+function createTransactionId(type = '') {
+    const suffix = type ? `_${type}` : '';
+    const randomPart = Math.random().toString(36).slice(2, 8);
+    return `${Date.now()}${suffix}_${randomPart}`;
+}
+
+function isDebtIncreaseTransaction(item) {
+    return item?.type === TRANSACTION_TYPE_SALE || item?.type === TRANSACTION_TYPE_INTEREST;
+}
+
+function getTransactionDebtDeltaCents(item) {
+    const amountInCents = getSaleAmountCents(item);
+    if (isDebtIncreaseTransaction(item)) return amountInCents;
+    if (item?.type === TRANSACTION_TYPE_PAYMENT) return -amountInCents;
+    return 0;
+}
+
+function getPaymentPrincipalCents(paymentItem) {
+    if (paymentItem?.type !== TRANSACTION_TYPE_PAYMENT) return 0;
+
+    const directPrincipal = Number(paymentItem?.principalPaidCents);
+    if (Number.isFinite(directPrincipal)) {
+        return Math.max(0, Math.round(directPrincipal));
+    }
+
+    return getSaleAmountCents(paymentItem);
+}
+
+function getPrincipalDebtDeltaCents(item) {
+    if (item?.type === TRANSACTION_TYPE_SALE) return getSaleAmountCents(item);
+    if (item?.type === TRANSACTION_TYPE_PAYMENT) return -getPaymentPrincipalCents(item);
+    return 0;
 }
 
 function saleItemsHaveUnpricedProducts(items) {
@@ -1955,20 +2031,17 @@ function getClientListModel(client, now = new Date()) {
     let lastPaymentDate = null;
 
     for (const item of sales) {
-        const amountInCents = getSaleAmountCents(item);
+        baseDebtCents += getTransactionDebtDeltaCents(item);
 
-        if (item.type === 'sale') {
+        if (item.type === TRANSACTION_TYPE_SALE) {
             salesCount += 1;
-            baseDebtCents += amountInCents;
             hasNotes = hasNotes || saleHasUnpricedProducts(item);
 
             if (!firstSaleDate && item.date) {
                 const date = new Date(item.date);
                 if (!Number.isNaN(date.getTime())) firstSaleDate = date;
             }
-        } else if (item.type === 'payment') {
-            baseDebtCents -= amountInCents;
-
+        } else if (item.type === TRANSACTION_TYPE_PAYMENT) {
             if (item.date) {
                 const date = new Date(item.date);
                 if (!Number.isNaN(date.getTime()) && (!lastPaymentDate || date > lastPaymentDate)) {
@@ -1988,8 +2061,10 @@ function getClientListModel(client, now = new Date()) {
     }
 
     const isOverdue = baseDebtCents > 0 && overdueDays >= manager.getOverdueAlertDays();
+    const principalDebtCents = Math.max(0, sales.reduce((total, item) => total + getPrincipalDebtDeltaCents(item), 0));
+    const interestBaseCents = Math.min(principalDebtCents, baseDebtCents);
     const interestCents = isOverdue && manager.isOverdueInterestEnabled()
-        ? Math.round(baseDebtCents * (manager.getOverdueInterestPercent() / 100))
+        ? Math.round(interestBaseCents * (manager.getOverdueInterestPercent() / 100))
         : 0;
     const debtCents = baseDebtCents + interestCents;
 
@@ -2358,12 +2433,17 @@ function openClientModal(clientId, options = {}) {
 
         salesHistory.innerHTML = sortedSales.map(sale => {
             const isNote = saleHasUnpricedProducts(sale);
+            const isPayment = sale.type === TRANSACTION_TYPE_PAYMENT;
+            const isInterest = sale.type === TRANSACTION_TYPE_INTEREST;
             const saleAmount = getSaleAmount(sale);
             let saleTypeLabel = '';
             let saleAmountText = '';
             
-            if (sale.type === 'payment') {
+            if (isPayment) {
                 saleTypeLabel = '✓ Pagamento:';
+                saleAmountText = `R$ ${formatCurrency(saleAmount)}`;
+            } else if (isInterest) {
+                saleTypeLabel = 'Juros:';
                 saleAmountText = `R$ ${formatCurrency(saleAmount)}`;
             } else if (sale.isNote || getSaleAmountCents(sale) === 0) {
                 saleTypeLabel = '📝 Anotação:';
@@ -2377,7 +2457,7 @@ function openClientModal(clientId, options = {}) {
             }
             
             return `
-            <div class="sale-item ${sale.type === 'payment' ? 'payment-item' : ''} ${isNote ? 'note-item' : ''}">
+            <div class="sale-item ${isPayment ? 'payment-item' : ''} ${isInterest ? 'interest-item' : ''} ${isNote ? 'note-item' : ''}">
                 <div class="sale-info">
                     <div class="sale-date">${formatDate(sale.date)}${sale.editedAt ? ' <span class="edited-badge">(editado)</span>' : ''}</div>
                     <div class="sale-amount">
@@ -2494,9 +2574,13 @@ function openEditSaleModal(saleId) {
     
     currentEditingSaleId = saleId;
     editSaleAmount.value = numberToCurrencyInput(getSaleAmount(sale));
-    editSaleType.textContent = sale.type === 'payment' ? 'Pagamento' : 'Venda';
+    editSaleType.textContent = sale.type === TRANSACTION_TYPE_PAYMENT
+        ? 'Pagamento'
+        : sale.type === TRANSACTION_TYPE_INTEREST
+            ? 'Juros'
+            : 'Venda';
     
-    if (sale.type === 'sale') {
+    if (sale.type === TRANSACTION_TYPE_SALE) {
         editSaleDescription.value = sale.description || '';
         editSaleDescription.parentElement.style.display = 'block';
     } else {
@@ -2538,7 +2622,11 @@ async function deleteSaleItem(saleId) {
     const sale = client.sales.find(s => s.id === saleId);
     if (!sale) return;
     
-    const type = sale.type === 'payment' ? 'pagamento' : 'venda';
+    const type = sale.type === TRANSACTION_TYPE_PAYMENT
+        ? 'pagamento'
+        : sale.type === TRANSACTION_TYPE_INTEREST
+            ? 'juros'
+            : 'venda';
     const confirmed = await showConfirm(
         'Excluir Item',
         `Tem certeza que deseja excluir este ${type} de R$ ${formatCurrency(getSaleAmount(sale))}?`
@@ -2963,9 +3051,12 @@ paymentForm.addEventListener('submit', async (e) => {
     if (!beginFormSubmission(paymentForm)) return;
     showLoader('Salvando...');
     try {
-        await manager.addPayment(manager.currentClientId, numericAmount);
+        const paymentResult = await manager.addPayment(manager.currentClientId, numericAmount);
         hideLoader();
-        showToast('Pagamento registrado com sucesso!', 'success');
+        const successMessage = paymentResult?.interestCents > 0
+            ? `Pagamento registrado. Juros lançados: R$ ${formatCurrency(centsToAmount(paymentResult.interestCents))}.`
+            : 'Pagamento registrado com sucesso!';
+        showToast(successMessage, 'success');
         paymentForm.reset();
         clearFormAutosaveState(paymentForm);
         openClientModal(manager.currentClientId); // Reabrir para atualizar

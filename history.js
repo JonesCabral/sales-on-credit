@@ -51,6 +51,7 @@ const historySearch = document.getElementById('historySearch');
 const clearHistoryFilters = document.getElementById('clearHistoryFilters');
 const historySalesTotal = document.getElementById('historySalesTotal');
 const historyPaymentsTotal = document.getElementById('historyPaymentsTotal');
+const historyInterestTotal = document.getElementById('historyInterestTotal');
 const historyNotesCount = document.getElementById('historyNotesCount');
 const themeToggle = document.getElementById('themeToggle');
 const historyMenu = document.getElementById('historyMenu');
@@ -167,6 +168,7 @@ function activityHasUnpricedProducts(item) {
 
 function matchesActivityType(item, typeFilter) {
     if (typeFilter === 'sale') return item.type === 'sale' && !activityHasUnpricedProducts(item);
+    if (typeFilter === 'interest') return item.type === 'interest';
     if (typeFilter === 'payment') return item.type === 'payment';
     if (typeFilter === 'note') return activityHasUnpricedProducts(item);
     return true;
@@ -174,25 +176,29 @@ function matchesActivityType(item, typeFilter) {
 
 function getActivityLabel(item) {
     if (item.type === 'payment') return 'Recebimento';
+    if (item.type === 'interest') return 'Juros';
     if (item.isNote) return 'Anotação';
     return 'Venda';
 }
 
 function getActivityIcon(item) {
     if (item.type === 'payment') return '✓';
+    if (item.type === 'interest') return 'R$';
     if (item.isNote) return '✎';
     return 'R$';
 }
 
 function getActivityClass(item) {
     if (item.type === 'payment') return 'is-payment';
+    if (item.type === 'interest') return 'is-interest';
     if (activityHasUnpricedProducts(item)) return 'is-note';
     return 'is-sale';
 }
 
-function setStats(saleTotal, paymentTotal, notesCount) {
+function setStats(saleTotal, paymentTotal, notesCount, interestTotal = 0) {
     if (historySalesTotal) historySalesTotal.textContent = `R$ ${formatCurrency(saleTotal)}`;
     if (historyPaymentsTotal) historyPaymentsTotal.textContent = `R$ ${formatCurrency(paymentTotal)}`;
+    if (historyInterestTotal) historyInterestTotal.textContent = `R$ ${formatCurrency(interestTotal)}`;
     if (historyNotesCount) historyNotesCount.textContent = String(notesCount);
 }
 
@@ -274,11 +280,14 @@ function renderActivities() {
     const visibleActivities = filteredActivities.slice(0, limit);
     let saleTotal = 0;
     let paymentTotal = 0;
+    let interestTotal = 0;
     let notesCount = 0;
 
     visibleActivities.forEach((item) => {
         if (item.type === 'payment') {
             paymentTotal += item.amount;
+        } else if (item.type === 'interest') {
+            interestTotal += item.amount;
         } else if (activityHasUnpricedProducts(item)) {
             notesCount += 1;
             if (!item.isNote && Number(item.amount) > 0) {
@@ -289,7 +298,7 @@ function renderActivities() {
         }
     });
 
-    setStats(saleTotal, paymentTotal, notesCount);
+    setStats(saleTotal, paymentTotal, notesCount, interestTotal);
     if (clearHistoryFilters) clearHistoryFilters.hidden = !hasFilters;
 
     if (visibleActivities.length === 0) {
@@ -315,7 +324,11 @@ function normalizeActivityEntry(activity) {
     const amount = Number(activity.amount) || 0;
     const timestamp = Number(activity.timestamp) || new Date(activity.date || 0).getTime() || 0;
     const date = activity.date || (timestamp ? new Date(timestamp).toISOString() : '');
-    const type = activity.type === 'payment' ? 'payment' : 'sale';
+    const type = activity.type === 'payment'
+        ? 'payment'
+        : activity.type === 'interest'
+            ? 'interest'
+            : 'sale';
     const editedAt = activity.editedAt || null;
     const hasUnpricedItems = type === 'sale' && !editedAt && hasMixedPricedAndUnpricedLines(activity.description);
     const isNote = Boolean(activity.isNote) || (type === 'sale' && amount === 0);
@@ -347,7 +360,13 @@ function mapActivitiesFromClients(clientsMap) {
 
         sales.forEach((item) => {
             const amount = Number(item.amount) || 0;
-            const type = item.type === 'payment' ? 'payment' : item.type === 'sale' ? 'sale' : '';
+            const type = item.type === 'payment'
+                ? 'payment'
+                : item.type === 'interest'
+                    ? 'interest'
+                    : item.type === 'sale'
+                        ? 'sale'
+                        : '';
             if (!type) return;
 
             activities.push(normalizeActivityEntry({
@@ -426,7 +445,7 @@ async function hydrateActivitiesIndexFromClients(userId) {
 
         sales.forEach((saleItem) => {
             if (!saleItem?.id) return;
-            if (saleItem.type !== 'sale' && saleItem.type !== 'payment') return;
+            if (saleItem.type !== 'sale' && saleItem.type !== 'payment' && saleItem.type !== 'interest') return;
 
             const key = getActivityKey(resolvedClientId, saleItem.id);
             const timestamp = new Date(saleItem.date || new Date().toISOString()).getTime();
