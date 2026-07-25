@@ -1,6 +1,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getDatabase, ref, onValue, push, set, update, remove, get } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+import { openBarcodeScanner } from './barcode-scanner.js';
 
 const firebaseConfig = {
     apiKey: 'AIzaSyAmtxBsBUy67kuk50M25SPNl6AOhYFeDuY',
@@ -29,6 +30,7 @@ const productIdInput = document.getElementById('productId');
 const productNameInput = document.getElementById('productName');
 const productPriceInput = document.getElementById('productPrice');
 const productBarcodeInput = document.getElementById('productBarcode');
+const scanProductBarcodeButton = document.getElementById('scanProductBarcode');
 const productDescriptionInput = document.getElementById('productDescription');
 const saveProductBtn = document.getElementById('saveProductBtn');
 const cancelProductEdit = document.getElementById('cancelProductEdit');
@@ -63,6 +65,13 @@ function normalizeSearchText(value) {
 
 function normalizeBarcode(value) {
     return String(value || '').replace(/\s+/g, '').trim();
+}
+
+function getBarcodeKey(value) {
+    const normalizedBarcode = normalizeBarcode(value).toLowerCase();
+    return /^0\d{12}$/.test(normalizedBarcode)
+        ? normalizedBarcode.slice(1)
+        : normalizedBarcode;
 }
 
 function sanitizeHTML(value) {
@@ -125,7 +134,7 @@ function showToast(message = 'Salvo com sucesso!', type = 'success') {
 
 function setFormDisabled(disabled) {
     isSaving = disabled;
-    [productNameInput, productPriceInput, productBarcodeInput, productDescriptionInput, saveProductBtn, cancelProductEdit]
+    [productNameInput, productPriceInput, productBarcodeInput, scanProductBarcodeButton, productDescriptionInput, saveProductBtn, cancelProductEdit]
         .forEach((element) => {
             if (element) element.disabled = disabled;
         });
@@ -202,12 +211,44 @@ function assertUniqueProductName(name, editingId) {
 function assertUniqueBarcode(barcode, editingId) {
     if (!barcode) return;
 
-    const normalizedBarcode = normalizeBarcode(barcode).toLowerCase();
+    const normalizedBarcode = getBarcodeKey(barcode);
     const duplicated = getSortedProducts().some((product) => (
         product.id !== editingId
-        && normalizeBarcode(product.barcode).toLowerCase() === normalizedBarcode
+        && getBarcodeKey(product.barcode) === normalizedBarcode
     ));
     if (duplicated) throw new Error('Ja existe um produto com este codigo de barras.');
+}
+
+function findProductByBarcode(barcode, ignoredProductId = '') {
+    const normalizedBarcode = getBarcodeKey(barcode);
+    if (!normalizedBarcode) return null;
+    return getSortedProducts().find((product) => (
+        product.id !== ignoredProductId
+        && getBarcodeKey(product.barcode) === normalizedBarcode
+    )) || null;
+}
+
+async function scanProductBarcode() {
+    await openBarcodeScanner({
+        title: 'Ler codigo do produto',
+        onDetected: (barcode) => {
+            const editingId = productIdInput.value || '';
+            const duplicatedProduct = findProductByBarcode(barcode, editingId);
+            productBarcodeInput.value = barcode;
+            productBarcodeInput.dispatchEvent(new Event('input', { bubbles: true }));
+            productBarcodeInput.focus();
+
+            if (duplicatedProduct) {
+                const message = `Este codigo ja pertence ao produto "${duplicatedProduct.name}".`;
+                setStatus(message, 'error');
+                showToast(message, 'error');
+                return;
+            }
+
+            setStatus('Codigo de barras lido. Complete os dados e salve o produto.', 'success');
+            showToast('Codigo de barras lido com sucesso!', 'success');
+        }
+    });
 }
 
 async function saveProduct() {
@@ -385,6 +426,7 @@ productForm?.addEventListener('submit', async (event) => {
 });
 
 cancelProductEdit?.addEventListener('click', resetProductForm);
+scanProductBarcodeButton?.addEventListener('click', scanProductBarcode);
 productsSearch?.addEventListener('input', debounce(renderProducts, SEARCH_DEBOUNCE_MS));
 productsList?.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-action]');

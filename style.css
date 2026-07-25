@@ -122,6 +122,10 @@ body.menu-open {
     overflow: hidden;
 }
 
+body.barcode-scanner-open {
+    overflow: hidden;
+}
+
 /* Loading Screen */
 .loading-screen {
     position: fixed;
@@ -1111,6 +1115,52 @@ form {
 .product-picker-wrapper input,
 .product-picker-wrapper textarea {
     width: 100%;
+}
+
+.product-search-row,
+.barcode-input-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.55rem;
+    align-items: stretch;
+}
+
+.btn-camera-scan {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-width: 82px;
+    min-height: 46px;
+    padding: 0.65rem 0.85rem;
+    border: 1px solid var(--primary-color);
+    border-radius: 10px;
+    background: rgba(37, 99, 235, 0.1);
+    color: var(--primary-dark);
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+    touch-action: manipulation;
+}
+
+.btn-camera-scan:hover {
+    background: var(--primary-color);
+    color: #ffffff;
+}
+
+.btn-camera-scan:active {
+    transform: scale(0.97);
+}
+
+.btn-camera-scan:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.28);
+    outline-offset: 2px;
+}
+
+.btn-camera-scan:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
 }
 
 .description-price-highlight {
@@ -2502,6 +2552,149 @@ input:focus, select:focus, textarea:focus {
     overflow-wrap: anywhere;
 }
 
+.barcode-scanner-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 20000;
+    display: grid;
+    place-items: center;
+    padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+    background: rgba(2, 6, 23, 0.88);
+    backdrop-filter: blur(6px);
+}
+
+.barcode-scanner-modal[hidden] {
+    display: none;
+}
+
+.barcode-scanner-panel {
+    width: min(540px, 100%);
+    max-height: calc(100dvh - 2rem);
+    overflow: auto;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 18px;
+    background: var(--card-bg);
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
+}
+
+.barcode-scanner-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1rem 0.9rem;
+}
+
+.barcode-scanner-header h2 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.15rem;
+}
+
+.barcode-scanner-header p {
+    margin: 0.2rem 0 0;
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+}
+
+.barcode-scanner-close {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    background: var(--background);
+    color: var(--text-primary);
+    font-size: 1.7rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.barcode-camera-stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    background: #020617;
+}
+
+.barcode-camera-video {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.barcode-camera-guide {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 84%;
+    height: 34%;
+    border: 2px solid rgba(255, 255, 255, 0.95);
+    border-radius: 14px;
+    box-shadow: 0 0 0 999px rgba(2, 6, 23, 0.28);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+.barcode-camera-line {
+    position: absolute;
+    right: 5%;
+    left: 5%;
+    top: 50%;
+    height: 2px;
+    border-radius: 999px;
+    background: #22c55e;
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.9);
+    animation: barcode-scan-line 1.35s ease-in-out infinite;
+}
+
+@keyframes barcode-scan-line {
+    0%, 100% { transform: translateY(-42px); opacity: 0.65; }
+    50% { transform: translateY(42px); opacity: 1; }
+}
+
+.barcode-scan-success .barcode-camera-guide {
+    border-color: #22c55e;
+    box-shadow: 0 0 0 999px rgba(2, 6, 23, 0.34), 0 0 24px rgba(34, 197, 94, 0.72);
+}
+
+.barcode-scanner-status {
+    min-height: 2.6rem;
+    margin: 0;
+    padding: 0.85rem 1rem 0.2rem;
+    color: var(--text-secondary);
+    text-align: center;
+    font-size: 0.92rem;
+    font-weight: 700;
+}
+
+.barcode-scanner-status[data-status="detecting"] {
+    color: var(--warning-dark);
+}
+
+.barcode-scanner-status[data-status="success"] {
+    color: var(--success-dark);
+}
+
+.barcode-scanner-status[data-status="error"] {
+    color: var(--danger-color);
+}
+
+.barcode-scanner-actions {
+    display: flex;
+    justify-content: center;
+    gap: 0.65rem;
+    padding: 0.8rem 1rem 1rem;
+}
+
+.barcode-scanner-actions .btn {
+    min-height: 44px;
+}
+
 .product-actions {
     position: relative;
     display: flex;
@@ -2567,6 +2760,36 @@ input:focus, select:focus, textarea:focus {
 
     .product-field-barcode {
         grid-column: auto;
+    }
+
+    .barcode-scanner-modal {
+        padding: 0;
+    }
+
+    .barcode-scanner-panel {
+        width: 100%;
+        max-height: 100dvh;
+        border: 0;
+        border-radius: 0;
+    }
+
+    .barcode-camera-stage {
+        aspect-ratio: 3 / 4;
+        max-height: 64dvh;
+    }
+
+    .barcode-camera-guide {
+        width: 88%;
+        height: 27%;
+    }
+
+    .barcode-scanner-actions {
+        padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+
+    .btn-camera-scan {
+        min-width: 72px;
+        padding-inline: 0.7rem;
     }
 
     .product-title-row {
@@ -4118,6 +4341,16 @@ input:focus, select:focus, textarea:focus {
     --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.4);
     --shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.5);
     color-scheme: dark;
+}
+
+[data-theme="dark"] .btn-camera-scan {
+    border-color: #60a5fa;
+    background: rgba(59, 130, 246, 0.16);
+    color: #bfdbfe;
+}
+
+[data-theme="dark"] .barcode-scanner-status[data-status="success"] {
+    color: #4ade80;
 }
 
 [data-theme="dark"] header {

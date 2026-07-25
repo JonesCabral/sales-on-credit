@@ -2,6 +2,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getDatabase, ref, set, remove, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+import { openBarcodeScanner } from './barcode-scanner.js';
 
 // Configuração do Firebase
 // IMPORTANTE: Para produção, mova as configurações para variáveis de ambiente
@@ -23,7 +24,7 @@ const database = getDatabase(app);
 const auth = getAuth(app);
 
 // Versão da aplicação
-const APP_VERSION = '2.1.18';
+const APP_VERSION = '2.1.24';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -855,6 +856,8 @@ const saleDescriptionInput = document.getElementById('saleDescription');
 const saleProductSearchInput = document.getElementById('saleProductSearch');
 const saleProductSuggestions = document.getElementById('saleProductSuggestions');
 const saleItemsList = document.getElementById('saleItemsList');
+const scanSaleProductButton = document.getElementById('scanSaleProduct');
+const scanModalSaleProductButton = document.getElementById('scanModalSaleProduct');
 const clientNameInput = document.getElementById('clientNameInput');
 const modal = document.getElementById('clientModal');
 const closeModal = document.querySelector('.close');
@@ -989,6 +992,8 @@ loadSaleDescriptionDraft();
 syncSettingsUI();
 setupProductPicker(saleProductSearchInput, saleAmountInput, saleProductSuggestions, saleItemsList);
 setupProductPicker(modalSaleProductSearchInput, modalSaleAmountInput, modalSaleProductSuggestions, modalSaleItemsList);
+setupProductCameraScanner(scanSaleProductButton, saleProductSearchInput, saleAmountInput, saleProductSuggestions, saleItemsList);
+setupProductCameraScanner(scanModalSaleProductButton, modalSaleProductSearchInput, modalSaleAmountInput, modalSaleProductSuggestions, modalSaleItemsList);
 setupClientModalProductSearchCompaction();
 
 if (saleDescriptionInput) {
@@ -1765,7 +1770,18 @@ function getProductSearchTerm(textarea) {
 }
 
 function normalizeBarcode(value) {
-    return String(value || '').replace(/\s+/g, '').trim().toLowerCase();
+    const normalizedBarcode = String(value || '').replace(/\s+/g, '').trim().toLowerCase();
+    return /^0\d{12}$/.test(normalizedBarcode)
+        ? normalizedBarcode.slice(1)
+        : normalizedBarcode;
+}
+
+function findProductByBarcode(barcode) {
+    const normalizedBarcode = normalizeBarcode(barcode);
+    if (!normalizedBarcode) return null;
+    return getSortedProducts().find((product) => (
+        product.barcode && normalizeBarcode(product.barcode) === normalizedBarcode
+    )) || null;
 }
 
 function moveTextareaCursorToEnd(textarea) {
@@ -1995,9 +2011,7 @@ function setupProductPicker(searchInput, amountInput, dropdown, listElement) {
         const scannedBarcode = normalizeBarcode(getProductSearchTerm(searchInput));
         if (!scannedBarcode) return;
 
-        const product = getSortedProducts().find((item) => (
-            item.barcode && normalizeBarcode(item.barcode) === scannedBarcode
-        ));
+        const product = findProductByBarcode(scannedBarcode);
         if (!product) return;
 
         event.preventDefault();
@@ -2056,6 +2070,32 @@ function setupProductPicker(searchInput, amountInput, dropdown, listElement) {
     document.addEventListener('click', (event) => {
         if (searchInput.contains(event.target) || dropdown.contains(event.target)) return;
         hideProductSuggestions(dropdown);
+    });
+}
+
+function setupProductCameraScanner(button, searchInput, amountInput, dropdown, listElement) {
+    if (!button || !searchInput || !amountInput || !dropdown) return;
+
+    button.addEventListener('click', async () => {
+        await openBarcodeScanner({
+            title: 'Ler produto',
+            onDetected: (barcode) => {
+                const product = findProductByBarcode(barcode);
+                if (!product) {
+                    searchInput.value = barcode;
+                    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    showToast('Codigo nao cadastrado. Cadastre o produto antes da venda.', 'error');
+                    return;
+                }
+
+                if (appendSelectedProduct(searchInput, amountInput, product, 1)) {
+                    renderSaleItemsList(searchInput, listElement, amountInput);
+                    hideProductSuggestions(dropdown);
+                    showToast(`${product.name} adicionado pela camera.`, 'success');
+                    searchInput.focus();
+                }
+            }
+        });
     });
 }
 
