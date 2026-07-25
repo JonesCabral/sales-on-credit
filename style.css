@@ -2408,6 +2408,16 @@ input:focus, select:focus, textarea:focus {
     grid-column: 1 / -1;
 }
 
+.product-field-barcode {
+    grid-column: span 2;
+}
+
+.optional-label {
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    font-weight: 500;
+}
+
 .product-active-field {
     align-self: flex-start;
 }
@@ -2481,6 +2491,17 @@ input:focus, select:focus, textarea:focus {
     font-size: 0.92rem;
 }
 
+.product-barcode {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    margin: 0.55rem 0 0;
+    color: var(--text-secondary);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.86rem;
+    overflow-wrap: anywhere;
+}
+
 .product-actions {
     position: relative;
     display: flex;
@@ -2542,6 +2563,10 @@ input:focus, select:focus, textarea:focus {
     .products-controls,
     .product-item {
         grid-template-columns: 1fr;
+    }
+
+    .product-field-barcode {
+        grid-column: auto;
     }
 
     .product-title-row {

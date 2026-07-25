@@ -1764,6 +1764,10 @@ function getProductSearchTerm(textarea) {
     return lines[lines.length - 1].trim();
 }
 
+function normalizeBarcode(value) {
+    return String(value || '').replace(/\s+/g, '').trim().toLowerCase();
+}
+
 function moveTextareaCursorToEnd(textarea) {
     if (!textarea) return;
 
@@ -1863,7 +1867,7 @@ function renderProductSuggestions(searchInput, amountInput, dropdown) {
     }
 
     const matches = getSortedProducts()
-        .filter((product) => normalizeProductSearch([product.name, product.description].join(' ')).includes(search))
+        .filter((product) => normalizeProductSearch([product.name, product.description, product.barcode].join(' ')).includes(search))
         .slice(0, 8);
 
     if (matches.length === 0) {
@@ -1984,6 +1988,24 @@ function setupProductPicker(searchInput, amountInput, dropdown, listElement) {
     });
     searchInput.addEventListener('focus', () => {
         renderProductSuggestions(searchInput, amountInput, dropdown);
+    });
+    searchInput.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+
+        const scannedBarcode = normalizeBarcode(getProductSearchTerm(searchInput));
+        if (!scannedBarcode) return;
+
+        const product = getSortedProducts().find((item) => (
+            item.barcode && normalizeBarcode(item.barcode) === scannedBarcode
+        ));
+        if (!product) return;
+
+        event.preventDefault();
+        if (appendSelectedProduct(searchInput, amountInput, product, 1)) {
+            renderSaleItemsList(searchInput, listElement, amountInput);
+            hideProductSuggestions(dropdown);
+            showToast(`${product.name} adicionado.`, 'success');
+        }
     });
 
     dropdown.addEventListener('click', (event) => {

@@ -20,6 +20,7 @@ const auth = getAuth(app);
 const MAX_PRICE = 1000000;
 const MAX_NAME_LENGTH = 100;
 const MAX_DESCRIPTION_LENGTH = 240;
+const MAX_BARCODE_LENGTH = 64;
 const SEARCH_DEBOUNCE_MS = 160;
 const currencyFormatter = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -27,6 +28,7 @@ const productForm = document.getElementById('productForm');
 const productIdInput = document.getElementById('productId');
 const productNameInput = document.getElementById('productName');
 const productPriceInput = document.getElementById('productPrice');
+const productBarcodeInput = document.getElementById('productBarcode');
 const productDescriptionInput = document.getElementById('productDescription');
 const saveProductBtn = document.getElementById('saveProductBtn');
 const cancelProductEdit = document.getElementById('cancelProductEdit');
@@ -57,6 +59,10 @@ function debounce(callback, delay) {
 
 function normalizeSearchText(value) {
     return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+function normalizeBarcode(value) {
+    return String(value || '').replace(/\s+/g, '').trim();
 }
 
 function sanitizeHTML(value) {
@@ -119,7 +125,7 @@ function showToast(message = 'Salvo com sucesso!', type = 'success') {
 
 function setFormDisabled(disabled) {
     isSaving = disabled;
-    [productNameInput, productPriceInput, productDescriptionInput, saveProductBtn, cancelProductEdit]
+    [productNameInput, productPriceInput, productBarcodeInput, productDescriptionInput, saveProductBtn, cancelProductEdit]
         .forEach((element) => {
             if (element) element.disabled = disabled;
         });
@@ -146,7 +152,7 @@ function getFilteredProducts() {
 
     return getSortedProducts().filter((product) => {
         if (!search) return true;
-        const haystack = normalizeSearchText([product.name, product.description].join(' '));
+        const haystack = normalizeSearchText([product.name, product.description, product.barcode].join(' '));
         return haystack.includes(search);
     });
 }
@@ -161,6 +167,7 @@ function resetProductForm() {
 function buildProductPayload() {
     const name = productNameInput.value.trim();
     const price = parseCurrency(productPriceInput.value);
+    const barcode = normalizeBarcode(productBarcodeInput.value);
     const description = productDescriptionInput.value.trim();
 
     if (!name) throw new Error('Informe o nome do produto.');
@@ -168,6 +175,8 @@ function buildProductPayload() {
     if (name.length > MAX_NAME_LENGTH) throw new Error(`O nome nao pode ter mais que ${MAX_NAME_LENGTH} caracteres.`);
     if (!Number.isFinite(price) || price <= 0) throw new Error('Informe um valor valido maior que zero.');
     if (price > MAX_PRICE) throw new Error('O valor nao pode ser maior que R$ 1.000.000,00.');
+    if (barcode.length > MAX_BARCODE_LENGTH) throw new Error(`O codigo de barras nao pode ter mais que ${MAX_BARCODE_LENGTH} caracteres.`);
+    if (barcode && /[\u0000-\u001f\u007f]/.test(barcode)) throw new Error('Informe um codigo de barras valido.');
     if (description.length > MAX_DESCRIPTION_LENGTH) throw new Error(`A descricao nao pode ter mais que ${MAX_DESCRIPTION_LENGTH} caracteres.`);
 
     return {
@@ -175,6 +184,7 @@ function buildProductPayload() {
         price: Math.round((price + Number.EPSILON) * 100) / 100,
         stock: null,
         sku: '',
+        barcode: barcode || null,
         description,
         active: true,
         updatedAt: new Date().toISOString()
@@ -189,12 +199,24 @@ function assertUniqueProductName(name, editingId) {
     if (duplicated) throw new Error('Ja existe um produto com este nome.');
 }
 
+function assertUniqueBarcode(barcode, editingId) {
+    if (!barcode) return;
+
+    const normalizedBarcode = normalizeBarcode(barcode).toLowerCase();
+    const duplicated = getSortedProducts().some((product) => (
+        product.id !== editingId
+        && normalizeBarcode(product.barcode).toLowerCase() === normalizedBarcode
+    ));
+    if (duplicated) throw new Error('Ja existe um produto com este codigo de barras.');
+}
+
 async function saveProduct() {
     if (!currentUserId || isSaving) return;
 
     const editingId = productIdInput.value || '';
     const payload = buildProductPayload();
     assertUniqueProductName(payload.name, editingId);
+    assertUniqueBarcode(payload.barcode, editingId);
 
     setFormDisabled(true);
     setStatus(editingId ? 'Atualizando produto...' : 'Salvando produto...');
@@ -249,6 +271,7 @@ function editProduct(productId) {
     productIdInput.value = productId;
     productNameInput.value = product.name || '';
     productPriceInput.value = `R$ ${formatCurrency(product.price)}`;
+    productBarcodeInput.value = product.barcode || '';
     productDescriptionInput.value = product.description || '';
     saveProductBtn.textContent = 'Atualizar produto';
     cancelProductEdit.hidden = false;
@@ -286,6 +309,7 @@ function renderProducts() {
                         <h3>${sanitizeHTML(product.name)}</h3>
                         <span class="product-price">R$ ${formatCurrency(product.price)}</span>
                     </div>
+                    ${product.barcode ? `<p class="product-barcode"><span aria-hidden="true">&#9646;&#9646;&#9646;</span> Codigo: ${sanitizeHTML(product.barcode)}</p>` : ''}
                     ${product.description ? `<p class="product-description">${sanitizeHTML(product.description)}</p>` : ''}
                 </div>
                 <div class="product-actions">
