@@ -181,6 +181,11 @@
     color: var(--primary-dark);
 }
 
+.client-view-page .interest-deadline-interest-amount {
+    background: rgba(245, 158, 11, 0.14);
+    color: #b45309;
+}
+
 .client-view-page.interest-rules-open {
     overflow: hidden;
 }
@@ -639,6 +644,11 @@
 [data-theme="dark"] .client-view-page .interest-deadline-highlight {
     background: rgba(45, 212, 191, 0.14);
     color: #5eead4;
+}
+
+[data-theme="dark"] .client-view-page .interest-deadline-interest-amount {
+    background: rgba(245, 158, 11, 0.16);
+    color: #fbbf24;
 }
 
 [data-theme="dark"] .client-view-page .interest-deadline.overdue {

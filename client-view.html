@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=2.1.26">
-    <link rel="stylesheet" href="client-view.css?v=2.1.26">
+    <link rel="stylesheet" href="client-view.css?v=2.1.27">
     <script>
         (function() {
             const saved = localStorage.getItem('theme');
@@ -361,9 +361,10 @@
             const interestPercent = normalizeOverdueInterestPercent(interestSettings.percent);
             const interestEnabled = interestSettings.enabled === true && interestPercent > 0;
             const interestBaseCents = Math.min(Math.max(0, principalDebtCents), baseDebtCents);
-            const interestCents = isOverdue && interestEnabled && interestBaseCents > 0
+            const projectedInterestCents = interestEnabled && interestBaseCents > 0
                 ? Math.round(interestBaseCents * (interestPercent / 100))
                 : 0;
+            const interestCents = isOverdue ? projectedInterestCents : 0;
             const daysUntilInterest = interestEnabled && baseDebtCents > 0
                 ? Math.max(0, overdueDays - daysSinceRef)
                 : null;
@@ -372,6 +373,7 @@
                 baseDebt: centsToAmount(baseDebtCents),
                 totalDebt: centsToAmount(baseDebtCents + interestCents),
                 interestAmount: centsToAmount(interestCents),
+                projectedInterestAmount: centsToAmount(projectedInterestCents),
                 interestPercent,
                 interestEnabled,
                 resetPaymentPercent,
@@ -403,6 +405,11 @@
                 currencyToCents(debtDetails.baseDebt) * (resetPaymentPercent / 100)
             );
             const minimumPaymentAmountText = `R$ ${formatCurrency(centsToAmount(minimumPaymentCents))}`;
+            const displayedInterestAmount = debtDetails.isOverdue
+                ? debtDetails.interestAmount
+                : debtDetails.projectedInterestAmount;
+            const interestAmountText = `R$ ${formatCurrency(displayedInterestAmount)}`;
+            const interestLabel = debtDetails.isOverdue ? 'Juros aplicados:' : 'Juros após o prazo:';
             const minimumPaymentValue = resetPaymentPercent <= 0
                 ? '<strong class="interest-deadline-highlight">Qualquer valor</strong>'
                 : `
@@ -418,7 +425,7 @@
             if (debtDetails.isOverdue) {
                 deadlineValue = 'Vencido';
                 deadlineNote = debtDetails.interestAmount > 0
-                    ? `O saldo já considera ${formattedPercent} de juros por atraso.`
+                    ? 'O valor dos juros já está incluído no saldo atual.'
                     : 'O prazo sem juros terminou.';
             } else {
                 const daysUntilInterest = Number(debtDetails.daysUntilInterest);
@@ -434,6 +441,13 @@
                     <strong class="interest-deadline-highlight">${deadlineValue}</strong>
                 </span>
                 <span class="interest-deadline-row">
+                    <span class="interest-deadline-label">${interestLabel}</span>
+                    <span class="interest-deadline-value">
+                        <strong class="interest-deadline-highlight interest-deadline-interest-amount">${interestAmountText}</strong>
+                        <span class="interest-deadline-percent">(${formattedPercent})</span>
+                    </span>
+                </span>
+                <span class="interest-deadline-row">
                     <span class="interest-deadline-label">Pagamento mínimo:</span>
                     ${minimumPaymentValue}
                 </span>
@@ -445,6 +459,10 @@
             if (!debtDetails?.interestEnabled || debtDetails.baseDebt <= 0) return '';
 
             const formattedInterest = formatOverdueInterestPercent(debtDetails.interestPercent);
+            const displayedInterestAmount = debtDetails.isOverdue
+                ? debtDetails.interestAmount
+                : debtDetails.projectedInterestAmount;
+            const formattedInterestAmount = `R$ ${formatCurrency(displayedInterestAmount)}`;
             const resetPaymentPercent = normalizeOverdueResetPaymentPercent(debtDetails.resetPaymentPercent);
             const formattedResetPayment = formatOverdueResetPaymentPercent(resetPaymentPercent);
             const minimumPaymentCents = Math.ceil(
@@ -459,7 +477,7 @@
 
             return `
                 <p>O prazo sem juros é de ${overdueLimitText}.</p>
-                <p>Depois desse prazo, podem ser aplicados ${formattedInterest} de juros.</p>
+                <p>Depois desse prazo, podem ser aplicados ${formattedInterest} de juros (${formattedInterestAmount}).</p>
                 <p>Para renovar o prazo, ${resetRule} O pagamento também reduz o saldo.</p>
             `;
         }
@@ -570,7 +588,7 @@
                 statusValue.textContent = `R$ ${formatCurrency(debt)}`;
                 statusValue.className = 'status-value debt';
                 statusText.textContent = debtDetails.interestAmount > 0
-                    ? `Você tem R$ ${formatCurrency(debt)} em aberto, com ${formatOverdueInterestPercent(debtDetails.interestPercent)} de juros por atraso.`
+                    ? `Você tem R$ ${formatCurrency(debt)} em aberto, com R$ ${formatCurrency(debtDetails.interestAmount)} (${formatOverdueInterestPercent(debtDetails.interestPercent)}) de juros por atraso.`
                     : `Você tem R$ ${formatCurrency(debt)} em aberto.`;
                 statusCard.classList.add('debt-status');
             }
