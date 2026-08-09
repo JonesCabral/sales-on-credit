@@ -24,7 +24,7 @@ const database = getDatabase(app);
 const auth = getAuth(app);
 
 // Versão da aplicação
-const APP_VERSION = '2.1.33';
+const APP_VERSION = '2.1.34';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -452,6 +452,7 @@ class SalesManager {
                 items: Array.isArray(saleItem.items) ? saleItem.items : [],
                 interestPaidCents: Number.isFinite(Number(saleItem.interestPaidCents)) ? Math.round(Number(saleItem.interestPaidCents)) : 0,
                 principalPaidCents: Number.isFinite(Number(saleItem.principalPaidCents)) ? Math.round(Number(saleItem.principalPaidCents)) : 0,
+                settlesPreviouslyAppliedInterest: saleItem.settlesPreviouslyAppliedInterest === true,
                 relatedInterestId: saleItem.relatedInterestId || null,
                 relatedPaymentId: saleItem.relatedPaymentId || null,
                 automaticInterest: saleItem.automaticInterest === true,
@@ -587,6 +588,7 @@ class SalesManager {
         const paymentAmount = centsToAmount(paymentCents);
         const paymentDate = new Date().toISOString();
         const pendingInterestCents = this.getClientInterestCents(clientId);
+        const outstandingInterestCents = this.getClientOutstandingInterestCents(clientId);
         const itemsToSave = [];
         const paymentId = createTransactionId(TRANSACTION_TYPE_PAYMENT);
         const interestId = pendingInterestCents > 0 ? createTransactionId(TRANSACTION_TYPE_INTEREST) : null;
@@ -605,8 +607,10 @@ class SalesManager {
             });
         }
 
-        const interestPaidCents = Math.min(paymentCents, pendingInterestCents);
+        const totalInterestDueCents = outstandingInterestCents + pendingInterestCents;
+        const interestPaidCents = Math.min(paymentCents, totalInterestDueCents);
         const principalPaidCents = Math.max(0, paymentCents - interestPaidCents);
+        const settlesPreviouslyAppliedInterest = pendingInterestCents === 0 && interestPaidCents > 0;
         
         const paymentItem = {
             id: paymentId,
@@ -615,6 +619,7 @@ class SalesManager {
             type: TRANSACTION_TYPE_PAYMENT,
             interestPaidCents,
             principalPaidCents,
+            settlesPreviouslyAppliedInterest,
             relatedInterestId: interestId,
             date: paymentDate
         };
@@ -851,7 +856,14 @@ class SalesManager {
         if (!this.clients[clientId]) return 0;
         if (!this.clients[clientId].sales || this.clients[clientId].sales.length === 0) return 0;
 
-        return this.clients[clientId].sales.reduce((total, item) => total + getPrincipalDebtDeltaCents(item), 0);
+        return calculateDebtComponents(this.clients[clientId].sales).principalDebtCents;
+    }
+
+    getClientOutstandingInterestCents(clientId) {
+        if (!this.clients[clientId]) return 0;
+        if (!this.clients[clientId].sales || this.clients[clientId].sales.length === 0) return 0;
+
+        return calculateDebtComponents(this.clients[clientId].sales).outstandingInterestCents;
     }
 
     getClientInterestCents(clientId) {
@@ -859,6 +871,14 @@ class SalesManager {
         if (debtCents <= 0) return 0;
         if (!this.isOverdueInterestEnabled(clientId)) return 0;
         if (!this.isOverdue(clientId)) return 0;
+
+        const sales = this.clients[clientId]?.sales || [];
+        const { firstSaleDate, lastPaymentDate } = getOverdueReferenceDates(
+            sales,
+            this.getOverdueResetPaymentPercent()
+        );
+        const overdueReferenceDate = lastPaymentDate || firstSaleDate;
+        if (hasAutomaticInterestAppliedAfterReference(sales, overdueReferenceDate)) return 0;
 
         const principalDebtCents = this.getClientPrincipalDebtCents(clientId);
         if (principalDebtCents <= 0) return 0;
@@ -1429,23 +1449,6 @@ function getTransactionDebtDeltaCents(item) {
     return 0;
 }
 
-function getPaymentPrincipalCents(paymentItem) {
-    if (paymentItem?.type !== TRANSACTION_TYPE_PAYMENT) return 0;
-
-    const directPrincipal = Number(paymentItem?.principalPaidCents);
-    if (Number.isFinite(directPrincipal)) {
-        return Math.max(0, Math.round(directPrincipal));
-    }
-
-    return getSaleAmountCents(paymentItem);
-}
-
-function getPrincipalDebtDeltaCents(item) {
-    if (item?.type === TRANSACTION_TYPE_SALE) return getSaleAmountCents(item);
-    if (item?.type === TRANSACTION_TYPE_PAYMENT) return -getPaymentPrincipalCents(item);
-    return 0;
-}
-
 function getTransactionTime(item) {
     const time = new Date(item?.date || 0).getTime();
     return Number.isFinite(time) ? time : 0;
@@ -1459,6 +1462,50 @@ function getSortedTransactions(sales) {
             return timeDiff !== 0 ? timeDiff : a.index - b.index;
         })
         .map(({ item }) => item);
+}
+
+function calculateDebtComponents(sales) {
+    let principalDebtCents = 0;
+    let outstandingInterestCents = 0;
+
+    getSortedTransactions(sales).forEach((item) => {
+        const amountCents = getSaleAmountCents(item);
+
+        if (item?.type === TRANSACTION_TYPE_SALE) {
+            principalDebtCents += amountCents;
+            return;
+        }
+
+        if (item?.type === TRANSACTION_TYPE_INTEREST) {
+            outstandingInterestCents += amountCents;
+            return;
+        }
+
+        if (item?.type !== TRANSACTION_TYPE_PAYMENT) return;
+
+        const paymentCents = Math.max(0, amountCents);
+        const interestPaidCents = Math.min(paymentCents, Math.max(0, outstandingInterestCents));
+        outstandingInterestCents -= interestPaidCents;
+        principalDebtCents -= paymentCents - interestPaidCents;
+    });
+
+    return {
+        principalDebtCents,
+        outstandingInterestCents: Math.max(0, outstandingInterestCents)
+    };
+}
+
+function hasAutomaticInterestAppliedAfterReference(sales, referenceDate) {
+    if (!referenceDate) return false;
+    const referenceTime = referenceDate instanceof Date
+        ? referenceDate.getTime()
+        : new Date(referenceDate).getTime();
+    if (!Number.isFinite(referenceTime)) return false;
+
+    return (Array.isArray(sales) ? sales : []).some((item) => (
+        isAutomaticInterestTransaction(item)
+        && getTransactionTime(item) > referenceTime
+    ));
 }
 
 function paymentMeetsOverdueResetThreshold(paymentItem, debtBeforePaymentCents, resetPercent) {
@@ -1515,6 +1562,7 @@ function isAutomaticInterestTransaction(item) {
 
 function paymentHasInterestSplit(item) {
     return item?.type === TRANSACTION_TYPE_PAYMENT
+        && item.settlesPreviouslyAppliedInterest !== true
         && (Boolean(item.relatedInterestId)
             || Math.round(Number(item.interestPaidCents) || 0) > 0);
 }
@@ -2481,10 +2529,13 @@ function getClientListModel(client, now = new Date()) {
     }
 
     const isOverdue = baseDebtCents > 0 && overdueDays >= manager.getOverdueAlertDays();
-    const principalDebtCents = Math.max(0, sales.reduce((total, item) => total + getPrincipalDebtDeltaCents(item), 0));
+    const principalDebtCents = Math.max(0, calculateDebtComponents(sales).principalDebtCents);
     const interestBaseCents = Math.min(principalDebtCents, baseDebtCents);
     const interestSettings = manager.getOverdueInterestSettings(client.id);
-    const interestCents = isOverdue && interestSettings.enabled && interestSettings.percent > 0
+    const overdueReferenceDate = lastPaymentDate || firstSaleDate;
+    const interestAlreadyApplied = isOverdue
+        && hasAutomaticInterestAppliedAfterReference(sales, overdueReferenceDate);
+    const interestCents = isOverdue && !interestAlreadyApplied && interestSettings.enabled && interestSettings.percent > 0
         ? Math.round(interestBaseCents * (interestSettings.percent / 100))
         : 0;
     const debtCents = baseDebtCents + interestCents;

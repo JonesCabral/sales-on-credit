@@ -8,8 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=2.1.33">
-    <link rel="stylesheet" href="client-view.css?v=2.1.33">
+    <link rel="stylesheet" href="style.css?v=2.1.34">
+    <link rel="stylesheet" href="client-view.css?v=2.1.34">
     <script>
         (function() {
             const saved = localStorage.getItem('theme');
@@ -184,23 +184,10 @@
             return currencyToCents(item?.amount);
         }
 
-        function getPaymentPrincipalCents(paymentItem) {
-            if (paymentItem?.type !== TRANSACTION_TYPE_PAYMENT) return 0;
-            const directPrincipal = Number(paymentItem?.principalPaidCents);
-            if (Number.isFinite(directPrincipal)) return Math.max(0, Math.round(directPrincipal));
-            return getTransactionAmountCents(paymentItem);
-        }
-
         function getDebtDeltaCents(item) {
             const amountCents = getTransactionAmountCents(item);
             if (item?.type === TRANSACTION_TYPE_SALE || item?.type === TRANSACTION_TYPE_INTEREST) return amountCents;
             if (item?.type === TRANSACTION_TYPE_PAYMENT) return -amountCents;
-            return 0;
-        }
-
-        function getPrincipalDebtDeltaCents(item) {
-            if (item?.type === TRANSACTION_TYPE_SALE) return getTransactionAmountCents(item);
-            if (item?.type === TRANSACTION_TYPE_PAYMENT) return -getPaymentPrincipalCents(item);
             return 0;
         }
 
@@ -217,6 +204,57 @@
                     return timeDiff !== 0 ? timeDiff : a.index - b.index;
                 })
                 .map(({ item }) => item);
+        }
+
+        function isAutomaticInterestTransaction(item) {
+            return item?.type === TRANSACTION_TYPE_INTEREST
+                && (item.automaticInterest === true
+                    || Boolean(item.relatedPaymentId)
+                    || /^Juros por atraso/i.test(String(item.description || '')));
+        }
+
+        function calculateDebtComponents(sales) {
+            let principalDebtCents = 0;
+            let outstandingInterestCents = 0;
+
+            getSortedTransactions(sales).forEach((item) => {
+                const amountCents = getTransactionAmountCents(item);
+
+                if (item?.type === TRANSACTION_TYPE_SALE) {
+                    principalDebtCents += amountCents;
+                    return;
+                }
+
+                if (item?.type === TRANSACTION_TYPE_INTEREST) {
+                    outstandingInterestCents += amountCents;
+                    return;
+                }
+
+                if (item?.type !== TRANSACTION_TYPE_PAYMENT) return;
+
+                const paymentCents = Math.max(0, amountCents);
+                const interestPaidCents = Math.min(paymentCents, Math.max(0, outstandingInterestCents));
+                outstandingInterestCents -= interestPaidCents;
+                principalDebtCents -= paymentCents - interestPaidCents;
+            });
+
+            return {
+                principalDebtCents,
+                outstandingInterestCents: Math.max(0, outstandingInterestCents)
+            };
+        }
+
+        function hasAutomaticInterestAppliedAfterReference(sales, referenceDate) {
+            if (!referenceDate) return false;
+            const referenceTime = referenceDate instanceof Date
+                ? referenceDate.getTime()
+                : new Date(referenceDate).getTime();
+            if (!Number.isFinite(referenceTime)) return false;
+
+            return (Array.isArray(sales) ? sales : []).some((item) => (
+                isAutomaticInterestTransaction(item)
+                && getTransactionTime(item) > referenceTime
+            ));
         }
 
         function parseOverdueInterestPercent(value) {
@@ -356,7 +394,7 @@
 
         function calculatePrincipalDebtCents(sales) {
             if (!sales || sales.length === 0) return 0;
-            return sales.reduce((total, sale) => total + getPrincipalDebtDeltaCents(sale), 0);
+            return calculateDebtComponents(sales).principalDebtCents;
         }
 
         function paymentMeetsOverdueResetThreshold(paymentItem, debtBeforePaymentCents, resetPercent) {
@@ -417,7 +455,9 @@
             const interestPercent = normalizeOverdueInterestPercent(interestSettings.percent);
             const interestEnabled = interestSettings.enabled === true && interestPercent > 0;
             const interestBaseCents = Math.min(Math.max(0, principalDebtCents), baseDebtCents);
-            const projectedInterestCents = interestEnabled && interestBaseCents > 0
+            const interestAlreadyApplied = isOverdue
+                && hasAutomaticInterestAppliedAfterReference(sales, referenceDate);
+            const projectedInterestCents = interestEnabled && interestBaseCents > 0 && !interestAlreadyApplied
                 ? Math.round(interestBaseCents * (interestPercent / 100))
                 : 0;
             const interestCents = isOverdue ? projectedInterestCents : 0;
