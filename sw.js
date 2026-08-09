@@ -1,113 +1,68 @@
-const CACHE_NAME = 'vivi-variedades-v2.2.1';
-const urlsToCache = [
-  './',
-  './index.html',
-  './client-view.html',
-  './history.html',
-  './settings.html',
-  './products.html',
-  './style.css',
-  './client-base.min.css',
-  './client-view.min.css',
-  './client-view.min.js',
-  './app.js',
-  './history.js',
-  './settings.js',
-  './products.js',
-  './barcode-scanner.js',
-  './manifest.json'
+const CACHE_NAME = 'vivi-variedades-v2.3.0';
+const APP_SHELL = [
+    './',
+    './index.html',
+    './shell.min.css?v=2.3.0',
+    './auth-bootstrap.min.js?v=2.3.0',
+    './manifest.json'
 ];
 
-// Install Service Worker
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('Cache aberto');
-        return cache.addAll(urlsToCache);
-      })
-  );
-  self.skipWaiting();
+self.addEventListener('install', (event) => {
+    event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
+    self.skipWaiting();
 });
 
-// Activate Service Worker
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('Removendo cache antigo:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
-  );
-  self.clients.claim();
-});
-
-// Fetch Event com estratégia híbrida
-self.addEventListener('fetch', event => {
-  const { request } = event;
-  if (request.method !== 'GET') {
-    return;
-  }
-
-  const url = new URL(request.url);
-  const cacheKey = url.origin === self.location.origin
-    ? new Request(`${url.origin}${url.pathname}`)
-    : request;
-  
-  // Network First para Firebase (sempre dados frescos)
-  if (url.hostname.includes('firebase') || url.hostname.includes('firebaseio')) {
-    event.respondWith(
-      fetch(request)
-        .catch(() => {
-          return new Response(
-            JSON.stringify({ error: 'Offline' }),
-            { headers: { 'Content-Type': 'application/json' } }
-          );
-        })
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys()
+            .then((names) => Promise.all(
+                names
+                    .filter((name) => name !== CACHE_NAME)
+                    .map((name) => caches.delete(name))
+            ))
+            .then(() => self.clients.claim())
     );
-    return;
-  }
-  
-  // Cache First para assets estáticos
-  event.respondWith(
-    caches.match(cacheKey)
-      .then(cachedResponse => {
-        if (cachedResponse) {
-          // Retorna do cache, mas atualiza em background
-          event.waitUntil(
-            fetch(request).then(networkResponse => {
-              if (networkResponse && networkResponse.status === 200) {
-                return caches.open(CACHE_NAME).then(cache => {
-                  cache.put(cacheKey, networkResponse.clone());
-                });
-              }
-            }).catch(() => {})
-          );
-          return cachedResponse;
+});
+
+async function networkFirst(request) {
+    const cache = await caches.open(CACHE_NAME);
+
+    try {
+        const response = await fetch(request);
+        if (response?.ok && response.type === 'basic') {
+            await cache.put(request, response.clone());
         }
-        
-        // Buscar da rede e cachear
-        return fetch(request).then(networkResponse => {
-          if (
-            !networkResponse
-            || networkResponse.status !== 200
-            || !['basic', 'cors'].includes(networkResponse.type)
-          ) {
-            return networkResponse;
-          }
-          
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(cacheKey, responseToCache);
-          });
-          
-          return networkResponse;
-        });
-      })
-  );
+        return response;
+    } catch (error) {
+        return (await cache.match(request))
+            || (await cache.match('./index.html'))
+            || Response.error();
+    }
+}
+
+async function cacheFirst(request) {
+    const cache = await caches.open(CACHE_NAME);
+    const cachedResponse = await cache.match(request);
+    if (cachedResponse) return cachedResponse;
+
+    const response = await fetch(request);
+    if (response?.ok && response.type === 'basic') {
+        await cache.put(request, response.clone());
+    }
+    return response;
+}
+
+self.addEventListener('fetch', (event) => {
+    const { request } = event;
+    if (request.method !== 'GET') return;
+
+    const url = new URL(request.url);
+    if (url.origin !== self.location.origin) return;
+
+    if (request.mode === 'navigate') {
+        event.respondWith(networkFirst(request));
+        return;
+    }
+
+    event.respondWith(cacheFirst(request));
 });

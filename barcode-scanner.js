@@ -440,21 +440,3 @@ export function closeBarcodeScanner() {
         previousFocus.focus();
     }
 }
-
-async function warmUpFallbackScanner() {
-    try {
-        if (await canUseNativeBarcodeDetector()) {
-            const supportedFormats = await window.BarcodeDetector.getSupportedFormats();
-            if (PRODUCT_BARCODE_FORMATS.some((format) => supportedFormats.includes(format))) return;
-        }
-        await loadZxingModule();
-    } catch (error) {
-        // Uma nova tentativa sera feita quando o usuario abrir o leitor.
-    }
-}
-
-if (typeof window.requestIdleCallback === 'function') {
-    window.requestIdleCallback(warmUpFallbackScanner, { timeout: 2500 });
-} else {
-    window.setTimeout(warmUpFallbackScanner, 1500);
-}

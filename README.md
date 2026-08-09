@@ -18,3 +18,14 @@ npx --yes esbuild client-base.css --minify --outfile=client-base.min.css
 npx --yes esbuild client-view.css --minify --outfile=client-view.min.css
 npx --yes esbuild client-view.js --minify --charset=utf8 --outfile=client-view.min.js
 ```
+
+## Build de produção
+
+Os arquivos legíveis continuam sendo as fontes de manutenção. Para gerar os JavaScripts minificados e um CSS reduzido para cada página:
+
+```powershell
+npm install
+npm run build
+```
+
+Na primeira abertura autenticada da versão 2.3.0, a aplicação cria `users/{uid}/clientSummaries` a partir dos clientes existentes. Depois da migração, a home acompanha apenas essa coleção leve e busca o histórico completo de um cliente quando necessário.

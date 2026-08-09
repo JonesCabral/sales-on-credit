@@ -1,17 +1,6 @@
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getDatabase, ref, onValue, update, get } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
-import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-
-const firebaseConfig = {
-    apiKey: 'AIzaSyAmtxBsBUy67kuk50M25SPNl6AOhYFeDuY',
-    authDomain: 'vendas-fiadas.firebaseapp.com',
-    databaseURL: 'https://vendas-fiadas-default-rtdb.firebaseio.com',
-    projectId: 'vendas-fiadas',
-    storageBucket: 'vendas-fiadas.firebasestorage.app',
-    messagingSenderId: '893268626644',
-    appId: '1:893268626644:web:4f9237500db5de98177f41',
-    measurementId: 'G-GVRNJBMTKC'
-};
+import { getDatabase, ref, onValue, update, get } from 'firebase/database';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { firebaseApp } from './firebase.js';
 
 const DEFAULT_OVERDUE_ALERT_DAYS = 60;
 const MIN_OVERDUE_ALERT_DAYS = 1;
@@ -24,9 +13,8 @@ const DEFAULT_OVERDUE_RESET_PAYMENT_PERCENT = 20;
 const MIN_OVERDUE_RESET_PAYMENT_PERCENT = 0;
 const MAX_OVERDUE_RESET_PAYMENT_PERCENT = 100;
 
-const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
-const auth = getAuth(app);
+const database = getDatabase(firebaseApp);
+const auth = getAuth(firebaseApp);
 
 const overdueSettingsForm = document.getElementById('overdueSettingsForm');
 const overdueDaysInput = document.getElementById('overdueDaysInput');
@@ -448,6 +436,7 @@ resetPaymentSettingsForm?.addEventListener('submit', async (event) => {
             },
             overdueResetPaymentPercent: normalizedPercent
         }));
+        await update(ref(database, `users/${currentUserId}/clientSummaries`), { _meta: null });
         syncSettingsForm(savedSettings);
         setStatus(`Pagamento minimo para renovar prazo salvo: ${formatOverdueResetPaymentPercent(normalizedPercent)} da divida.`, 'success');
     } catch (error) {

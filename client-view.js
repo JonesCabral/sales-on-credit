@@ -1,4 +1,4 @@
-const APP_VERSION = '2.2.1';
+const APP_VERSION = '2.3.0';
 const PAGE_SIZE = 30;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_OVERDUE_ALERT_DAYS = 60;
@@ -951,8 +951,8 @@ async function start() {
 
     try {
         const [appModule, databaseModule] = await Promise.all([
-            import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js'),
-            import('https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js')
+            import('firebase/app'),
+            import('firebase/database')
         ]);
         const app = appModule.initializeApp(firebaseConfig);
         state.database = databaseModule.getDatabase(app);

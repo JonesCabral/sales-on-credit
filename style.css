@@ -661,7 +661,7 @@ header h1 {
 
 .activity-amount {
     flex: 0 0 auto;
-    font-family: 'Sora', sans-serif;
+    font-family: 'Manrope', sans-serif;
     font-size: 0.95rem;
     font-weight: 700;
     text-align: right;
@@ -887,7 +887,7 @@ header h1 {
     display: block;
     margin-top: 0.2rem;
     color: var(--text-primary);
-    font-family: 'Sora', sans-serif;
+    font-family: 'Manrope', sans-serif;
     font-size: 1rem;
     overflow-wrap: anywhere;
 }
@@ -1648,6 +1648,8 @@ input:focus, select:focus, textarea:focus {
 }
 
 .client-item {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 88px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -2351,6 +2353,21 @@ input:focus, select:focus, textarea:focus {
     border-color: rgba(37, 99, 235, 0.25);
     border-top-color: var(--primary-color);
     background: linear-gradient(180deg, rgba(37, 99, 235, 0.08), rgba(37, 99, 235, 0.02));
+}
+
+.clients-load-more {
+    width: 100%;
+    margin-top: 0.25rem;
+}
+
+.login-error {
+    margin: 0 0 0.75rem;
+    padding: 0.65rem 0.8rem;
+    border: 1px solid rgba(185, 28, 28, 0.3);
+    border-radius: 10px;
+    color: var(--danger-color);
+    background: rgba(185, 28, 28, 0.08);
+    font-size: 0.9rem;
 }
 
 .settings-form-whatsapp {
@@ -4711,7 +4728,7 @@ header {
 
 header h1,
 .login-header h1 {
-    font-family: 'Sora', sans-serif;
+    font-family: 'Manrope', sans-serif;
     letter-spacing: -0.03em;
 }
 
@@ -4828,7 +4845,7 @@ textarea:focus {
 }
 
 .total-value {
-    font-family: 'Sora', sans-serif;
+    font-family: 'Manrope', sans-serif;
 }
 
 .clients-list {
@@ -4861,7 +4878,7 @@ textarea:focus {
 }
 
 .client-debt {
-    font-family: 'Sora', sans-serif;
+    font-family: 'Manrope', sans-serif;
     font-size: 1.08rem;
 }
 
@@ -4898,7 +4915,7 @@ textarea:focus {
 }
 
 .modal-debt {
-    font-family: 'Sora', sans-serif;
+    font-family: 'Manrope', sans-serif;
     border-radius: 12px;
 }
 

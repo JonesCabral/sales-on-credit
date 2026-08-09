@@ -1,22 +1,20 @@
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getDatabase, ref, onValue, push, set, update, remove, get } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
-import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-import { openBarcodeScanner } from './barcode-scanner.js';
+import { getDatabase, ref, onValue, push, set, update, remove, get } from 'firebase/database';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { firebaseApp } from './firebase.js';
+let barcodeScannerModulePromise = null;
+async function openBarcodeScanner(options) {
+    if (!barcodeScannerModulePromise) {
+        barcodeScannerModulePromise = import('./barcode-scanner.js').catch((error) => {
+            barcodeScannerModulePromise = null;
+            throw error;
+        });
+    }
+    const scannerModule = await barcodeScannerModulePromise;
+    return scannerModule.openBarcodeScanner(options);
+}
 
-const firebaseConfig = {
-    apiKey: 'AIzaSyAmtxBsBUy67kuk50M25SPNl6AOhYFeDuY',
-    authDomain: 'vendas-fiadas.firebaseapp.com',
-    databaseURL: 'https://vendas-fiadas-default-rtdb.firebaseio.com',
-    projectId: 'vendas-fiadas',
-    storageBucket: 'vendas-fiadas.firebasestorage.app',
-    messagingSenderId: '893268626644',
-    appId: '1:893268626644:web:4f9237500db5de98177f41',
-    measurementId: 'G-GVRNJBMTKC'
-};
-
-const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
-const auth = getAuth(app);
+const database = getDatabase(firebaseApp);
+const auth = getAuth(firebaseApp);
 
 const MAX_PRICE = 1000000;
 const MAX_NAME_LENGTH = 100;

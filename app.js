@@ -1,30 +1,28 @@
 // Importar Firebase
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getDatabase, ref, set, update, remove, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-import { openBarcodeScanner } from './barcode-scanner.js';
+import { getDatabase, get, ref, set, update, remove, onValue } from 'firebase/database';
+import { getAuth, signOut, onAuthStateChanged } from 'firebase/auth';
+import { firebaseApp } from './firebase.js';
 
 // Configuração do Firebase
 // IMPORTANTE: Para produção, mova as configurações para variáveis de ambiente
 // e proteja com Firebase App Check (https://firebase.google.com/docs/app-check)
-const firebaseConfig = {
-    apiKey: "AIzaSyAmtxBsBUy67kuk50M25SPNl6AOhYFeDuY",
-    authDomain: "vendas-fiadas.firebaseapp.com",
-    databaseURL: "https://vendas-fiadas-default-rtdb.firebaseio.com",
-    projectId: "vendas-fiadas",
-    storageBucket: "vendas-fiadas.firebasestorage.app",
-    messagingSenderId: "893268626644",
-    appId: "1:893268626644:web:4f9237500db5de98177f41",
-    measurementId: "G-GVRNJBMTKC"
-};
+const database = getDatabase(firebaseApp);
+const auth = getAuth(firebaseApp);
 
-// Inicializar Firebase
-const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
-const auth = getAuth(app);
+let barcodeScannerModulePromise = null;
+async function openBarcodeScanner(options) {
+    if (!barcodeScannerModulePromise) {
+        barcodeScannerModulePromise = import('./barcode-scanner.js').catch((error) => {
+            barcodeScannerModulePromise = null;
+            throw error;
+        });
+    }
+    const scannerModule = await barcodeScannerModulePromise;
+    return scannerModule.openBarcodeScanner(options);
+}
 
 // Versão da aplicação
-const APP_VERSION = '2.2.1';
+const APP_VERSION = '2.3.0';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -36,8 +34,7 @@ const APP_VERSION = '2.2.1';
         localStorage.setItem('appVersion', APP_VERSION);
     }
     
-    // Exibir versão na interface
-    document.addEventListener('DOMContentLoaded', () => {
+    const initializeVersionAndTheme = () => {
         const appVersionElement = document.getElementById('appVersion');
         const loginVersionElement = document.getElementById('loginVersion');
         
@@ -66,7 +63,13 @@ const APP_VERSION = '2.2.1';
         if (menuThemeShortcut) {
             menuThemeShortcut.addEventListener('click', toggleTheme);
         }
-    });
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeVersionAndTheme, { once: true });
+    } else {
+        initializeVersionAndTheme();
+    }
 })();
 
 // Variável global para armazenar o usuário atual
@@ -215,6 +218,7 @@ function safeLog(...args) {
 class SalesManager {
     constructor() {
         this.clients = {};
+        this.clientSummaries = {};
         this.settings = getDefaultSettings();
         this.currentClientId = null;
         this.userId = null;
@@ -223,11 +227,14 @@ class SalesManager {
         this.dataLoaded = false;
         this.persistedClients = {};
         this.publicSummarySyncPromise = null;
+        this.summaryMigrationPromise = null;
     }
 
     setUser(userId) {
         this.userId = userId;
         this.dataLoaded = false;
+        this.clients = {};
+        this.clientSummaries = {};
         this.persistedClients = {};
         this.settings = getDefaultSettings();
         syncSettingsUI();
@@ -267,36 +274,106 @@ class SalesManager {
 
     async loadData() {
         if (!this.userId) return;
-        
-        // Cancelar listener anterior se existir
-        if (this.unsubscribe) {
-            this.unsubscribe();
-            this.unsubscribe = null;
-        }
-        
-        const dbRef = ref(database, `users/${this.userId}/clients`);
-        
-        // Listener em tempo real para mudanças no banco de dados
-        this.unsubscribe = onValue(dbRef, (snapshot) => {
-            this.clients = snapshot.val() || {};
-            this.persistedClients = cloneSerializable(this.clients);
-            safeLog('Dados carregados do Firebase');
-            updateClientsList();
-            // Esconder loading screen após primeiro carregamento de dados
-            if (!this.dataLoaded) {
-                this.dataLoaded = true;
-                hideLoadingScreen();
+        if (this.unsubscribe) return;
+
+        const summariesRef = ref(database, `users/${this.userId}/clientSummaries`);
+
+        this.unsubscribe = onValue(summariesRef, async (snapshot) => {
+            const savedValue = snapshot.val();
+
+            if (savedValue && typeof savedValue === 'object' && savedValue._meta) {
+                const { _meta, ...savedSummaries } = savedValue;
+                this.clientSummaries = savedSummaries;
+                safeLog('Resumos de clientes carregados do Firebase', _meta);
+                updateClientsList();
+                if (!this.dataLoaded) {
+                    this.dataLoaded = true;
+                    hideLoadingScreen();
+                }
+                return;
             }
-            this.syncAllPublicSummaries();
+
+            try {
+                await this.migrateLegacyClientSummaries();
+            } catch (error) {
+                console.error('Erro ao preparar resumos de clientes:', error);
+                if (!this.dataLoaded) {
+                    this.dataLoaded = true;
+                    hideLoadingScreen();
+                }
+            }
         }, (error) => {
             console.error('Erro ao carregar dados:', error);
             showToast('Erro ao carregar dados. Verifique sua conexão.', 'error');
-            // Esconder loading mesmo em caso de erro para não travar a tela
             if (!this.dataLoaded) {
                 this.dataLoaded = true;
                 hideLoadingScreen();
             }
         });
+    }
+
+    async migrateLegacyClientSummaries() {
+        if (this.summaryMigrationPromise) return this.summaryMigrationPromise;
+
+        this.summaryMigrationPromise = (async () => {
+            const [legacySnapshot, settingsSnapshot] = await Promise.all([
+                get(ref(database, `users/${this.userId}/clients`)),
+                get(ref(database, `users/${this.userId}/settings`))
+            ]);
+            this.settings = normalizeSettings(settingsSnapshot.val() || {});
+            syncSettingsUI();
+            const legacyClients = legacySnapshot.val() || {};
+            const summaries = {};
+            const updates = {
+                [`users/${this.userId}/clientSummaries/_meta`]: {
+                    version: 1,
+                    migratedAt: new Date().toISOString()
+                }
+            };
+
+            Object.entries(legacyClients).forEach(([clientId, savedClient]) => {
+                const client = { ...savedClient, id: savedClient?.id || clientId };
+                if (!Array.isArray(client.sales)) client.sales = [];
+                this.clients[clientId] = client;
+                this.persistedClients[clientId] = cloneSerializable(client);
+                const summary = buildClientListSummary(client, this.settings);
+                summaries[clientId] = summary;
+                updates[`users/${this.userId}/clientSummaries/${clientId}`] = summary;
+            });
+
+            this.clientSummaries = summaries;
+            updateClientsList();
+            await update(ref(database), updates);
+        })().finally(() => {
+            this.summaryMigrationPromise = null;
+        });
+
+        return this.summaryMigrationPromise;
+    }
+
+    getClientPreviews() {
+        return Object.values(this.clientSummaries);
+    }
+
+    getClientPreview(clientId) {
+        return this.clients[clientId] || this.clientSummaries[clientId] || null;
+    }
+
+    async ensureClientLoaded(clientId) {
+        const loadedClient = this.clients[clientId];
+        if (loadedClient && Array.isArray(loadedClient.sales)) return loadedClient;
+
+        if (!this.userId || !clientId) throw new Error('Cliente não encontrado');
+
+        const snapshot = await get(ref(database, `users/${this.userId}/clients/${clientId}`));
+        const savedClient = snapshot.val();
+        if (!savedClient) throw new Error('Cliente não encontrado');
+
+        const client = { ...savedClient, id: savedClient.id || clientId };
+        if (!Array.isArray(client.sales)) client.sales = [];
+        this.clients[clientId] = client;
+        this.persistedClients[clientId] = cloneSerializable(client);
+        return client;
     }
 
     // Método para limpar recursos
@@ -311,9 +388,12 @@ class SalesManager {
         }
         this.userId = null;
         this.dataLoaded = false;
+        this.clients = {};
+        this.clientSummaries = {};
         this.settings = getDefaultSettings();
         this.persistedClients = {};
         this.publicSummarySyncPromise = null;
+        this.summaryMigrationPromise = null;
         syncSettingsUI();
     }
 
@@ -340,6 +420,7 @@ class SalesManager {
         const clientPath = `users/${this.userId}/clients/${clientId}`;
         const updates = {};
         const summary = buildPublicClientSummary(client, this.settings);
+        const listSummary = buildClientListSummary(client, this.settings);
 
         client.publicSummary = summary;
 
@@ -378,9 +459,14 @@ class SalesManager {
             updates[`${clientPath}/publicSummary`] = summary;
         }
 
+        if (!serializableValuesMatch(this.clientSummaries[clientId], listSummary)) {
+            updates[`users/${this.userId}/clientSummaries/${clientId}`] = listSummary;
+        }
+
         if (Object.keys(updates).length > 0) {
             await update(ref(database), updates);
         }
+        this.clientSummaries[clientId] = cloneSerializable(listSummary);
         this.persistedClients[clientId] = cloneSerializable(client);
     }
 
@@ -395,15 +481,23 @@ class SalesManager {
 
             Object.entries(this.clients).forEach(([clientId, client]) => {
                 const summary = buildPublicClientSummary(client, this.settings);
-                if (serializableValuesMatch(client.publicSummary, summary)) return;
+                const listSummary = buildClientListSummary(client, this.settings);
+                const publicSummaryChanged = !serializableValuesMatch(client.publicSummary, summary);
+                const listSummaryChanged = !serializableValuesMatch(this.clientSummaries[clientId], listSummary);
+                if (!publicSummaryChanged && !listSummaryChanged) return;
 
-                updates[`users/${this.userId}/clients/${clientId}/publicSummary`] = summary;
-                summariesToApply.push({ clientId, summary });
+                if (publicSummaryChanged) {
+                    updates[`users/${this.userId}/clients/${clientId}/publicSummary`] = summary;
+                }
+                if (listSummaryChanged) {
+                    updates[`users/${this.userId}/clientSummaries/${clientId}`] = listSummary;
+                }
+                summariesToApply.push({ clientId, summary, listSummary });
             });
 
             if (Object.keys(updates).length > 0) {
                 await update(ref(database), updates);
-                summariesToApply.forEach(({ clientId, summary }) => {
+                summariesToApply.forEach(({ clientId, summary, listSummary }) => {
                     if (this.clients[clientId]) {
                         this.clients[clientId].publicSummary = summary;
                     }
@@ -411,6 +505,7 @@ class SalesManager {
                         this.persistedClients[clientId] = {};
                     }
                     this.persistedClients[clientId].publicSummary = cloneSerializable(summary);
+                    this.clientSummaries[clientId] = cloneSerializable(listSummary);
                 });
             }
         })().catch((error) => {
@@ -429,7 +524,12 @@ class SalesManager {
             throw new Error('UsuÃ¡rio nÃ£o autenticado');
         }
 
-        await remove(ref(database, `users/${this.userId}/clients/${clientId}`));
+        await update(ref(database), {
+            [`users/${this.userId}/clients/${clientId}`]: null,
+            [`users/${this.userId}/clientSummaries/${clientId}`]: null
+        });
+        delete this.clients[clientId];
+        delete this.clientSummaries[clientId];
         delete this.persistedClients[clientId];
     }
 
@@ -439,7 +539,10 @@ class SalesManager {
 
     getOverdueInterestSettings(clientId = null) {
         const clientOverride = normalizeClientOverdueInterestOverride(
-            clientId ? this.clients[clientId]?.overdueInterestOverride : null
+            clientId
+                ? this.clients[clientId]?.overdueInterestOverride
+                    || this.clientSummaries[clientId]?.overdueInterestOverride
+                : null
         );
 
         if (clientOverride) {
@@ -459,7 +562,10 @@ class SalesManager {
     }
 
     getClientOverdueInterestOverride(clientId) {
-        return normalizeClientOverdueInterestOverride(this.clients[clientId]?.overdueInterestOverride);
+        return normalizeClientOverdueInterestOverride(
+            this.clients[clientId]?.overdueInterestOverride
+            || this.clientSummaries[clientId]?.overdueInterestOverride
+        );
     }
 
     isOverdueInterestEnabled(clientId = null) {
@@ -598,7 +704,7 @@ class SalesManager {
         });
         
         // Verificar se já existe cliente com esse nome
-        const existingClient = Object.values(this.clients).find(
+        const existingClient = this.getClientPreviews().find(
             c => c.name.toLowerCase() === sanitizedName.toLowerCase()
         );
         if (existingClient) {
@@ -777,7 +883,7 @@ class SalesManager {
             throw new Error('Nome não pode ter mais de 100 caracteres');
         }
         // Verificar se já existe outro cliente com esse nome
-        const existingClient = Object.values(this.clients).find(
+        const existingClient = this.getClientPreviews().find(
             c => c.id !== clientId && c.name.toLowerCase() === name.toLowerCase()
         );
         if (existingClient) {
@@ -944,6 +1050,9 @@ class SalesManager {
     }
 
     getBaseClientDebtCents(clientId) {
+        if (!this.clients[clientId] && this.clientSummaries[clientId]) {
+            return Math.round(Number(this.clientSummaries[clientId].baseDebtCents) || 0);
+        }
         if (!this.clients[clientId]) return 0;
         if (!this.clients[clientId].sales || this.clients[clientId].sales.length === 0) return 0;
 
@@ -951,6 +1060,9 @@ class SalesManager {
     }
 
     getClientPrincipalDebtCents(clientId) {
+        if (!this.clients[clientId] && this.clientSummaries[clientId]) {
+            return Math.round(Number(this.clientSummaries[clientId].principalDebtCents) || 0);
+        }
         if (!this.clients[clientId]) return 0;
         if (!this.clients[clientId].sales || this.clients[clientId].sales.length === 0) return 0;
 
@@ -958,6 +1070,9 @@ class SalesManager {
     }
 
     getClientOutstandingInterestCents(clientId) {
+        if (!this.clients[clientId] && this.clientSummaries[clientId]) {
+            return Math.max(0, Math.round(Number(this.clientSummaries[clientId].outstandingInterestCents) || 0));
+        }
         if (!this.clients[clientId]) return 0;
         if (!this.clients[clientId].sales || this.clients[clientId].sales.length === 0) return 0;
 
@@ -965,6 +1080,9 @@ class SalesManager {
     }
 
     getClientInterestCents(clientId) {
+        if (!this.clients[clientId] && this.clientSummaries[clientId]) {
+            return getClientListModelFromSummary(this.clientSummaries[clientId]).interestCents;
+        }
         const debtCents = this.getBaseClientDebtCents(clientId);
         if (debtCents <= 0) return 0;
         if (!this.isOverdueInterestEnabled(clientId)) return 0;
@@ -991,10 +1109,9 @@ class SalesManager {
     }
 
     getTotalDebt() {
-        const totalInCents = Object.keys(this.clients).reduce((total, clientId) => {
-            // Excluir clientes arquivados do cálculo
-            if (this.clients[clientId].archived) return total;
-            const debt = this.getClientDebtCents(clientId);
+        const totalInCents = this.getClientPreviews().reduce((total, client) => {
+            if (client.archived) return total;
+            const debt = this.getClientDebtCents(client.id);
             // Somar apenas dívidas positivas
             return debt > 0 ? total + debt : total;
         }, 0);
@@ -1003,19 +1120,25 @@ class SalesManager {
     }
 
     getClientSalesCount(clientId) {
+        if (!this.clients[clientId] && this.clientSummaries[clientId]) {
+            return Math.max(0, Math.round(Number(this.clientSummaries[clientId].salesCount) || 0));
+        }
         if (!this.clients[clientId]) return 0;
         if (!this.clients[clientId].sales) return 0;
         return this.clients[clientId].sales.filter(s => s.type === TRANSACTION_TYPE_SALE).length;
     }
 
     hasUnpricedNotes(clientId) {
+        if (!this.clients[clientId] && this.clientSummaries[clientId]) {
+            return this.clientSummaries[clientId].hasUnpricedNotes === true;
+        }
         if (!this.clients[clientId]) return false;
         if (!this.clients[clientId].sales) return false;
         return this.clients[clientId].sales.some(s => saleHasUnpricedProducts(s));
     }
 
     getClientsWithUnpricedNotes() {
-        return Object.values(this.clients).filter(client => 
+        return this.getClientPreviews().filter(client =>
             this.hasUnpricedNotes(client.id)
         );
     }
@@ -1030,6 +1153,9 @@ class SalesManager {
     }
 
     getDaysSinceReferencePayment(clientId) {
+        if (!this.clients[clientId] && this.clientSummaries[clientId]) {
+            return getClientListModelFromSummary(this.clientSummaries[clientId]).overdueDays;
+        }
         // Considera atraso apenas para clientes com dívida positiva
         const baseDebtCents = this.getBaseClientDebtCents(clientId);
         if (baseDebtCents <= 0) return 0;
@@ -1064,7 +1190,6 @@ const manager = new SalesManager();
 // Elementos DOM - Auth
 const loginScreen = document.getElementById('loginScreen');
 const appScreen = document.getElementById('appScreen');
-const loginForm = document.getElementById('loginForm');
 const logoutBtn = document.getElementById('logoutBtn');
 const userEmailSpan = document.getElementById('userEmail');
 
@@ -1734,6 +1859,26 @@ function buildPublicClientSummary(client, settings) {
         overdueInterestOverride: interestOverride
             ? { mode: interestOverride.mode, percent: interestOverride.percent }
             : null
+    };
+}
+
+function buildClientListSummary(client, settings) {
+    const sales = getSortedTransactions(client?.sales);
+    const publicSummary = buildPublicClientSummary(client, settings);
+    const resetPaymentPercent = normalizeOverdueResetPaymentPercent(settings?.overdueResetPaymentPercent);
+    const { firstSaleDate, lastPaymentDate } = getOverdueReferenceDates(sales, resetPaymentPercent);
+
+    return {
+        ...publicSummary,
+        version: 1,
+        id: String(client?.id || ''),
+        name: String(client?.name || ''),
+        archived: client?.archived === true,
+        archivedAt: client?.archivedAt || null,
+        createdAt: client?.createdAt || null,
+        salesCount: sales.filter((item) => item?.type === TRANSACTION_TYPE_SALE).length,
+        hasUnpricedNotes: sales.some((item) => saleHasUnpricedProducts(item)),
+        referenceType: lastPaymentDate ? 'payment' : firstSaleDate ? 'first-sale' : null
     };
 }
 
@@ -2677,58 +2822,46 @@ function applyExclusiveClientFilter(changedCheckbox) {
     });
 }
 
-function getClientListModel(client, now = new Date()) {
-    const sales = Array.isArray(client.sales) ? client.sales : [];
-    let baseDebtCents = 0;
-    let salesCount = 0;
-    let hasNotes = false;
-
-    for (const item of sales) {
-        baseDebtCents += getTransactionDebtDeltaCents(item);
-
-        if (item.type === TRANSACTION_TYPE_SALE) {
-            salesCount += 1;
-            hasNotes = hasNotes || saleHasUnpricedProducts(item);
-        }
-    }
-
-    const { firstSaleDate, lastPaymentDate } = getOverdueReferenceDates(
-        sales,
-        manager.getOverdueResetPaymentPercent()
-    );
-    let overdueDays = 0;
-    let overdueMessage = '';
-    if (baseDebtCents > 0) {
-        const referenceDate = lastPaymentDate || firstSaleDate;
-        overdueDays = referenceDate ? Math.floor((now - referenceDate) / DAY_IN_MS) : 0;
-
-        overdueMessage = buildOverdueMessage({ lastPaymentDate, firstSaleDate, overdueDays });
-    }
-
+function getClientListModelFromSummary(summary, now = new Date()) {
+    const baseDebtCents = Math.round(Number(summary?.baseDebtCents) || 0);
+    const referenceDate = summary?.referenceDate ? new Date(summary.referenceDate) : null;
+    const hasValidReferenceDate = referenceDate && Number.isFinite(referenceDate.getTime());
+    const overdueDays = baseDebtCents > 0 && hasValidReferenceDate
+        ? Math.max(0, Math.floor((now - referenceDate) / DAY_IN_MS))
+        : 0;
     const isOverdue = baseDebtCents > 0 && overdueDays >= manager.getOverdueAlertDays();
-    const principalDebtCents = Math.max(0, calculateDebtComponents(sales).principalDebtCents);
+    const interestSettings = manager.getOverdueInterestSettings(summary?.id);
+    const lastAutomaticInterestDate = summary?.lastAutomaticInterestDate
+        ? new Date(summary.lastAutomaticInterestDate)
+        : null;
+    const interestAlreadyApplied = Boolean(
+        isOverdue
+        && hasValidReferenceDate
+        && lastAutomaticInterestDate
+        && Number.isFinite(lastAutomaticInterestDate.getTime())
+        && lastAutomaticInterestDate >= referenceDate
+    );
+    const principalDebtCents = Math.max(0, Math.round(Number(summary?.principalDebtCents) || 0));
     const interestBaseCents = Math.min(principalDebtCents, baseDebtCents);
-    const interestSettings = manager.getOverdueInterestSettings(client.id);
-    const overdueReferenceDate = lastPaymentDate || firstSaleDate;
-    const interestAlreadyApplied = isOverdue
-        && hasAutomaticInterestAppliedAfterReference(sales, overdueReferenceDate);
     const interestCents = isOverdue && !interestAlreadyApplied && interestSettings.enabled && interestSettings.percent > 0
         ? Math.round(interestBaseCents * (interestSettings.percent / 100))
         : 0;
     const debtCents = baseDebtCents + interestCents;
+    const lastPaymentDate = summary?.referenceType === 'payment' && hasValidReferenceDate ? referenceDate : null;
+    const firstSaleDate = summary?.referenceType === 'first-sale' && hasValidReferenceDate ? referenceDate : null;
 
     return {
-        client,
-        id: client.id,
-        name: client.name || '',
-        searchName: (client.name || '').toLowerCase(),
-        archived: Boolean(client.archived),
+        client: summary,
+        id: summary?.id || '',
+        name: summary?.name || '',
+        searchName: (summary?.name || '').toLowerCase(),
+        archived: Boolean(summary?.archived),
         debt: debtCents / 100,
-        salesCount,
-        hasNotes,
+        salesCount: Math.max(0, Math.round(Number(summary?.salesCount) || 0)),
+        hasNotes: summary?.hasUnpricedNotes === true,
         isOverdue,
         overdueDays,
-        overdueMessage,
+        overdueMessage: buildOverdueMessage({ lastPaymentDate, firstSaleDate, overdueDays }),
         interestCents,
         interestPercent: interestSettings.percent,
         interestSource: interestSettings.source,
@@ -2736,10 +2869,18 @@ function getClientListModel(client, now = new Date()) {
     };
 }
 
+const CLIENT_LIST_PAGE_SIZE = 50;
+let clientRenderLimit = CLIENT_LIST_PAGE_SIZE;
+
+function resetClientRenderLimit() {
+    clientRenderLimit = CLIENT_LIST_PAGE_SIZE;
+}
+
 // Atualizar lista de clientes
 function updateClientsList() {
-    safeLog('Atualizando lista de clientes...', manager.clients);
-    const clientRows = Object.values(manager.clients).map((client) => getClientListModel(client));
+    const previews = manager.getClientPreviews();
+    safeLog('Atualizando lista de clientes...', previews);
+    const clientRows = previews.map((summary) => getClientListModelFromSummary(summary));
 
     // Aplicar filtros se existirem
     const searchClients = document.getElementById('searchClients');
@@ -2863,13 +3004,17 @@ function updateUnpricedNotesAlert() {
 // Renderizar lista de clientes
 function renderClientsList(clientRows) {
     const clientsListDiv = document.getElementById('clientsListDiv');
+    clientsListDiv.removeAttribute('aria-busy');
     
     if (clientRows.length === 0) {
         clientsListDiv.innerHTML = '<p class="empty-message">Nenhum cliente encontrado.</p>';
         return;
     }
     
-    clientsListDiv.innerHTML = clientRows.map(row => {
+    const visibleClientRows = clientRows.slice(0, clientRenderLimit);
+    const remainingClients = Math.max(0, clientRows.length - visibleClientRows.length);
+
+    clientsListDiv.innerHTML = visibleClientRows.map(row => {
         const client = row.client;
         const debt = row.debt;
         const salesCount = row.salesCount;
@@ -2932,17 +3077,36 @@ function renderClientsList(clientRows) {
                 </div>
             </div>
         `;
-    }).join('');
+    }).join('') + (remainingClients > 0
+        ? `<button class="btn btn-secondary clients-load-more" type="button" data-load-more-clients>
+            Mostrar mais ${Math.min(CLIENT_LIST_PAGE_SIZE, remainingClients)} cliente${remainingClients === 1 ? '' : 's'}
+        </button>`
+        : '');
 
     if (!clientsListDiv.dataset.clickBound) {
         clientsListDiv.dataset.clickBound = 'true';
-        clientsListDiv.addEventListener('click', (event) => {
+        clientsListDiv.addEventListener('click', async (event) => {
+            const loadMoreButton = event.target.closest('[data-load-more-clients]');
+            if (loadMoreButton) {
+                clientRenderLimit += CLIENT_LIST_PAGE_SIZE;
+                updateClientsList();
+                return;
+            }
+
             const item = event.target.closest('.client-item');
             if (!item || !clientsListDiv.contains(item)) return;
 
             const clientId = item.dataset.clientId;
-            const shouldOpenUnpricedEditor = manager.hasUnpricedNotes(clientId);
-            openClientModal(clientId, { openUnpricedEditor: shouldOpenUnpricedEditor });
+            showLoader('Carregando cliente...');
+            try {
+                await manager.ensureClientLoaded(clientId);
+                const shouldOpenUnpricedEditor = manager.hasUnpricedNotes(clientId);
+                openClientModal(clientId, { openUnpricedEditor: shouldOpenUnpricedEditor });
+            } catch (error) {
+                showToast(getDatabaseErrorMessage(error, 'Erro ao carregar cliente.'), 'error');
+            } finally {
+                hideLoader();
+            }
         });
     }
 }
@@ -3340,6 +3504,12 @@ onAuthStateChanged(auth, (user) => {
         subscribeProducts(user.uid);
         if (loginScreen) loginScreen.style.display = 'none';
         if (appScreen) appScreen.style.display = 'block';
+        const clientsList = document.getElementById('clientsListDiv');
+        if (clientsList) {
+            clientsList.setAttribute('aria-busy', 'true');
+            clientsList.innerHTML = '<p class="empty-message">Carregando clientes...</p>';
+        }
+        hideLoadingScreen();
         if (userEmailSpan) userEmailSpan.textContent = user.email || '';
         // Set user avatar initial
         const avatarEl = document.getElementById('userAvatar');
@@ -3358,35 +3528,6 @@ onAuthStateChanged(auth, (user) => {
         hideLoadingScreen();
     }
 });
-
-// Login com Email
-if (loginForm) {
-    loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = document.getElementById('loginEmail').value;
-        const password = document.getElementById('loginPassword').value;
-        
-        showLoader('Entrando...');
-        try {
-            await signInWithEmailAndPassword(auth, email, password);
-            hideLoader();
-        } catch (error) {
-            hideLoader();
-            if (IS_DEV) console.error('Erro no login:', error);
-            let message = 'Erro ao fazer login.';
-            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-                message = 'Email ou senha incorretos.';
-            } else if (error.code === 'auth/invalid-email') {
-                message = 'Email inválido.';
-            } else if (error.code === 'auth/too-many-requests') {
-                message = 'Muitas tentativas. Aguarde e tente novamente.';
-            } else if (error.code === 'auth/network-request-failed') {
-                message = 'Sem conexão. Verifique sua internet.';
-            }
-            showToast(message, 'error');
-        }
-    });
-}
 
 // Logout
 if (logoutBtn) {
@@ -3470,6 +3611,7 @@ if (searchClients) {
     const debouncedUpdateClientsList = debounce(updateClientsList, 250);
 
     searchClients.addEventListener('input', () => {
+        resetClientRenderLimit();
         updateSearchFilterInteractivity();
         debouncedUpdateClientsList();
     });
@@ -3484,6 +3626,7 @@ if (searchClients) {
     
     if (filterDebtOnlyCheckbox) {
         filterDebtOnlyCheckbox.addEventListener('change', (e) => {
+            resetClientRenderLimit();
             applyExclusiveClientFilter(e.target);
             updateClientsList();
         });
@@ -3491,6 +3634,7 @@ if (searchClients) {
     
     if (filterUnpricedCheckbox) {
         filterUnpricedCheckbox.addEventListener('change', (e) => {
+            resetClientRenderLimit();
             applyExclusiveClientFilter(e.target);
             updateClientsList();
         });
@@ -3498,6 +3642,7 @@ if (searchClients) {
     
     if (filterOverdueCheckbox) {
         filterOverdueCheckbox.addEventListener('change', (e) => {
+            resetClientRenderLimit();
             applyExclusiveClientFilter(e.target);
             updateClientsList();
         });
@@ -3505,6 +3650,7 @@ if (searchClients) {
     
     if (filterArchivedCheckbox) {
         filterArchivedCheckbox.addEventListener('change', (e) => {
+            resetClientRenderLimit();
             applyExclusiveClientFilter(e.target);
             updateClientsList();
         });
@@ -3526,7 +3672,7 @@ if (clientSearch) {
             return;
         }
         
-        const clients = Object.values(manager.clients);
+        const clients = manager.getClientPreviews();
         const matches = clients.filter(client => 
             client.name.toLowerCase().includes(searchTerm)
         );
@@ -3572,7 +3718,7 @@ if (clientSearch) {
                     clientSearch.value = e.target.value.trim();
                 } else {
                     selectedClientId = item.dataset.clientId;
-                    const client = manager.clients[selectedClientId];
+                    const client = manager.getClientPreview(selectedClientId);
                     clientSearch.value = client.name;
                 }
                 clientSuggestions.classList.remove('show');
@@ -3662,7 +3808,7 @@ addSaleForm.addEventListener('submit', async (e) => {
         
         if (selectedClientId === '__new__' || !selectedClientId) {
             // Verificar se já existe cliente com esse nome
-            const existingClient = Object.values(manager.clients).find(
+            const existingClient = manager.getClientPreviews().find(
                 c => c.name.toLowerCase() === clientName.toLowerCase()
             );
             
@@ -3678,6 +3824,7 @@ addSaleForm.addEventListener('submit', async (e) => {
         }
         
         // Adicionar venda
+        await manager.ensureClientLoaded(clientId);
         await manager.addSale(clientId, numericAmount, description, saleItems);
         hideLoader();
         showToast('Venda registrada com sucesso!', 'success');
@@ -4116,7 +4263,7 @@ if (editNameForm) {
         }
         
         // Verificar se já existe outro cliente com esse nome
-        const existingClient = Object.values(manager.clients).find(
+        const existingClient = manager.getClientPreviews().find(
             c => c.id !== manager.currentClientId && c.name.toLowerCase() === newName.toLowerCase()
         );
         if (existingClient) {
@@ -4225,54 +4372,6 @@ window.addEventListener('click', (e) => {
     }
 });
 
-// Verificar periodicamente por atualizações (a cada 5 minutos)
-setInterval(() => {
-    fetch(window.location.href, { 
-        method: 'HEAD',
-        cache: 'no-cache'
-    }).then(response => {
-        const lastModified = response.headers.get('Last-Modified');
-        const storedLastModified = sessionStorage.getItem('pageLastModified');
-        
-        if (storedLastModified && lastModified && storedLastModified !== lastModified) {
-            // Nova versão detectada
-            const shouldReload = confirm(
-                'Uma nova versão do aplicativo está disponível. Deseja atualizar agora?\n\n' +
-                'Recomendamos atualizar para obter as últimas correções e melhorias.'
-            );
-            
-            if (shouldReload) {
-                // Limpar cache e recarregar
-                if ('caches' in window) {
-                    caches.keys().then(names => {
-                        names.forEach(name => caches.delete(name));
-                    }).finally(() => {
-                        window.location.reload(true);
-                    });
-                } else {
-                    window.location.reload(true);
-                }
-            }
-        }
-        
-        if (lastModified) {
-            sessionStorage.setItem('pageLastModified', lastModified);
-        }
-    }).catch(() => {
-        // Ignorar erros de rede silenciosamente
-    });
-}, 5 * 60 * 1000); // 5 minutos
-
-// Armazenar timestamp inicial
-fetch(window.location.href, { method: 'HEAD', cache: 'no-cache' })
-    .then(response => {
-        const lastModified = response.headers.get('Last-Modified');
-        if (lastModified) {
-            sessionStorage.setItem('pageLastModified', lastModified);
-        }
-    })
-    .catch(() => {});
-
 // Função para esconder loading screen
 function hideLoadingScreen() {
     const loadingScreen = document.getElementById('loadingScreen');
@@ -4358,85 +4457,32 @@ document.querySelectorAll('.close[role="button"]').forEach(btn => {
     });
 });
 
-// Toggle mostrar/ocultar senha no login
-(function initPasswordToggle() {
-    const toggleBtn = document.getElementById('togglePassword');
-    const passwordInput = document.getElementById('loginPassword');
-    if (!toggleBtn || !passwordInput) return;
-    
-    toggleBtn.addEventListener('click', () => {
-        const isPassword = passwordInput.type === 'password';
-        passwordInput.type = isPassword ? 'text' : 'password';
-        toggleBtn.querySelector('.eye-icon').textContent = isPassword ? '🙈' : '👁️';
-        toggleBtn.setAttribute('aria-label', isPassword ? 'Ocultar senha' : 'Mostrar senha');
-    });
-})();
-
-// Indicador de conexão offline (verifica conectividade real, não apenas placa de rede)
+// Indicador de conexão baseado no canal já aberto pelo Firebase
 (function initOfflineIndicator() {
     const banner = document.getElementById('offlineBanner');
     if (!banner) return;
-    
+
     let wasOffline = false;
-    let checkInterval = null;
-    
-    // Verifica conectividade real fazendo uma requisição leve
-    async function checkRealConnectivity() {
-        try {
-            const response = await fetch('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js', {
-                method: 'HEAD',
-                mode: 'no-cors',
-                cache: 'no-store',
-                signal: AbortSignal.timeout(5000)
-            });
-            return true;
-        } catch {
-            return false;
-        }
-    }
-    
-    async function updateStatus() {
-        // Se a placa de rede diz offline, nem precisa testar
-        if (!navigator.onLine) {
-            setOffline();
-            return;
-        }
-        // Placa de rede diz online, mas verifica de verdade
-        const isConnected = await checkRealConnectivity();
-        if (isConnected) {
-            setOnline();
-        } else {
-            setOffline();
-        }
-    }
-    
+
     function setOnline() {
         banner.style.display = 'none';
         if (wasOffline) {
             showToast('Conexão restaurada!', 'success');
             wasOffline = false;
         }
-        // Verificações menos frequentes quando online
-        clearInterval(checkInterval);
-        checkInterval = setInterval(updateStatus, 30000); // 30s
     }
-    
+
     function setOffline() {
         banner.style.display = 'flex';
-        if (!wasOffline) {
-            wasOffline = true;
-        }
-        // Verificações mais frequentes quando offline para detectar retorno rápido
-        clearInterval(checkInterval);
-        checkInterval = setInterval(updateStatus, 10000); // 10s
+        wasOffline = true;
     }
-    
-    // Eventos do navegador como gatilho para re-verificar de verdade
-    window.addEventListener('online', () => updateStatus());
-    window.addEventListener('offline', () => updateStatus());
-    
-    // Verificação inicial
-    updateStatus();
+
+    onValue(ref(database, '.info/connected'), (snapshot) => {
+        if (snapshot.val() === true) setOnline();
+        else setOffline();
+    });
+
+    window.addEventListener('offline', setOffline);
 })();
 
 // Inicializar (os dados serão carregados automaticamente pelo listener do Firebase)
