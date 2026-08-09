@@ -1,6 +1,6 @@
 // Importar Firebase
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getDatabase, ref, set, remove, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+import { getDatabase, ref, set, update, remove, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 import { openBarcodeScanner } from './barcode-scanner.js';
 
@@ -24,7 +24,7 @@ const database = getDatabase(app);
 const auth = getAuth(app);
 
 // Versão da aplicação
-const APP_VERSION = '2.1.35';
+const APP_VERSION = '2.2.1';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -221,10 +221,14 @@ class SalesManager {
         this.unsubscribe = null;
         this.settingsUnsubscribe = null;
         this.dataLoaded = false;
+        this.persistedClients = {};
+        this.publicSummarySyncPromise = null;
     }
 
     setUser(userId) {
         this.userId = userId;
+        this.dataLoaded = false;
+        this.persistedClients = {};
         this.settings = getDefaultSettings();
         syncSettingsUI();
         this.loadSettings();
@@ -242,6 +246,7 @@ class SalesManager {
         const settingsRef = ref(database, `users/${this.userId}/settings`);
 
         this.settingsUnsubscribe = onValue(settingsRef, (snapshot) => {
+            const previousSettingsSignature = JSON.stringify(this.settings);
             const savedSettings = snapshot.val() || {};
             this.settings = normalizeSettings(savedSettings);
             syncSettingsUI();
@@ -249,6 +254,9 @@ class SalesManager {
             if (this.currentClientId && modal?.style.display === 'block') {
                 syncClientInterestSettingsForm(this.currentClientId);
                 renderClientModalDebt(this.currentClientId);
+            }
+            if (this.dataLoaded && previousSettingsSignature !== JSON.stringify(this.settings)) {
+                this.syncAllPublicSummaries();
             }
         }, (error) => {
             console.error('Erro ao carregar configurações:', error);
@@ -271,6 +279,7 @@ class SalesManager {
         // Listener em tempo real para mudanças no banco de dados
         this.unsubscribe = onValue(dbRef, (snapshot) => {
             this.clients = snapshot.val() || {};
+            this.persistedClients = cloneSerializable(this.clients);
             safeLog('Dados carregados do Firebase');
             updateClientsList();
             // Esconder loading screen após primeiro carregamento de dados
@@ -278,6 +287,7 @@ class SalesManager {
                 this.dataLoaded = true;
                 hideLoadingScreen();
             }
+            this.syncAllPublicSummaries();
         }, (error) => {
             console.error('Erro ao carregar dados:', error);
             showToast('Erro ao carregar dados. Verifique sua conexão.', 'error');
@@ -300,7 +310,10 @@ class SalesManager {
             this.settingsUnsubscribe = null;
         }
         this.userId = null;
+        this.dataLoaded = false;
         this.settings = getDefaultSettings();
+        this.persistedClients = {};
+        this.publicSummarySyncPromise = null;
         syncSettingsUI();
     }
 
@@ -309,9 +322,8 @@ class SalesManager {
             if (IS_DEV) console.error('Erro: userId não definido');
             throw new Error('Usuário não autenticado');
         }
-        const dbRef = ref(database, `users/${this.userId}/clients`);
         safeLog('Salvando dados para usuário:', this.userId);
-        await set(dbRef, this.clients);
+        await Promise.all(Object.keys(this.clients).map((clientId) => this.saveClientData(clientId)));
     }
 
     async saveClientData(clientId) {
@@ -323,7 +335,92 @@ class SalesManager {
             throw new Error('Cliente nÃ£o encontrado');
         }
 
-        await set(ref(database, `users/${this.userId}/clients/${clientId}`), this.clients[clientId]);
+        const client = this.clients[clientId];
+        const previousClient = this.persistedClients[clientId] || {};
+        const clientPath = `users/${this.userId}/clients/${clientId}`;
+        const updates = {};
+        const summary = buildPublicClientSummary(client, this.settings);
+
+        client.publicSummary = summary;
+
+        const topLevelKeys = new Set([
+            ...Object.keys(previousClient),
+            ...Object.keys(client)
+        ]);
+        topLevelKeys.delete('sales');
+        topLevelKeys.delete('publicSummary');
+
+        topLevelKeys.forEach((key) => {
+            const previousValue = previousClient[key];
+            const currentValue = client[key];
+            if (!serializableValuesMatch(previousValue, currentValue)) {
+                updates[`${clientPath}/${key}`] = currentValue === undefined ? null : currentValue;
+            }
+        });
+
+        const previousSales = Array.isArray(previousClient.sales) ? previousClient.sales : [];
+        const currentSales = Array.isArray(client.sales) ? client.sales : [];
+
+        if (currentSales.length === 0 && previousSales.length > 0) {
+            updates[`${clientPath}/sales`] = null;
+        } else {
+            const largestSalesLength = Math.max(previousSales.length, currentSales.length);
+            for (let index = 0; index < largestSalesLength; index += 1) {
+                const previousItem = previousSales[index];
+                const currentItem = currentSales[index];
+                if (!serializableValuesMatch(previousItem, currentItem)) {
+                    updates[`${clientPath}/sales/${index}`] = currentItem === undefined ? null : currentItem;
+                }
+            }
+        }
+
+        if (!serializableValuesMatch(previousClient.publicSummary, summary)) {
+            updates[`${clientPath}/publicSummary`] = summary;
+        }
+
+        if (Object.keys(updates).length > 0) {
+            await update(ref(database), updates);
+        }
+        this.persistedClients[clientId] = cloneSerializable(client);
+    }
+
+    syncAllPublicSummaries() {
+        if (!this.userId || this.publicSummarySyncPromise) {
+            return this.publicSummarySyncPromise || Promise.resolve();
+        }
+
+        const syncPromise = (async () => {
+            const updates = {};
+            const summariesToApply = [];
+
+            Object.entries(this.clients).forEach(([clientId, client]) => {
+                const summary = buildPublicClientSummary(client, this.settings);
+                if (serializableValuesMatch(client.publicSummary, summary)) return;
+
+                updates[`users/${this.userId}/clients/${clientId}/publicSummary`] = summary;
+                summariesToApply.push({ clientId, summary });
+            });
+
+            if (Object.keys(updates).length > 0) {
+                await update(ref(database), updates);
+                summariesToApply.forEach(({ clientId, summary }) => {
+                    if (this.clients[clientId]) {
+                        this.clients[clientId].publicSummary = summary;
+                    }
+                    if (!this.persistedClients[clientId]) {
+                        this.persistedClients[clientId] = {};
+                    }
+                    this.persistedClients[clientId].publicSummary = cloneSerializable(summary);
+                });
+            }
+        })().catch((error) => {
+            console.warn('Falha ao sincronizar resumos públicos:', error?.code || error?.message || error);
+        }).finally(() => {
+            this.publicSummarySyncPromise = null;
+        });
+
+        this.publicSummarySyncPromise = syncPromise;
+        return syncPromise;
     }
 
     async removeClientData(clientId) {
@@ -333,6 +430,7 @@ class SalesManager {
         }
 
         await remove(ref(database, `users/${this.userId}/clients/${clientId}`));
+        delete this.persistedClients[clientId];
     }
 
     getOverdueAlertDays() {
@@ -1456,9 +1554,9 @@ function getTransactionTime(item) {
 
 function getSortedTransactions(sales) {
     return (Array.isArray(sales) ? sales : [])
-        .map((item, index) => ({ item, index }))
+        .map((item, index) => ({ item, index, time: getTransactionTime(item) }))
         .sort((a, b) => {
-            const timeDiff = getTransactionTime(a.item) - getTransactionTime(b.item);
+            const timeDiff = a.time - b.time;
             return timeDiff !== 0 ? timeDiff : a.index - b.index;
         })
         .map(({ item }) => item);
@@ -1558,6 +1656,85 @@ function isAutomaticInterestTransaction(item) {
         && (item.automaticInterest === true
             || Boolean(item.relatedPaymentId)
             || /^Juros por atraso/i.test(String(item.description || '')));
+}
+
+function cloneSerializable(value) {
+    if (value === undefined) return undefined;
+    return JSON.parse(JSON.stringify(value));
+}
+
+function serializableValuesMatch(firstValue, secondValue) {
+    return JSON.stringify(firstValue) === JSON.stringify(secondValue);
+}
+
+function buildPublicClientSummary(client, settings) {
+    const sales = getSortedTransactions(client?.sales);
+    const resetPaymentPercent = normalizeOverdueResetPaymentPercent(settings?.overdueResetPaymentPercent);
+    let baseDebtCents = 0;
+    let principalDebtCents = 0;
+    let outstandingInterestCents = 0;
+    let firstSaleDate = null;
+    let lastPaymentDate = null;
+    let lastAutomaticInterestDate = null;
+
+    sales.forEach((item) => {
+        const itemTime = getTransactionTime(item);
+        const itemDate = itemTime > 0 ? new Date(itemTime) : null;
+        const debtBeforeTransactionCents = baseDebtCents;
+        const amountCents = getSaleAmountCents(item);
+
+        if (
+            item?.type === TRANSACTION_TYPE_PAYMENT
+            && itemDate
+            && paymentMeetsOverdueResetThreshold(item, debtBeforeTransactionCents, resetPaymentPercent)
+        ) {
+            lastPaymentDate = itemDate;
+        }
+
+        if (item?.type === TRANSACTION_TYPE_SALE) {
+            baseDebtCents += amountCents;
+            principalDebtCents += amountCents;
+        } else if (item?.type === TRANSACTION_TYPE_INTEREST) {
+            baseDebtCents += amountCents;
+            outstandingInterestCents += amountCents;
+            if (isAutomaticInterestTransaction(item) && itemDate) {
+                lastAutomaticInterestDate = itemDate;
+            }
+        } else if (item?.type === TRANSACTION_TYPE_PAYMENT) {
+            baseDebtCents -= amountCents;
+            const paymentCents = Math.max(0, amountCents);
+            const interestPaidCents = Math.min(paymentCents, Math.max(0, outstandingInterestCents));
+            outstandingInterestCents -= interestPaidCents;
+            principalDebtCents -= paymentCents - interestPaidCents;
+        }
+
+        if (debtBeforeTransactionCents <= 0 && baseDebtCents > 0 && itemDate) {
+            firstSaleDate = itemDate;
+            lastPaymentDate = null;
+        }
+
+        if (baseDebtCents <= 0) {
+            firstSaleDate = null;
+            lastPaymentDate = null;
+        }
+    });
+
+    const referenceDate = lastPaymentDate || firstSaleDate;
+    const interestOverride = normalizeClientOverdueInterestOverride(client?.overdueInterestOverride);
+
+    return {
+        version: 1,
+        baseDebtCents,
+        principalDebtCents,
+        outstandingInterestCents: Math.max(0, outstandingInterestCents),
+        transactionCount: sales.length,
+        referenceDate: referenceDate?.toISOString() || null,
+        lastAutomaticInterestDate: lastAutomaticInterestDate?.toISOString() || null,
+        overdueResetPaymentPercent: resetPaymentPercent,
+        overdueInterestOverride: interestOverride
+            ? { mode: interestOverride.mode, percent: interestOverride.percent }
+            : null
+    };
 }
 
 function paymentHasInterestSplit(item) {

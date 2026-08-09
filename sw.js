@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vivi-variedades-v2.1.35';
+const CACHE_NAME = 'vivi-variedades-v2.2.1';
 const urlsToCache = [
   './',
   './index.html',
@@ -7,7 +7,9 @@ const urlsToCache = [
   './settings.html',
   './products.html',
   './style.css',
-  './client-view.css',
+  './client-base.min.css',
+  './client-view.min.css',
+  './client-view.min.js',
   './app.js',
   './history.js',
   './settings.js',
@@ -53,6 +55,9 @@ self.addEventListener('fetch', event => {
   }
 
   const url = new URL(request.url);
+  const cacheKey = url.origin === self.location.origin
+    ? new Request(`${url.origin}${url.pathname}`)
+    : request;
   
   // Network First para Firebase (sempre dados frescos)
   if (url.hostname.includes('firebase') || url.hostname.includes('firebaseio')) {
@@ -70,7 +75,7 @@ self.addEventListener('fetch', event => {
   
   // Cache First para assets estáticos
   event.respondWith(
-    caches.match(request)
+    caches.match(cacheKey)
       .then(cachedResponse => {
         if (cachedResponse) {
           // Retorna do cache, mas atualiza em background
@@ -78,7 +83,7 @@ self.addEventListener('fetch', event => {
             fetch(request).then(networkResponse => {
               if (networkResponse && networkResponse.status === 200) {
                 return caches.open(CACHE_NAME).then(cache => {
-                  cache.put(request, networkResponse.clone());
+                  cache.put(cacheKey, networkResponse.clone());
                 });
               }
             }).catch(() => {})
@@ -88,13 +93,17 @@ self.addEventListener('fetch', event => {
         
         // Buscar da rede e cachear
         return fetch(request).then(networkResponse => {
-          if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+          if (
+            !networkResponse
+            || networkResponse.status !== 200
+            || !['basic', 'cors'].includes(networkResponse.type)
+          ) {
             return networkResponse;
           }
           
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then(cache => {
-            cache.put(request, responseToCache);
+            cache.put(cacheKey, responseToCache);
           });
           
           return networkResponse;

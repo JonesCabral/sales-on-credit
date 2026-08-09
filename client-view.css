@@ -66,7 +66,7 @@
 }
 
 .client-view-page .status-value {
-    font-family: 'Sora', sans-serif;
+    font-family: var(--display-font);
     font-size: 2.5rem;
     font-weight: 800;
     margin-bottom: 0.5rem;
@@ -384,6 +384,8 @@
     transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
     border: 1.5px solid var(--border-color);
     border-left-width: 4px;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 112px;
 }
 
 .client-view-page .transaction-item:hover {
@@ -441,7 +443,7 @@
 .client-view-page .transaction-amount {
     font-size: 1.15rem;
     font-weight: 800;
-    font-family: 'Sora', sans-serif;
+    font-family: var(--display-font);
     white-space: nowrap;
 }
 
@@ -692,6 +694,50 @@
     border-color: rgba(45, 212, 191, 0.3);
 }
 
+.client-view-page .error-detail {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.client-view-page .history-controls {
+    display: grid;
+    justify-items: center;
+    gap: 0.75rem;
+    padding-top: 0.5rem;
+    text-align: center;
+}
+
+.client-view-page .history-summary {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.client-view-page .load-more-button {
+    min-height: 44px;
+    padding: 0.7rem 1.1rem;
+    border: 1px solid rgba(15, 118, 110, 0.25);
+    border-radius: 12px;
+    background: rgba(15, 118, 110, 0.08);
+    color: var(--primary-color);
+    cursor: pointer;
+    font-weight: 800;
+    transition: background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.client-view-page .load-more-button:hover,
+.client-view-page .load-more-button:focus-visible {
+    border-color: var(--primary-color);
+    background: rgba(15, 118, 110, 0.14);
+    transform: translateY(-1px);
+}
+
+.client-view-page .load-more-button:disabled {
+    cursor: wait;
+    opacity: 0.65;
+    transform: none;
+}
+
 [data-theme="dark"] .client-view-page .transaction-type.sale {
     background: rgba(248, 113, 113, 0.12);
     border-color: rgba(248, 113, 113, 0.24);
@@ -745,4 +791,10 @@
 
 [data-theme="dark"] .client-view-page .pix-qrcode {
     background: #ffffff;
+}
+
+[data-theme="dark"] .client-view-page .load-more-button {
+    border-color: rgba(45, 212, 191, 0.3);
+    background: rgba(45, 212, 191, 0.1);
+    color: #5eead4;
 }
