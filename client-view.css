@@ -160,6 +160,16 @@
     overflow-wrap: anywhere;
 }
 
+.client-view-page .interest-deadline-highlight {
+    display: inline-block;
+    padding: 0.08rem 0.3rem;
+    border-radius: 0.35rem;
+    background: rgba(15, 118, 110, 0.12);
+    color: var(--primary-color);
+    font-weight: 800;
+    white-space: nowrap;
+}
+
 .client-view-page .interest-rules-button {
     border: 0;
     padding: 0;
@@ -247,6 +257,11 @@
     border-color: rgba(245, 158, 11, 0.18);
     background: rgba(245, 158, 11, 0.07);
     color: var(--text-secondary);
+}
+
+.client-view-page .interest-deadline.overdue .interest-deadline-highlight {
+    background: rgba(245, 158, 11, 0.14);
+    color: #b45309;
 }
 
 .client-view-page .interest-deadline[hidden] {
@@ -554,9 +569,19 @@
     border-color: rgba(45, 212, 191, 0.14);
 }
 
+[data-theme="dark"] .client-view-page .interest-deadline-highlight {
+    background: rgba(45, 212, 191, 0.14);
+    color: #5eead4;
+}
+
 [data-theme="dark"] .client-view-page .interest-deadline.overdue {
     background: rgba(245, 158, 11, 0.09);
     border-color: rgba(245, 158, 11, 0.16);
+}
+
+[data-theme="dark"] .client-view-page .interest-deadline.overdue .interest-deadline-highlight {
+    background: rgba(245, 158, 11, 0.16);
+    color: #fbbf24;
 }
 
 [data-theme="dark"] .client-view-page .interest-rules-tooltip,

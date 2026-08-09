@@ -416,9 +416,14 @@
             const formattedPercent = formatOverdueInterestPercent(debtDetails.interestPercent);
             const resetPaymentPercent = normalizeOverdueResetPaymentPercent(debtDetails.resetPaymentPercent);
             const minimumPaymentText = formatOverdueResetPaymentPercent(resetPaymentPercent);
+            const minimumPaymentCents = Math.ceil(
+                currencyToCents(debtDetails.baseDebt) * (resetPaymentPercent / 100)
+            );
+            const minimumPaymentAmountText = `R$ ${formatCurrency(centsToAmount(minimumPaymentCents))}`;
+            const highlightedMinimumPayment = `<strong class="interest-deadline-highlight">${minimumPaymentText} (${minimumPaymentAmountText})</strong>`;
             const renewalText = resetPaymentPercent <= 0
                 ? 'Qualquer pagamento renova esse prazo.'
-                : `Um pagamento de pelo menos ${minimumPaymentText} do saldo renova esse prazo.`;
+                : `Um pagamento de pelo menos ${highlightedMinimumPayment} do saldo renova esse prazo.`;
 
             if (debtDetails.isOverdue) {
                 return debtDetails.interestAmount > 0
@@ -430,11 +435,12 @@
             if (!Number.isFinite(daysUntilInterest)) return '';
 
             if (daysUntilInterest <= 0) {
-                return `Hoje ainda dá para manter sem juros. ${renewalText}`;
+                return `<strong class="interest-deadline-highlight">Hoje</strong> ainda dá para manter sem juros. ${renewalText}`;
             }
 
-            const dayText = daysUntilInterest === 1 ? 'falta 1 dia' : `faltam ${daysUntilInterest} dias`;
-            return `Ainda dá tempo: ${dayText} sem juros. ${renewalText}`;
+            const dayText = daysUntilInterest === 1 ? '1 dia' : `${daysUntilInterest} dias`;
+            const daysRemainingText = daysUntilInterest === 1 ? 'falta' : 'faltam';
+            return `Ainda dá tempo: ${daysRemainingText} <strong class="interest-deadline-highlight">${dayText}</strong> sem juros. ${renewalText}`;
         }
 
         function buildInterestRulesHTML(debtDetails) {
@@ -558,7 +564,7 @@
                     : '';
 
                 if (interestDeadlineText) {
-                    interestDeadlineText.textContent = deadlineText;
+                    interestDeadlineText.innerHTML = deadlineText;
                 }
 
                 if (interestRulesContent) {
