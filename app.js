@@ -24,7 +24,7 @@ const database = getDatabase(app);
 const auth = getAuth(app);
 
 // Versão da aplicação
-const APP_VERSION = '2.1.32';
+const APP_VERSION = '2.1.33';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -686,6 +686,39 @@ class SalesManager {
         return true;
     }
 
+    async setClientWhatsappName(clientId, customName = '') {
+        const client = this.clients[clientId];
+        if (!client) {
+            throw new Error('Cliente não encontrado');
+        }
+
+        const sanitizedName = ValidationUtils.validateText(customName, {
+            maxLength: 100,
+            fieldName: 'Nome usado no WhatsApp'
+        });
+        const hadPreviousValue = Object.prototype.hasOwnProperty.call(client, 'whatsappName');
+        const previousValue = client.whatsappName;
+
+        if (sanitizedName) {
+            client.whatsappName = sanitizedName;
+        } else {
+            delete client.whatsappName;
+        }
+
+        try {
+            await this.saveClientData(clientId);
+        } catch (error) {
+            if (hadPreviousValue) {
+                client.whatsappName = previousValue;
+            } else {
+                delete client.whatsappName;
+            }
+            throw error;
+        }
+
+        return sanitizedName;
+    }
+
     async deleteSaleItem(clientId, saleId) {
         if (!this.clients[clientId]) {
             throw new Error('Cliente não encontrado');
@@ -952,6 +985,10 @@ const clientScreenPayment = document.getElementById('clientScreenPayment');
 const clientScreenSale = document.getElementById('clientScreenSale');
 const clientScreenHistory = document.getElementById('clientScreenHistory');
 const clientScreenSettings = document.getElementById('clientScreenSettings');
+const clientWhatsappNameForm = document.getElementById('clientWhatsappNameForm');
+const clientWhatsappNameInput = document.getElementById('clientWhatsappNameInput');
+const clientWhatsappNameCurrentValue = document.getElementById('clientWhatsappNameCurrentValue');
+const clientWhatsappNamePreview = document.getElementById('clientWhatsappNamePreview');
 const clientInterestSettingsForm = document.getElementById('clientInterestSettingsForm');
 const clientInterestModeInput = document.getElementById('clientInterestModeInput');
 const clientInterestPercentInput = document.getElementById('clientInterestPercentInput');
@@ -2259,6 +2296,40 @@ function setClientModalScreen(screen) {
     }
 }
 
+function getClientWhatsappName(client) {
+    const customName = String(client?.whatsappName || '').trim();
+    if (customName) return customName;
+    return String(client?.name || '').trim();
+}
+
+function updateClientWhatsappNamePresentation(clientId = manager.currentClientId) {
+    if (!clientWhatsappNameInput) return;
+
+    const client = manager.clients[clientId];
+    const customName = clientWhatsappNameInput.value.trim();
+    const fallbackName = String(client?.name || '').trim();
+    const messageName = customName || fallbackName;
+
+    if (clientWhatsappNameCurrentValue) {
+        clientWhatsappNameCurrentValue.textContent = customName
+            ? 'Nome personalizado'
+            : 'Nome cadastrado';
+    }
+    if (clientWhatsappNamePreview) {
+        clientWhatsappNamePreview.textContent = messageName
+            ? `Prévia: Olá, ${messageName} 😊`
+            : 'Prévia: Olá! 😊';
+    }
+}
+
+function syncClientWhatsappNameForm(clientId = manager.currentClientId) {
+    if (!clientWhatsappNameForm || !clientWhatsappNameInput) return;
+
+    const client = manager.clients[clientId];
+    clientWhatsappNameInput.value = String(client?.whatsappName || '').trim();
+    updateClientWhatsappNamePresentation(clientId);
+}
+
 function updateClientInterestFormPresentation() {
     if (!clientInterestModeInput || !clientInterestPercentInput) return;
 
@@ -2658,8 +2729,8 @@ function shareClientHistory(clientId) {
     const debt = manager.getClientDebt(clientId);
     const isCredit = debt < 0;
     const isPaid = debt === 0;
-    const firstName = String(client.name || '').trim().split(/\s+/)[0];
-    const greeting = firstName ? `Olá, ${firstName}! 😊` : 'Olá! 😊';
+    const whatsappName = getClientWhatsappName(client);
+    const greeting = whatsappName ? `Olá, ${whatsappName} 😊` : 'Olá! 😊';
 
     // Gerar link para a página do cliente
     const baseUrl = window.location.origin + window.location.pathname.replace('index.html', '');
@@ -2891,6 +2962,7 @@ function openClientModal(clientId, options = {}) {
         }
     }
 
+    syncClientWhatsappNameForm(clientId);
     syncClientInterestSettingsForm(clientId);
     setClientModalScreen(options.screen || 'sale');
     setClientModalProductSearchActive(false);
@@ -2932,6 +3004,9 @@ function closeClientModal() {
     }
     if (clientInterestSettingsForm) {
         clientInterestSettingsForm.reset();
+    }
+    if (clientWhatsappNameForm) {
+        clientWhatsappNameForm.reset();
     }
     setClientModalScreen('sale');
     const nameSection = document.querySelector('.client-name-section');
@@ -3545,6 +3620,47 @@ if (clientScreenTabSettings) {
         setClientModalScreen('settings');
     });
 }
+
+clientWhatsappNameInput?.addEventListener('input', () => updateClientWhatsappNamePresentation());
+
+clientWhatsappNameForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const clientId = manager.currentClientId;
+    if (!clientId || !manager.clients[clientId]) {
+        showToast('Nenhum cliente selecionado.', 'error');
+        return;
+    }
+
+    const customName = clientWhatsappNameInput?.value || '';
+    if (customName.trim().length > 100) {
+        showToast('O nome usado no WhatsApp não pode ter mais de 100 caracteres.', 'error');
+        clientWhatsappNameInput?.focus();
+        return;
+    }
+
+    if (!beginFormSubmission(clientWhatsappNameForm)) return;
+
+    showLoader('Salvando nome...');
+    try {
+        const savedName = await manager.setClientWhatsappName(clientId, customName);
+        syncClientWhatsappNameForm(clientId);
+        hideLoader();
+        showToast(
+            savedName
+                ? 'Nome usado no WhatsApp salvo.'
+                : 'A mensagem usará o nome cadastrado do cliente.',
+            'success'
+        );
+    } catch (error) {
+        hideLoader();
+        console.error('Erro ao salvar nome usado no WhatsApp:', error);
+        showToast(getDatabaseErrorMessage(error, error.message || 'Erro ao salvar nome usado no WhatsApp.'), 'error');
+        syncClientWhatsappNameForm(clientId);
+    } finally {
+        finishFormSubmission(clientWhatsappNameForm);
+    }
+});
 
 clientInterestModeInput?.addEventListener('change', () => {
     if (clientInterestModeInput.value === CLIENT_INTEREST_MODE_CUSTOM) {

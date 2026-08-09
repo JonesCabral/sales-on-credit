@@ -29,7 +29,7 @@
         .spinner { width: 60px; height: 60px; margin: 0 auto 20px; border: 5px solid rgba(255,255,255,0.2); border-top: 5px solid white; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
-    <link rel="stylesheet" href="style.css?v=2.1.32">
+    <link rel="stylesheet" href="style.css?v=2.1.33">
     <script>
         // Registrar Service Worker para PWA
         if ('serviceWorker' in navigator) {
@@ -45,7 +45,7 @@
         }
         
         // Controle de versão
-        const CURRENT_VERSION = '2.1.32';
+        const CURRENT_VERSION = '2.1.33';
         localStorage.setItem('appVersion', CURRENT_VERSION);
 
         // Theme: apply saved preference or system preference immediately to avoid flash
@@ -320,7 +320,27 @@
                     <div id="clientScreenSettings" class="client-modal-screen" role="tabpanel" aria-labelledby="clientScreenTabSettings" hidden>
                         <div class="modal-section">
                             <h3>Configurações do Cliente</h3>
-                            <p class="settings-hint">Defina os juros deste cliente e gerencie as ações administrativas.</p>
+                            <p class="settings-hint">Personalize as mensagens, defina os juros deste cliente e gerencie as ações administrativas.</p>
+                        </div>
+                        <div class="modal-section client-whatsapp-settings-section">
+                            <form id="clientWhatsappNameForm" class="settings-form settings-form-whatsapp">
+                                <div class="settings-form-header">
+                                    <div>
+                                        <h3>Nome usado no WhatsApp</h3>
+                                        <p class="settings-hint" id="clientWhatsappNameHint">
+                                            Personalize o nome da saudação. Deixe vazio para usar o nome completo cadastrado no sistema.
+                                        </p>
+                                    </div>
+                                    <span id="clientWhatsappNameCurrentValue" class="settings-current-value" aria-live="polite">Nome cadastrado</span>
+                                </div>
+
+                                <div class="settings-inline-field client-whatsapp-name-field">
+                                    <label for="clientWhatsappNameInput">Nome na mensagem</label>
+                                    <input type="text" id="clientWhatsappNameInput" maxlength="100" autocomplete="off" placeholder="Usar nome cadastrado" aria-describedby="clientWhatsappNameHint clientWhatsappNamePreview">
+                                    <button id="saveClientWhatsappName" type="submit" class="btn btn-primary">Salvar nome</button>
+                                </div>
+                                <p id="clientWhatsappNamePreview" class="client-whatsapp-name-preview" aria-live="polite"></p>
+                            </form>
                         </div>
                         <div class="modal-section client-interest-settings-section">
                             <form id="clientInterestSettingsForm" class="settings-form settings-form-interest">
@@ -407,7 +427,7 @@
     </div>
 
     <!-- Firebase SDK -->
-    <script type="module" src="app.js?v=2.1.32"></script>
+    <script type="module" src="app.js?v=2.1.33"></script>
 
     <!-- Indicador Offline -->
     <div id="offlineBanner" class="offline-banner" role="alert" aria-live="assertive" style="display: none;">

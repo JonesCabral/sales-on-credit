@@ -2353,6 +2353,12 @@ input:focus, select:focus, textarea:focus {
     background: linear-gradient(180deg, rgba(37, 99, 235, 0.08), rgba(37, 99, 235, 0.02));
 }
 
+.settings-form-whatsapp {
+    border-color: rgba(22, 163, 74, 0.28);
+    border-top-color: var(--success-color);
+    background: linear-gradient(180deg, rgba(22, 163, 74, 0.09), rgba(22, 163, 74, 0.02));
+}
+
 .settings-form-header {
     display: grid;
     gap: 1rem;
@@ -2380,6 +2386,22 @@ input:focus, select:focus, textarea:focus {
 .settings-form-interest .settings-current-value {
     color: var(--primary-color);
     background: rgba(37, 99, 235, 0.08);
+}
+
+.settings-form-whatsapp .settings-current-value {
+    color: var(--success-color);
+    background: rgba(22, 163, 74, 0.09);
+}
+
+.client-whatsapp-name-preview {
+    margin: -0.35rem 0 0;
+    padding: 0.75rem 0.9rem;
+    border: 1px dashed rgba(22, 163, 74, 0.42);
+    border-radius: 10px;
+    color: var(--text-primary);
+    background: rgba(22, 163, 74, 0.06);
+    font-size: 0.9rem;
+    line-height: 1.4;
 }
 
 .settings-checkbox-label {
@@ -4586,6 +4608,12 @@ input:focus, select:focus, textarea:focus {
     border-top-color: var(--primary-color);
 }
 
+[data-theme="dark"] .settings-form-whatsapp {
+    background: linear-gradient(180deg, rgba(22, 163, 74, 0.16), rgba(22, 163, 74, 0.03));
+    border-color: rgba(74, 222, 128, 0.3);
+    border-top-color: var(--success-color);
+}
+
 [data-theme="dark"] .settings-checkbox-label,
 [data-theme="dark"] .settings-status {
     background: #0f1a2d;
@@ -4602,6 +4630,17 @@ input:focus, select:focus, textarea:focus {
     background: rgba(96, 165, 250, 0.12);
     border-color: rgba(96, 165, 250, 0.4);
     color: #bfdbfe;
+}
+
+[data-theme="dark"] .settings-form-whatsapp .settings-current-value {
+    background: rgba(74, 222, 128, 0.12);
+    border-color: rgba(74, 222, 128, 0.4);
+    color: #bbf7d0;
+}
+
+[data-theme="dark"] .client-whatsapp-name-preview {
+    border-color: rgba(74, 222, 128, 0.35);
+    background: rgba(22, 163, 74, 0.1);
 }
 
 [data-theme="dark"] .product-item {
