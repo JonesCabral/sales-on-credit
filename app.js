@@ -24,7 +24,7 @@ const database = getDatabase(app);
 const auth = getAuth(app);
 
 // Versão da aplicação
-const APP_VERSION = '2.1.34';
+const APP_VERSION = '2.1.35';
 
 // Verificar e sincronizar versão
 (function checkVersion() {

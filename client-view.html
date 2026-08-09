@@ -8,8 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=2.1.34">
-    <link rel="stylesheet" href="client-view.css?v=2.1.34">
+    <link rel="stylesheet" href="style.css?v=2.1.35">
+    <link rel="stylesheet" href="client-view.css?v=2.1.35">
     <script>
         (function() {
             const saved = localStorage.getItem('theme');
@@ -139,6 +139,7 @@
         const DEFAULT_OVERDUE_INTEREST_PERCENT = 0;
         const MIN_OVERDUE_INTEREST_PERCENT = 0;
         const MAX_OVERDUE_INTEREST_PERCENT = 100;
+        const CLIENT_INTEREST_MODE_GLOBAL = 'global';
         const CLIENT_INTEREST_MODE_CUSTOM = 'custom';
         const CLIENT_INTEREST_MODE_DISABLED = 'disabled';
         const DEFAULT_OVERDUE_RESET_PAYMENT_PERCENT = 20;
@@ -297,6 +298,7 @@
 
             if (value.mode === CLIENT_INTEREST_MODE_DISABLED) {
                 return {
+                    mode: CLIENT_INTEREST_MODE_DISABLED,
                     enabled: false,
                     percent: 0,
                     source: 'individual'
@@ -307,6 +309,7 @@
 
             const percent = normalizeOverdueInterestPercent(value.percent);
             return {
+                mode: CLIENT_INTEREST_MODE_CUSTOM,
                 enabled: percent > 0,
                 percent,
                 source: 'individual'
@@ -319,6 +322,7 @@
 
             const generalInterest = settings?.overdueInterest || {};
             return {
+                mode: CLIENT_INTEREST_MODE_GLOBAL,
                 enabled: generalInterest.enabled === true,
                 percent: normalizeOverdueInterestPercent(generalInterest.percent),
                 source: 'global'
@@ -481,6 +485,7 @@
                 interestAmount: centsToAmount(interestCents),
                 projectedInterestAmount: centsToAmount(projectedInterestCents),
                 minimumPaymentAmount: centsToAmount(minimumPaymentCents),
+                interestMode: interestSettings.mode,
                 interestPercent,
                 interestEnabled,
                 resetPaymentPercent,
@@ -499,17 +504,13 @@
             return Math.floor((now - referenceDate) / DAY_IN_MS);
         }
 
-        function hasAppliedInterest(debtDetails) {
-            const interestAmount = Number(debtDetails?.interestAmount);
-            return debtDetails?.isOverdue === true
-                && debtDetails?.interestEnabled === true
-                && Number(debtDetails?.baseDebt) > 0
-                && Number.isFinite(interestAmount)
-                && interestAmount > 0;
+        function shouldShowInterestInformation(debtDetails) {
+            if (debtDetails?.interestMode === CLIENT_INTEREST_MODE_DISABLED) return false;
+            return debtDetails?.interestEnabled === true && Number(debtDetails?.baseDebt) > 0;
         }
 
         function buildInterestDeadlineHTML(debtDetails) {
-            if (!hasAppliedInterest(debtDetails)) return '';
+            if (!shouldShowInterestInformation(debtDetails)) return '';
 
             const formattedPercent = formatOverdueInterestPercent(debtDetails.interestPercent);
             const resetPaymentPercent = normalizeOverdueResetPaymentPercent(debtDetails.resetPaymentPercent);
@@ -600,7 +601,7 @@
         }
 
         function buildInterestRulesHTML(debtDetails) {
-            if (!hasAppliedInterest(debtDetails)) return '';
+            if (!shouldShowInterestInformation(debtDetails)) return '';
 
             const formattedInterest = formatOverdueInterestPercent(debtDetails.interestPercent);
             const displayedInterestAmount = debtDetails.isOverdue
