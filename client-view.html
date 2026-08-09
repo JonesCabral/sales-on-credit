@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=2.1.24">
-    <link rel="stylesheet" href="client-view.css?v=2.1.22">
+    <link rel="stylesheet" href="client-view.css?v=2.1.23">
     <script>
         (function() {
             const saved = localStorage.getItem('theme');
@@ -48,10 +48,6 @@
         </div>
 
         <div id="contentScreen" style="display: none;">
-            <div id="clientNameCard" class="card client-name-card" aria-live="polite">
-                <div id="clientFriendlyMessage" class="client-friendly-message" aria-live="polite"></div>
-            </div>
-
             <!-- Status da Conta -->
             <div class="card status-card">
                 <div class="status-icon" id="statusIcon">💰</div>
@@ -61,9 +57,10 @@
                 <div class="interest-deadline" id="interestDeadline" hidden>
                     <span class="interest-deadline-text" id="interestDeadlineText"></span>
                     <button type="button" class="interest-rules-button" id="interestRulesButton" aria-expanded="false" aria-controls="interestRulesTooltip">
-                        Como funciona?
+                        Ver regras dos juros
                     </button>
-                    <div class="interest-rules-tooltip" id="interestRulesTooltip" role="dialog" aria-modal="false" aria-labelledby="interestRulesTitle" hidden>
+                    <div class="interest-rules-backdrop" id="interestRulesBackdrop" hidden></div>
+                    <div class="interest-rules-tooltip" id="interestRulesTooltip" role="dialog" aria-modal="true" aria-labelledby="interestRulesTitle" tabindex="-1" hidden>
                         <div class="interest-rules-header">
                             <h3 id="interestRulesTitle">Regras dos juros</h3>
                             <button type="button" class="interest-rules-close" id="interestRulesClose">Fechar</button>
@@ -71,6 +68,10 @@
                         <div class="interest-rules-content" id="interestRulesContent"></div>
                     </div>
                 </div>
+            </div>
+
+            <div id="clientNameCard" class="card client-name-card" aria-live="polite">
+                <div id="clientFriendlyMessage" class="client-friendly-message" aria-live="polite"></div>
             </div>
 
             <!-- Histórico de Transações -->
@@ -131,6 +132,7 @@
         const interestDeadline = document.getElementById('interestDeadline');
         const interestDeadlineText = document.getElementById('interestDeadlineText');
         const interestRulesButton = document.getElementById('interestRulesButton');
+        const interestRulesBackdrop = document.getElementById('interestRulesBackdrop');
         const interestRulesTooltip = document.getElementById('interestRulesTooltip');
         const interestRulesClose = document.getElementById('interestRulesClose');
         const interestRulesContent = document.getElementById('interestRulesContent');
@@ -410,7 +412,7 @@
             return `${months} mês${months === 1 ? '' : 'es'}`;
         }
 
-        function buildInterestDeadlineText(debtDetails) {
+        function buildInterestDeadlineHTML(debtDetails) {
             if (!debtDetails?.interestEnabled || debtDetails.baseDebt <= 0) return '';
 
             const formattedPercent = formatOverdueInterestPercent(debtDetails.interestPercent);
@@ -420,27 +422,42 @@
                 currencyToCents(debtDetails.baseDebt) * (resetPaymentPercent / 100)
             );
             const minimumPaymentAmountText = `R$ ${formatCurrency(centsToAmount(minimumPaymentCents))}`;
-            const highlightedMinimumPayment = `<strong class="interest-deadline-highlight">${minimumPaymentText} (${minimumPaymentAmountText})</strong>`;
-            const renewalText = resetPaymentPercent <= 0
-                ? 'Qualquer pagamento renova esse prazo.'
-                : `Um pagamento de pelo menos ${highlightedMinimumPayment} do saldo renova esse prazo.`;
+            const minimumPaymentValue = resetPaymentPercent <= 0
+                ? '<strong class="interest-deadline-highlight">Qualquer valor</strong>'
+                : `
+                    <span class="interest-deadline-value">
+                        <strong class="interest-deadline-highlight">${minimumPaymentAmountText}</strong>
+                        <span class="interest-deadline-percent">(${minimumPaymentText} do saldo)</span>
+                    </span>
+                `;
+
+            let deadlineValue = '';
+            let deadlineNote = '';
 
             if (debtDetails.isOverdue) {
-                return debtDetails.interestAmount > 0
-                    ? `O prazo sem juros venceu e o saldo já considera ${formattedPercent} de juros. ${renewalText}`
-                    : `O prazo sem juros venceu. ${renewalText}`;
+                deadlineValue = 'Vencido';
+                deadlineNote = debtDetails.interestAmount > 0
+                    ? `O saldo já considera ${formattedPercent} de juros por atraso.`
+                    : 'O prazo sem juros terminou.';
+            } else {
+                const daysUntilInterest = Number(debtDetails.daysUntilInterest);
+                if (!Number.isFinite(daysUntilInterest)) return '';
+                deadlineValue = daysUntilInterest <= 0
+                    ? 'Hoje'
+                    : daysUntilInterest === 1 ? '1 dia' : `${daysUntilInterest} dias`;
             }
 
-            const daysUntilInterest = Number(debtDetails.daysUntilInterest);
-            if (!Number.isFinite(daysUntilInterest)) return '';
-
-            if (daysUntilInterest <= 0) {
-                return `<strong class="interest-deadline-highlight">Hoje</strong> ainda dá para manter sem juros. ${renewalText}`;
-            }
-
-            const dayText = daysUntilInterest === 1 ? '1 dia' : `${daysUntilInterest} dias`;
-            const daysRemainingText = daysUntilInterest === 1 ? 'falta' : 'faltam';
-            return `Ainda dá tempo: ${daysRemainingText} <strong class="interest-deadline-highlight">${dayText}</strong> sem juros. ${renewalText}`;
+            return `
+                <span class="interest-deadline-row">
+                    <span class="interest-deadline-label">Prazo sem juros:</span>
+                    <strong class="interest-deadline-highlight">${deadlineValue}</strong>
+                </span>
+                <span class="interest-deadline-row">
+                    <span class="interest-deadline-label">Pagamento mínimo:</span>
+                    ${minimumPaymentValue}
+                </span>
+                ${deadlineNote ? `<span class="interest-deadline-note">${deadlineNote}</span>` : ''}
+            `;
         }
 
         function buildInterestRulesHTML(debtDetails) {
@@ -449,23 +466,47 @@
             const formattedInterest = formatOverdueInterestPercent(debtDetails.interestPercent);
             const resetPaymentPercent = normalizeOverdueResetPaymentPercent(debtDetails.resetPaymentPercent);
             const formattedResetPayment = formatOverdueResetPaymentPercent(resetPaymentPercent);
+            const minimumPaymentCents = Math.ceil(
+                currencyToCents(debtDetails.baseDebt) * (resetPaymentPercent / 100)
+            );
+            const formattedMinimumPayment = `R$ ${formatCurrency(centsToAmount(minimumPaymentCents))}`;
             const overdueLimit = Number(debtDetails.overdueDays);
             const overdueLimitText = overdueLimit === 1 ? '1 dia' : `${overdueLimit} dias`;
             const resetRule = resetPaymentPercent <= 0
                 ? 'qualquer pagamento renova o prazo sem juros.'
-                : `pague pelo menos ${formattedResetPayment} do saldo para renovar o prazo sem juros.`;
+                : `pague pelo menos ${formattedMinimumPayment} (${formattedResetPayment} do saldo) para renovar o prazo sem juros.`;
 
             return `
-                <p>Se a conta passar de ${overdueLimitText} sem um pagamento que renove o prazo, pode haver juros.</p>
-                <p>A taxa de juros atual é ${formattedInterest}.</p>
-                <p>Para evitar novo atraso, ${resetRule} Esse valor também abate do saldo.</p>
+                <p>O prazo sem juros é de ${overdueLimitText}.</p>
+                <p>Depois desse prazo, podem ser aplicados ${formattedInterest} de juros.</p>
+                <p>Para renovar o prazo, ${resetRule} O pagamento também reduz o saldo.</p>
             `;
         }
 
+        let interestRulesPreviousFocus = null;
+
         function setInterestRulesOpen(isOpen) {
-            if (!interestRulesTooltip || !interestRulesButton) return;
+            if (!interestRulesTooltip || !interestRulesButton || !interestRulesBackdrop) return;
+            const wasOpen = !interestRulesTooltip.hidden;
+
+            if (isOpen && !wasOpen) {
+                interestRulesPreviousFocus = document.activeElement;
+            }
+
             interestRulesTooltip.hidden = !isOpen;
+            interestRulesBackdrop.hidden = !isOpen;
             interestRulesButton.setAttribute('aria-expanded', String(isOpen));
+            document.body.classList.toggle('interest-rules-open', isOpen);
+
+            if (isOpen) {
+                requestAnimationFrame(() => interestRulesClose?.focus());
+            } else if (wasOpen) {
+                const focusTarget = interestRulesPreviousFocus?.isConnected
+                    ? interestRulesPreviousFocus
+                    : interestRulesButton;
+                interestRulesPreviousFocus = null;
+                focusTarget?.focus();
+            }
         }
 
         interestRulesButton?.addEventListener('click', () => {
@@ -474,18 +515,43 @@
 
         interestRulesClose?.addEventListener('click', () => {
             setInterestRulesOpen(false);
-            interestRulesButton?.focus();
+        });
+
+        interestRulesBackdrop?.addEventListener('click', () => {
+            setInterestRulesOpen(false);
         });
 
         document.addEventListener('click', (event) => {
             if (interestRulesTooltip?.hidden) return;
-            if (interestDeadline?.contains(event.target)) return;
+            if (interestRulesTooltip?.contains(event.target) || interestRulesButton?.contains(event.target)) return;
             setInterestRulesOpen(false);
         });
 
         document.addEventListener('keydown', (event) => {
+            if (interestRulesTooltip?.hidden) return;
+
             if (event.key === 'Escape') {
                 setInterestRulesOpen(false);
+                return;
+            }
+
+            if (event.key === 'Tab') {
+                const focusableElements = [...interestRulesTooltip.querySelectorAll(
+                    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+                )].filter(element => !element.hidden && !element.disabled);
+                const firstFocusable = focusableElements[0];
+                const lastFocusable = focusableElements[focusableElements.length - 1];
+
+                if (!firstFocusable) {
+                    event.preventDefault();
+                    interestRulesTooltip.focus();
+                } else if (event.shiftKey && document.activeElement === firstFocusable) {
+                    event.preventDefault();
+                    lastFocusable.focus();
+                } else if (!event.shiftKey && document.activeElement === lastFocusable) {
+                    event.preventDefault();
+                    firstFocusable.focus();
+                }
             }
         });
 
@@ -552,32 +618,32 @@
                 statusValue.textContent = `R$ ${formatCurrency(debt)}`;
                 statusValue.className = 'status-value debt';
                 statusText.textContent = debtDetails.interestAmount > 0
-                    ? `Saldo devedor com juros de ${formatOverdueInterestPercent(debtDetails.interestPercent)} por atraso`
-                    : 'Saldo devedor';
+                    ? `Você tem R$ ${formatCurrency(debt)} em aberto, com ${formatOverdueInterestPercent(debtDetails.interestPercent)} de juros por atraso.`
+                    : `Você tem R$ ${formatCurrency(debt)} em aberto.`;
                 statusCard.classList.add('debt-status');
             }
 
             // Atualizar histórico de transações
             if (interestDeadline) {
-                const deadlineText = (!isPaid && !isCredit)
-                    ? buildInterestDeadlineText(debtDetails)
+                const deadlineHTML = (!isPaid && !isCredit)
+                    ? buildInterestDeadlineHTML(debtDetails)
                     : '';
 
                 if (interestDeadlineText) {
-                    interestDeadlineText.innerHTML = deadlineText;
+                    interestDeadlineText.innerHTML = deadlineHTML;
                 }
 
                 if (interestRulesContent) {
-                    interestRulesContent.innerHTML = deadlineText ? buildInterestRulesHTML(debtDetails) : '';
+                    interestRulesContent.innerHTML = deadlineHTML ? buildInterestRulesHTML(debtDetails) : '';
                 }
 
-                interestDeadline.hidden = !deadlineText;
+                interestDeadline.hidden = !deadlineHTML;
                 if (interestRulesButton) {
-                    interestRulesButton.hidden = !deadlineText;
+                    interestRulesButton.hidden = !deadlineHTML;
                 }
-                interestDeadline.classList.toggle('overdue', isOverdue && Boolean(deadlineText));
+                interestDeadline.classList.toggle('overdue', isOverdue && Boolean(deadlineHTML));
 
-                if (!deadlineText) {
+                if (!deadlineHTML) {
                     setInterestRulesOpen(false);
                 }
             }
@@ -599,7 +665,7 @@
                     const isPayment = sale.type === TRANSACTION_TYPE_PAYMENT;
                     const isInterest = sale.type === TRANSACTION_TYPE_INTEREST;
                     const icon = isPayment ? '✅' : isInterest ? 'R$' : '🛒';
-                    const typeText = isPayment ? 'Pagamento' : isInterest ? 'Juros' : 'Venda';
+                    const typeText = isPayment ? 'Pagamento recebido' : isInterest ? 'Juros adicionados' : 'Compra';
                     const typeClass = isPayment ? 'payment' : isInterest ? 'interest' : 'sale';
                     const amount = centsToAmount(getTransactionAmountCents(sale));
                     const safeDescription = sale.description ? escapeHTML(sale.description) : '';
@@ -607,7 +673,7 @@
                     return `
                         <div class="transaction-item ${typeClass}">
                             <div class="transaction-header">
-                                <span class="transaction-type">${icon} ${typeText}</span>
+                                <span class="transaction-type ${typeClass}">${icon} ${typeText}</span>
                                 <span class="transaction-amount ${typeClass}">R$ ${formatCurrency(amount)}</span>
                             </div>
                             <div class="transaction-date">📅 ${formatDate(sale.date)}</div>

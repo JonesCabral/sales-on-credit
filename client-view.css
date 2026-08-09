@@ -139,25 +139,59 @@
 }
 
 .client-view-page .interest-deadline {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 0.35rem 0.5rem;
-    margin: 0.55rem auto 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.55rem;
+    margin: 0.75rem auto 0;
     max-width: 34rem;
-    padding: 0.45rem 0.6rem;
-    border-radius: 6px;
+    padding: 0.75rem 0.85rem;
+    border-radius: 10px;
     border: 1px solid rgba(15, 118, 110, 0.12);
     background: rgba(15, 118, 110, 0.05);
     color: var(--text-secondary);
-    font-size: 0.8rem;
+    font-size: 0.95rem;
     font-weight: 600;
-    line-height: 1.35;
+    line-height: 1.45;
+    text-align: left;
 }
 
 .client-view-page .interest-deadline-text {
+    display: grid;
+    gap: 0.55rem;
     overflow-wrap: anywhere;
+}
+
+.client-view-page .interest-deadline-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem 0.75rem;
+    flex-wrap: wrap;
+}
+
+.client-view-page .interest-deadline-label {
+    color: var(--text-primary);
+    font-weight: 800;
+}
+
+.client-view-page .interest-deadline-value {
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: 0.25rem 0.4rem;
+    flex-wrap: wrap;
+}
+
+.client-view-page .interest-deadline-percent {
+    font-size: 0.88rem;
+    white-space: nowrap;
+}
+
+.client-view-page .interest-deadline-note {
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(15, 118, 110, 0.14);
+    font-size: 0.92rem;
 }
 
 .client-view-page .interest-deadline-highlight {
@@ -171,12 +205,16 @@
 }
 
 .client-view-page .interest-rules-button {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    min-height: 44px;
     border: 0;
-    padding: 0;
+    padding: 0.35rem 0.45rem;
     background: transparent;
     color: var(--primary-color);
     font: inherit;
-    font-size: 0.78rem;
+    font-size: 0.9rem;
     font-weight: 800;
     text-decoration: underline;
     text-underline-offset: 0.14em;
@@ -186,6 +224,22 @@
 .client-view-page .interest-rules-button:hover,
 .client-view-page .interest-rules-button:focus-visible {
     color: var(--primary-dark);
+}
+
+.client-view-page.interest-rules-open {
+    overflow: hidden;
+}
+
+.client-view-page .interest-rules-backdrop {
+    position: fixed;
+    z-index: 1190;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.58);
+    backdrop-filter: blur(2px);
+}
+
+.client-view-page .interest-rules-backdrop[hidden] {
+    display: none;
 }
 
 .client-view-page .interest-rules-tooltip {
@@ -208,6 +262,11 @@
     display: none;
 }
 
+.client-view-page .interest-rules-tooltip:focus-visible {
+    outline: 3px solid rgba(15, 118, 110, 0.3);
+    outline-offset: 3px;
+}
+
 .client-view-page .interest-rules-header {
     display: flex;
     align-items: center;
@@ -218,19 +277,23 @@
 
 .client-view-page .interest-rules-header h3 {
     margin: 0;
-    font-size: 0.95rem;
+    font-size: 1.05rem;
     font-weight: 900;
     color: var(--text-primary);
 }
 
 .client-view-page .interest-rules-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
     border: 1px solid var(--border-color);
     border-radius: 6px;
-    padding: 0.28rem 0.55rem;
+    padding: 0.4rem 0.7rem;
     background: var(--card-bg);
     color: var(--text-secondary);
     font: inherit;
-    font-size: 0.76rem;
+    font-size: 0.9rem;
     font-weight: 800;
     cursor: pointer;
 }
@@ -245,8 +308,8 @@
     display: grid;
     gap: 0.55rem;
     color: var(--text-secondary);
-    font-size: 0.84rem;
-    line-height: 1.45;
+    font-size: 0.95rem;
+    line-height: 1.55;
 }
 
 .client-view-page .interest-rules-content p {
@@ -262,6 +325,10 @@
 .client-view-page .interest-deadline.overdue .interest-deadline-highlight {
     background: rgba(245, 158, 11, 0.14);
     color: #b45309;
+}
+
+.client-view-page .interest-deadline.overdue .interest-deadline-note {
+    border-top-color: rgba(245, 158, 11, 0.22);
 }
 
 .client-view-page .interest-deadline[hidden] {
@@ -317,8 +384,29 @@
 }
 
 .client-view-page .transaction-type {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 0.25rem 0.55rem;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
     font-weight: 700;
     font-size: 1rem;
+}
+
+.client-view-page .transaction-type.sale {
+    background: rgba(185, 28, 28, 0.08);
+    border-color: rgba(185, 28, 28, 0.18);
+}
+
+.client-view-page .transaction-type.payment {
+    background: rgba(21, 128, 61, 0.08);
+    border-color: rgba(21, 128, 61, 0.18);
+}
+
+.client-view-page .transaction-type.interest {
+    background: rgba(217, 119, 6, 0.1);
+    border-color: rgba(217, 119, 6, 0.2);
 }
 
 .client-view-page .transaction-amount {
@@ -341,7 +429,7 @@
 }
 
 .client-view-page .transaction-date {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     color: var(--text-secondary);
     margin-bottom: 0.35rem;
     font-weight: 600;
@@ -522,6 +610,20 @@
         font-size: 2rem;
     }
 
+    .client-view-page .interest-deadline-row {
+        display: grid;
+        justify-content: stretch;
+        gap: 0.2rem;
+    }
+
+    .client-view-page .interest-deadline-value {
+        justify-content: flex-start;
+    }
+
+    .client-view-page .interest-rules-tooltip {
+        padding: 1rem;
+    }
+
     .client-view-page .transaction-header {
         flex-direction: column;
         align-items: flex-start;
@@ -557,6 +659,21 @@
 [data-theme="dark"] .client-view-page .transaction-description {
     background: rgba(45, 212, 191, 0.14);
     border-color: rgba(45, 212, 191, 0.3);
+}
+
+[data-theme="dark"] .client-view-page .transaction-type.sale {
+    background: rgba(248, 113, 113, 0.12);
+    border-color: rgba(248, 113, 113, 0.24);
+}
+
+[data-theme="dark"] .client-view-page .transaction-type.payment {
+    background: rgba(74, 222, 128, 0.12);
+    border-color: rgba(74, 222, 128, 0.24);
+}
+
+[data-theme="dark"] .client-view-page .transaction-type.interest {
+    background: rgba(251, 191, 36, 0.12);
+    border-color: rgba(251, 191, 36, 0.24);
 }
 
 [data-theme="dark"] .client-view-page .client-friendly-message {
