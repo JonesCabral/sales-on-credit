@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=2.1.26">
-    <link rel="stylesheet" href="client-view.css?v=2.1.28">
+    <link rel="stylesheet" href="client-view.css?v=2.1.29">
     <script>
         (function() {
             const saved = localStorage.getItem('theme');
@@ -57,12 +57,12 @@
                 <div class="interest-deadline" id="interestDeadline" hidden>
                     <div class="interest-deadline-text" id="interestDeadlineText"></div>
                     <button type="button" class="interest-rules-button" id="interestRulesButton" aria-expanded="false" aria-controls="interestRulesTooltip">
-                        Entenda o prazo e os juros
+                        Ver detalhes
                     </button>
                     <div class="interest-rules-backdrop" id="interestRulesBackdrop" hidden></div>
                     <div class="interest-rules-tooltip" id="interestRulesTooltip" role="dialog" aria-modal="true" aria-labelledby="interestRulesTitle" tabindex="-1" hidden>
                         <div class="interest-rules-header">
-                            <h3 id="interestRulesTitle">Entenda o prazo e os juros</h3>
+                            <h3 id="interestRulesTitle">Detalhes do prazo</h3>
                             <button type="button" class="interest-rules-close" id="interestRulesClose">Fechar</button>
                         </div>
                         <div class="interest-rules-content" id="interestRulesContent"></div>
@@ -438,42 +438,38 @@
             const deadlineDateText = formatDeadlineDate(debtDetails.interestDeadlineDate);
             const overdueLimit = Number(debtDetails.overdueDays);
             const paymentTitle = resetPaymentPercent <= 0
-                ? debtDetails.isOverdue
-                    ? 'Faça um pagamento de qualquer valor'
-                    : 'Faça um pagamento de qualquer valor antes do fim do prazo'
-                : `Pague <span class="interest-summary-payment-amount">${minimumPaymentAmountText}</span> ou mais${debtDetails.isOverdue ? '' : ' antes do fim do prazo'}`;
+                ? 'Faça um pagamento de qualquer valor'
+                : `Pague <span class="interest-summary-payment-amount">${minimumPaymentAmountText}</span> ou mais`;
             const paymentNote = resetPaymentPercent <= 0
-                ? 'Qualquer valor pago reduz a dívida e reinicia a contagem.'
-                : `O mínimo é ${minimumPaymentText} do saldo ${debtDetails.isOverdue ? 'atual com juros' : 'atual'}. Pagamentos menores reduzem a dívida, mas não ${debtDetails.isOverdue ? 'iniciam um novo prazo' : 'renovam o prazo'}.`;
-            const interestRateText = `Taxa de ${formattedPercent} sobre as compras que ainda estão em aberto.`;
+                ? 'Qualquer valor reduz a dívida e renova o prazo.'
+                : `Mínimo de ${minimumPaymentText} do saldo ${debtDetails.isOverdue ? 'com juros' : 'atual'}. Valor menor reduz a dívida, mas não ${debtDetails.isOverdue ? 'inicia um novo prazo' : 'renova o prazo'}.`;
 
             if (debtDetails.isOverdue) {
                 const daysOverdue = Math.max(0, Number(debtDetails.daysSinceRef) - overdueLimit);
                 const overdueTitle = daysOverdue <= 0
-                    ? 'O prazo sem juros terminou hoje'
+                    ? 'Prazo encerrado hoje'
                     : daysOverdue === 1
-                        ? 'O prazo sem juros terminou há 1 dia'
-                        : `O prazo sem juros terminou há <span class="interest-summary-days">${daysOverdue} dias</span>`;
+                        ? 'Encerrado há 1 dia'
+                        : `Encerrado há <span class="interest-summary-days">${daysOverdue} dias</span>`;
                 const deadlineSupport = deadlineDateText
-                    ? `Terminou em <strong>${deadlineDateText}</strong>.`
+                    ? `Desde <strong>${deadlineDateText}</strong>.`
                     : '';
 
                 return `
                     <section class="interest-summary-section interest-summary-status">
-                        <span class="interest-summary-kicker">Situação do prazo</span>
+                        <span class="interest-summary-kicker">Prazo sem juros</span>
                         <h2 class="interest-summary-title">${overdueTitle}</h2>
                         ${deadlineSupport ? `<p class="interest-summary-support">${deadlineSupport}</p>` : ''}
                     </section>
                     <section class="interest-summary-section interest-summary-consequence">
-                        <h2 class="interest-summary-kicker">Juros incluídos no saldo</h2>
-                        <p class="interest-summary-emphasis">
-                            <strong class="interest-summary-interest-amount">${interestAmountText} em juros</strong>
+                        <h2 class="interest-summary-kicker">Juros incluídos no saldo atual</h2>
+                        <p class="interest-summary-row">
+                            <span>Juros de ${formattedPercent}</span>
+                            <strong class="interest-summary-interest-amount">${interestAmountText}</strong>
                         </p>
-                        <p class="interest-summary-rate">${interestRateText}</p>
-                        <p class="interest-summary-support">Seu saldo passou de <strong>R$ ${formatCurrency(debtDetails.baseDebt)}</strong> para <strong class="interest-summary-total">R$ ${formatCurrency(debtDetails.totalDebt)}</strong>.</p>
                     </section>
                     <section class="interest-summary-section interest-summary-action">
-                        <span class="interest-summary-kicker">Para iniciar um novo prazo sem juros</span>
+                        <span class="interest-summary-kicker">Pagamento mínimo para novo prazo</span>
                         <h2 class="interest-summary-title">${paymentTitle}</h2>
                         <p class="interest-summary-note">${paymentNote}</p>
                     </section>
@@ -483,35 +479,38 @@
             const daysUntilInterest = Number(debtDetails.daysUntilInterest);
             if (!Number.isFinite(daysUntilInterest)) return '';
             const deadlineTitle = daysUntilInterest <= 0
-                ? 'O prazo sem juros termina hoje'
+                ? 'Termina hoje'
                 : daysUntilInterest === 1
-                    ? 'Falta <span class="interest-summary-days">1 dia</span> para o fim do prazo sem juros'
-                    : `Faltam <span class="interest-summary-days">${daysUntilInterest} dias</span> para o fim do prazo sem juros`;
+                    ? '<span class="interest-summary-days">1 dia</span> restante'
+                    : `<span class="interest-summary-days">${daysUntilInterest} dias</span> restantes`;
             const deadlineSupport = deadlineDateText
-                ? `Termina em <strong>${deadlineDateText}</strong>.`
+                ? `Até <strong>${deadlineDateText}</strong>.`
                 : '';
             const missedPaymentLabel = resetPaymentPercent <= 0
-                ? 'Se o prazo terminar sem um pagamento'
-                : 'Se não houver o pagamento mínimo';
+                ? 'Se não houver pagamento'
+                : 'Se não pagar o mínimo';
 
             return `
                 <section class="interest-summary-section interest-summary-status">
-                    <span class="interest-summary-kicker">Seu prazo sem juros</span>
+                    <span class="interest-summary-kicker">Prazo sem juros</span>
                     <h2 class="interest-summary-title">${deadlineTitle}</h2>
                     ${deadlineSupport ? `<p class="interest-summary-support">${deadlineSupport}</p>` : ''}
                 </section>
                 <section class="interest-summary-section interest-summary-action">
-                    <span class="interest-summary-kicker">Para renovar o prazo sem juros</span>
+                    <span class="interest-summary-kicker">Pagamento mínimo para renovar</span>
                     <h2 class="interest-summary-title">${paymentTitle}</h2>
                     <p class="interest-summary-note">${paymentNote}</p>
                 </section>
                 <section class="interest-summary-section interest-summary-consequence">
                     <h2 class="interest-summary-kicker">${missedPaymentLabel}</h2>
-                    <p class="interest-summary-emphasis">
-                        Serão acrescentados <strong class="interest-summary-interest-amount">${interestAmountText} em juros</strong>.
+                    <p class="interest-summary-row">
+                        <span>Juros de ${formattedPercent}</span>
+                        <strong class="interest-summary-interest-amount">+ ${interestAmountText}</strong>
                     </p>
-                    <p class="interest-summary-rate">${interestRateText}</p>
-                    <p class="interest-summary-support">Com o saldo atual, o total passará para <strong class="interest-summary-total">R$ ${formatCurrency(debtDetails.projectedTotalDebt)}</strong>.</p>
+                    <p class="interest-summary-row">
+                        <span>Novo saldo</span>
+                        <strong class="interest-summary-total">R$ ${formatCurrency(debtDetails.projectedTotalDebt)}</strong>
+                    </p>
                 </section>
             `;
         }
@@ -541,16 +540,11 @@
                 return `
                     <ol class="interest-rules-steps">
                         <li>
-                            <strong>O prazo de ${overdueLimitText} terminou${deadlineDateText ? ` em ${deadlineDateText}` : ''}.</strong>
-                            <span>Os juros por atraso foram incluídos no saldo atual.</span>
+                            <strong>Prazo encerrado${deadlineDateText ? ` em ${deadlineDateText}` : ''}.</strong>
+                            <span>Juros: ${formattedInterestAmount} (${formattedInterest}). Saldo atual: R$ ${formatCurrency(debtDetails.totalDebt)}.</span>
                         </li>
                         <li>
-                            <strong>Foram incluídos ${formattedInterestAmount} em juros.</strong>
-                            <span>Taxa de ${formattedInterest} sobre as compras que ainda estavam em aberto.</span>
-                            <span>O saldo em aberto passou para R$ ${formatCurrency(debtDetails.totalDebt)}.</span>
-                        </li>
-                        <li>
-                            <strong>Para iniciar um novo prazo sem juros, ${paymentRule}</strong>
+                            <strong>Para iniciar um novo prazo de ${overdueLimitText}, ${paymentRule}</strong>
                             <span>${smallerPaymentRule}</span>
                         </li>
                     </ol>
@@ -560,16 +554,12 @@
             return `
                 <ol class="interest-rules-steps">
                     <li>
-                        <strong>${deadlineDateText ? `Até ${deadlineDateText}, ` : 'Dentro do prazo, '}${paymentRule}</strong>
-                        <span>Assim, o prazo é renovado por mais ${overdueLimitText} sem juros. ${smallerPaymentRule}</span>
+                        <strong>Para renovar por mais ${overdueLimitText}, ${paymentRule}</strong>
+                        <span>${deadlineDateText ? `Até ${deadlineDateText}. ` : ''}${smallerPaymentRule}</span>
                     </li>
                     <li>
-                        <strong>Se não houver esse pagamento, serão acrescentados ${formattedInterestAmount} em juros.</strong>
-                        <span>Taxa de ${formattedInterest} sobre as compras que ainda estiverem em aberto.</span>
-                    </li>
-                    <li>
-                        <strong>Com o saldo atual, o total passará para R$ ${formatCurrency(debtDetails.projectedTotalDebt)}.</strong>
-                        <span>Esse total é uma projeção e muda se houver novas compras ou pagamentos.</span>
+                        <strong>Se não pagar o mínimo, os juros serão de ${formattedInterestAmount} (${formattedInterest}).</strong>
+                        <span>Novo saldo estimado: R$ ${formatCurrency(debtDetails.projectedTotalDebt)}.</span>
                     </li>
                 </ol>
             `;
