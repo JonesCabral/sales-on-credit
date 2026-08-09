@@ -97,65 +97,121 @@
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: 0.55rem;
-    margin: 0.75rem auto 0;
-    max-width: 34rem;
-    padding: 0.75rem 0.85rem;
-    border-radius: 10px;
+    gap: 0.75rem;
+    margin: 1rem auto 0;
+    max-width: 36rem;
+    padding: 0.85rem;
+    border-radius: 12px;
     border: 1px solid rgba(15, 118, 110, 0.12);
-    background: rgba(15, 118, 110, 0.05);
+    background: rgba(15, 118, 110, 0.04);
     color: var(--text-secondary);
-    font-size: 0.95rem;
-    font-weight: 600;
+    font-size: 0.94rem;
+    font-weight: 500;
     line-height: 1.45;
     text-align: left;
 }
 
 .client-view-page .interest-deadline-text {
     display: grid;
-    gap: 0.55rem;
+    gap: 0.7rem;
     overflow-wrap: anywhere;
 }
 
-.client-view-page .interest-deadline-row {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 0.5rem 0.75rem;
-    flex-wrap: wrap;
+.client-view-page .interest-summary-section {
+    display: grid;
+    gap: 0.35rem;
+    padding: 0.8rem;
+    border-radius: 9px;
 }
 
-.client-view-page .interest-deadline-label {
+.client-view-page .interest-summary-status {
+    padding: 0.2rem 0.15rem 0.35rem;
+}
+
+.client-view-page .interest-summary-action {
+    border: 1px solid rgba(15, 118, 110, 0.16);
+    background: rgba(15, 118, 110, 0.08);
+}
+
+.client-view-page .interest-summary-consequence {
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    background: rgba(245, 158, 11, 0.08);
+}
+
+.client-view-page .interest-summary-kicker {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.055em;
+    line-height: 1.35;
+    text-transform: uppercase;
+}
+
+.client-view-page .interest-summary-title {
+    display: block;
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.02rem;
+    font-weight: 800;
+    line-height: 1.35;
+}
+
+.client-view-page .interest-summary-days,
+.client-view-page .interest-summary-payment-amount {
+    color: var(--primary-color);
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.client-view-page .interest-summary-payment-amount {
+    font-size: 1.22em;
+}
+
+.client-view-page .interest-summary-support,
+.client-view-page .interest-summary-note,
+.client-view-page .interest-summary-emphasis {
+    margin: 0;
+}
+
+.client-view-page .interest-summary-support {
+    color: var(--text-secondary);
+}
+
+.client-view-page .interest-summary-support strong {
     color: var(--text-primary);
     font-weight: 800;
 }
 
-.client-view-page .interest-deadline-value {
-    display: inline-flex;
-    align-items: baseline;
-    justify-content: flex-end;
-    gap: 0.25rem 0.4rem;
-    flex-wrap: wrap;
+.client-view-page .interest-summary-note {
+    margin-top: 0.15rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.5;
 }
 
-.client-view-page .interest-deadline-percent {
-    font-size: 0.88rem;
+.client-view-page .interest-summary-emphasis {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.client-view-page .interest-summary-interest-amount {
+    color: #b45309;
+    font-size: 1.12em;
+    font-weight: 900;
     white-space: nowrap;
 }
 
-.client-view-page .interest-deadline-note {
-    padding-top: 0.5rem;
-    border-top: 1px solid rgba(15, 118, 110, 0.14);
-    font-size: 0.92rem;
+.client-view-page .interest-summary-rate {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
 }
 
-.client-view-page .interest-deadline-highlight {
-    display: inline-block;
-    padding: 0.08rem 0.3rem;
-    border-radius: 0.35rem;
-    background: rgba(15, 118, 110, 0.12);
-    color: var(--primary-color);
-    font-weight: 800;
+.client-view-page .interest-summary-total {
+    color: #b45309 !important;
+    font-size: 1.08em;
+    font-weight: 900 !important;
     white-space: nowrap;
 }
 
@@ -179,11 +235,6 @@
 .client-view-page .interest-rules-button:hover,
 .client-view-page .interest-rules-button:focus-visible {
     color: var(--primary-dark);
-}
-
-.client-view-page .interest-deadline-interest-amount {
-    background: rgba(245, 158, 11, 0.14);
-    color: #b45309;
 }
 
 .client-view-page.interest-rules-open {
@@ -276,19 +327,40 @@
     margin: 0;
 }
 
+.client-view-page .interest-rules-steps {
+    display: grid;
+    gap: 0.85rem;
+    margin: 0;
+    padding-left: 1.35rem;
+}
+
+.client-view-page .interest-rules-steps li {
+    padding-left: 0.2rem;
+}
+
+.client-view-page .interest-rules-steps li::marker {
+    color: var(--primary-color);
+    font-weight: 900;
+}
+
+.client-view-page .interest-rules-steps strong,
+.client-view-page .interest-rules-steps span {
+    display: block;
+}
+
+.client-view-page .interest-rules-steps strong {
+    color: var(--text-primary);
+    font-weight: 800;
+}
+
+.client-view-page .interest-rules-steps span {
+    margin-top: 0.15rem;
+}
+
 .client-view-page .interest-deadline.overdue {
     border-color: rgba(245, 158, 11, 0.18);
     background: rgba(245, 158, 11, 0.07);
     color: var(--text-secondary);
-}
-
-.client-view-page .interest-deadline.overdue .interest-deadline-highlight {
-    background: rgba(245, 158, 11, 0.14);
-    color: #b45309;
-}
-
-.client-view-page .interest-deadline.overdue .interest-deadline-note {
-    border-top-color: rgba(245, 158, 11, 0.22);
 }
 
 .client-view-page .interest-deadline[hidden] {
@@ -570,14 +642,16 @@
         font-size: 2rem;
     }
 
-    .client-view-page .interest-deadline-row {
-        display: grid;
-        justify-content: stretch;
-        gap: 0.2rem;
+    .client-view-page .interest-deadline {
+        padding: 0.7rem;
     }
 
-    .client-view-page .interest-deadline-value {
-        justify-content: flex-start;
+    .client-view-page .interest-summary-section {
+        padding: 0.72rem;
+    }
+
+    .client-view-page .interest-summary-status {
+        padding: 0.15rem 0.05rem 0.3rem;
     }
 
     .client-view-page .interest-rules-tooltip {
@@ -641,23 +715,23 @@
     border-color: rgba(45, 212, 191, 0.14);
 }
 
-[data-theme="dark"] .client-view-page .interest-deadline-highlight {
-    background: rgba(45, 212, 191, 0.14);
+[data-theme="dark"] .client-view-page .interest-summary-action {
+    background: rgba(45, 212, 191, 0.1);
+    border-color: rgba(45, 212, 191, 0.18);
+}
+
+[data-theme="dark"] .client-view-page .interest-summary-days,
+[data-theme="dark"] .client-view-page .interest-summary-payment-amount {
     color: #5eead4;
 }
 
-[data-theme="dark"] .client-view-page .interest-deadline-interest-amount {
+[data-theme="dark"] .client-view-page .interest-summary-consequence {
     background: rgba(245, 158, 11, 0.16);
-    color: #fbbf24;
+    border-color: rgba(245, 158, 11, 0.22);
 }
 
-[data-theme="dark"] .client-view-page .interest-deadline.overdue {
-    background: rgba(245, 158, 11, 0.09);
-    border-color: rgba(245, 158, 11, 0.16);
-}
-
-[data-theme="dark"] .client-view-page .interest-deadline.overdue .interest-deadline-highlight {
-    background: rgba(245, 158, 11, 0.16);
+[data-theme="dark"] .client-view-page .interest-summary-interest-amount,
+[data-theme="dark"] .client-view-page .interest-summary-total {
     color: #fbbf24;
 }
 
