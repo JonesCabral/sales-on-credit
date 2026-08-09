@@ -24,7 +24,7 @@ const database = getDatabase(app);
 const auth = getAuth(app);
 
 // Versão da aplicação
-const APP_VERSION = '2.1.26';
+const APP_VERSION = '2.1.31';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -82,6 +82,9 @@ const DEFAULT_OVERDUE_INTEREST_ENABLED = false;
 const DEFAULT_OVERDUE_INTEREST_PERCENT = 0;
 const MIN_OVERDUE_INTEREST_PERCENT = 0;
 const MAX_OVERDUE_INTEREST_PERCENT = 100;
+const CLIENT_INTEREST_MODE_GLOBAL = 'global';
+const CLIENT_INTEREST_MODE_CUSTOM = 'custom';
+const CLIENT_INTEREST_MODE_DISABLED = 'disabled';
 const DEFAULT_OVERDUE_RESET_PAYMENT_PERCENT = 20;
 const MIN_OVERDUE_RESET_PAYMENT_PERCENT = 0;
 const MAX_OVERDUE_RESET_PAYMENT_PERCENT = 100;
@@ -132,6 +135,28 @@ function formatOverdueInterestPercent(percent) {
         minimumFractionDigits: Number.isInteger(safePercent) ? 0 : 2,
         maximumFractionDigits: 2
     })}%`;
+}
+
+function normalizeClientOverdueInterestOverride(value) {
+    if (!value || typeof value !== 'object') return null;
+
+    if (value.mode === CLIENT_INTEREST_MODE_DISABLED) {
+        return {
+            mode: CLIENT_INTEREST_MODE_DISABLED,
+            enabled: false,
+            percent: 0
+        };
+    }
+
+    if (value.mode !== CLIENT_INTEREST_MODE_CUSTOM) return null;
+
+    const percent = normalizeOverdueInterestPercent(value.percent);
+
+    return {
+        mode: CLIENT_INTEREST_MODE_CUSTOM,
+        enabled: percent > 0,
+        percent
+    };
 }
 
 function normalizeOverdueResetPaymentPercent(value) {
@@ -221,6 +246,10 @@ class SalesManager {
             this.settings = normalizeSettings(savedSettings);
             syncSettingsUI();
             updateClientsList();
+            if (this.currentClientId && modal?.style.display === 'block') {
+                syncClientInterestSettingsForm(this.currentClientId);
+                renderClientModalDebt(this.currentClientId);
+            }
         }, (error) => {
             console.error('Erro ao carregar configurações:', error);
             this.settings = getDefaultSettings();
@@ -310,21 +339,87 @@ class SalesManager {
         return normalizeOverdueAlertDays(this.settings?.overdueAlertDays);
     }
 
-    getOverdueInterestSettings() {
+    getOverdueInterestSettings(clientId = null) {
+        const clientOverride = normalizeClientOverdueInterestOverride(
+            clientId ? this.clients[clientId]?.overdueInterestOverride : null
+        );
+
+        if (clientOverride) {
+            return {
+                ...clientOverride,
+                source: 'individual'
+            };
+        }
+
         const interestSettings = this.settings?.overdueInterest || {};
         return {
             enabled: interestSettings.enabled === true,
-            percent: normalizeOverdueInterestPercent(interestSettings.percent)
+            percent: normalizeOverdueInterestPercent(interestSettings.percent),
+            mode: CLIENT_INTEREST_MODE_GLOBAL,
+            source: 'global'
         };
     }
 
-    isOverdueInterestEnabled() {
-        const interestSettings = this.getOverdueInterestSettings();
+    getClientOverdueInterestOverride(clientId) {
+        return normalizeClientOverdueInterestOverride(this.clients[clientId]?.overdueInterestOverride);
+    }
+
+    isOverdueInterestEnabled(clientId = null) {
+        const interestSettings = this.getOverdueInterestSettings(clientId);
         return interestSettings.enabled && interestSettings.percent > 0;
     }
 
-    getOverdueInterestPercent() {
-        return this.getOverdueInterestSettings().percent;
+    getOverdueInterestPercent(clientId = null) {
+        return this.getOverdueInterestSettings(clientId).percent;
+    }
+
+    async setClientOverdueInterestOverride(clientId, mode, percent = 0) {
+        const client = this.clients[clientId];
+        if (!client) {
+            throw new Error('Cliente não encontrado');
+        }
+
+        const hadPreviousOverride = Object.prototype.hasOwnProperty.call(client, 'overdueInterestOverride');
+        const previousOverride = client.overdueInterestOverride;
+
+        if (mode === CLIENT_INTEREST_MODE_GLOBAL) {
+            delete client.overdueInterestOverride;
+        } else if (mode === CLIENT_INTEREST_MODE_DISABLED) {
+            client.overdueInterestOverride = {
+                mode: CLIENT_INTEREST_MODE_DISABLED,
+                percent: 0
+            };
+        } else if (mode === CLIENT_INTEREST_MODE_CUSTOM) {
+            const parsedPercent = parseOverdueInterestPercent(percent);
+            const normalizedPercent = normalizeOverdueInterestPercent(parsedPercent);
+            if (
+                !Number.isFinite(parsedPercent)
+                || parsedPercent <= 0
+                || parsedPercent > MAX_OVERDUE_INTEREST_PERCENT
+                || normalizedPercent <= 0
+            ) {
+                throw new Error(`Informe um percentual maior que 0 e até ${MAX_OVERDUE_INTEREST_PERCENT}%.`);
+            }
+
+            client.overdueInterestOverride = {
+                mode: CLIENT_INTEREST_MODE_CUSTOM,
+                percent: normalizedPercent
+            };
+        } else {
+            throw new Error('Configuração de juros inválida.');
+        }
+
+        try {
+            await this.saveClientData(clientId);
+        } catch (error) {
+            if (hadPreviousOverride) {
+                client.overdueInterestOverride = previousOverride;
+            } else {
+                delete client.overdueInterestOverride;
+            }
+            throw error;
+        }
+        return this.getOverdueInterestSettings(clientId);
     }
 
     getOverdueResetPaymentPercent() {
@@ -497,7 +592,7 @@ class SalesManager {
         const interestId = pendingInterestCents > 0 ? createTransactionId(TRANSACTION_TYPE_INTEREST) : null;
 
         if (pendingInterestCents > 0) {
-            const interestPercent = this.getOverdueInterestPercent();
+            const interestPercent = this.getOverdueInterestPercent(clientId);
             itemsToSave.push({
                 id: interestId,
                 amount: centsToAmount(pendingInterestCents),
@@ -729,14 +824,14 @@ class SalesManager {
     getClientInterestCents(clientId) {
         const debtCents = this.getBaseClientDebtCents(clientId);
         if (debtCents <= 0) return 0;
-        if (!this.isOverdueInterestEnabled()) return 0;
+        if (!this.isOverdueInterestEnabled(clientId)) return 0;
         if (!this.isOverdue(clientId)) return 0;
 
         const principalDebtCents = this.getClientPrincipalDebtCents(clientId);
         if (principalDebtCents <= 0) return 0;
 
         const interestBaseCents = Math.min(principalDebtCents, debtCents);
-        return Math.round(interestBaseCents * (this.getOverdueInterestPercent() / 100));
+        return Math.round(interestBaseCents * (this.getOverdueInterestPercent(clientId) / 100));
     }
 
     getClientDebtCents(clientId) {
@@ -857,6 +952,11 @@ const clientScreenPayment = document.getElementById('clientScreenPayment');
 const clientScreenSale = document.getElementById('clientScreenSale');
 const clientScreenHistory = document.getElementById('clientScreenHistory');
 const clientScreenSettings = document.getElementById('clientScreenSettings');
+const clientInterestSettingsForm = document.getElementById('clientInterestSettingsForm');
+const clientInterestModeInput = document.getElementById('clientInterestModeInput');
+const clientInterestPercentInput = document.getElementById('clientInterestPercentInput');
+const clientInterestCurrentValue = document.getElementById('clientInterestCurrentValue');
+const clientInterestModeExplanation = document.getElementById('clientInterestModeExplanation');
 const loader = document.getElementById('loader');
 const toast = document.getElementById('toast');
 const editNameForm = document.getElementById('editNameForm');
@@ -2159,6 +2259,67 @@ function setClientModalScreen(screen) {
     }
 }
 
+function updateClientInterestFormPresentation() {
+    if (!clientInterestModeInput || !clientInterestPercentInput) return;
+
+    const mode = clientInterestModeInput.value;
+    const globalSettings = manager.getOverdueInterestSettings();
+    const parsedPercent = parseOverdueInterestPercent(clientInterestPercentInput.value);
+    const customPercent = Number.isFinite(parsedPercent)
+        ? normalizeOverdueInterestPercent(parsedPercent)
+        : 0;
+
+    clientInterestPercentInput.disabled = mode !== CLIENT_INTEREST_MODE_CUSTOM;
+    clientInterestPercentInput.required = mode === CLIENT_INTEREST_MODE_CUSTOM;
+
+    if (mode === CLIENT_INTEREST_MODE_CUSTOM) {
+        if (clientInterestCurrentValue) {
+            clientInterestCurrentValue.textContent = customPercent > 0
+                ? `Individual: ${formatOverdueInterestPercent(customPercent)}`
+                : 'Individual: informe a taxa';
+        }
+        if (clientInterestModeExplanation) {
+            clientInterestModeExplanation.textContent = 'A taxa geral será ignorada para este cliente.';
+        }
+        return;
+    }
+
+    if (mode === CLIENT_INTEREST_MODE_DISABLED) {
+        if (clientInterestCurrentValue) {
+            clientInterestCurrentValue.textContent = 'Individual: sem juros';
+        }
+        if (clientInterestModeExplanation) {
+            clientInterestModeExplanation.textContent = 'Este cliente não receberá juros, mesmo que a cobrança geral esteja ativa.';
+        }
+        return;
+    }
+
+    if (clientInterestCurrentValue) {
+        clientInterestCurrentValue.textContent = globalSettings.enabled && globalSettings.percent > 0
+            ? `Geral: ${formatOverdueInterestPercent(globalSettings.percent)}`
+            : 'Geral: sem juros';
+    }
+    if (clientInterestModeExplanation) {
+        clientInterestModeExplanation.textContent = globalSettings.enabled && globalSettings.percent > 0
+            ? `Este cliente acompanha a taxa geral de ${formatOverdueInterestPercent(globalSettings.percent)}.`
+            : 'Os juros gerais do sistema estão desativados.';
+    }
+}
+
+function syncClientInterestSettingsForm(clientId = manager.currentClientId) {
+    if (!clientInterestSettingsForm || !clientInterestModeInput || !clientInterestPercentInput) return;
+
+    const clientOverride = manager.getClientOverdueInterestOverride(clientId);
+    const globalSettings = manager.getOverdueInterestSettings();
+    const mode = clientOverride?.mode || CLIENT_INTEREST_MODE_GLOBAL;
+
+    clientInterestModeInput.value = mode;
+    clientInterestPercentInput.value = mode === CLIENT_INTEREST_MODE_CUSTOM
+        ? String(clientOverride.percent)
+        : String(globalSettings.percent || 0);
+    updateClientInterestFormPresentation();
+}
+
 function updateSearchFilterInteractivity() {
     const searchInput = document.getElementById('searchClients');
     const clientsSection = document.getElementById('clientsSection');
@@ -2251,8 +2412,9 @@ function getClientListModel(client, now = new Date()) {
     const isOverdue = baseDebtCents > 0 && overdueDays >= manager.getOverdueAlertDays();
     const principalDebtCents = Math.max(0, sales.reduce((total, item) => total + getPrincipalDebtDeltaCents(item), 0));
     const interestBaseCents = Math.min(principalDebtCents, baseDebtCents);
-    const interestCents = isOverdue && manager.isOverdueInterestEnabled()
-        ? Math.round(interestBaseCents * (manager.getOverdueInterestPercent() / 100))
+    const interestSettings = manager.getOverdueInterestSettings(client.id);
+    const interestCents = isOverdue && interestSettings.enabled && interestSettings.percent > 0
+        ? Math.round(interestBaseCents * (interestSettings.percent / 100))
         : 0;
     const debtCents = baseDebtCents + interestCents;
 
@@ -2268,7 +2430,10 @@ function getClientListModel(client, now = new Date()) {
         isOverdue,
         overdueDays,
         overdueMessage,
-        interestCents
+        interestCents,
+        interestPercent: interestSettings.percent,
+        interestSource: interestSettings.source,
+        interestMode: interestSettings.mode
     };
 }
 
@@ -2423,6 +2588,7 @@ function renderClientsList(clientRows) {
         let statusIcon = '';
         let noteIndicator = '';
         let overdueIndicator = '';
+        let individualInterestBadge = '';
         
         if (isPaid) {
             statusClass = 'paid';
@@ -2435,13 +2601,19 @@ function renderClientsList(clientRows) {
             noteIndicator = '<span class="note-indicator" title="Tem itens não contabilizados">📝</span>';
         }
 
+        if (row.interestSource === 'individual') {
+            individualInterestBadge = row.interestMode === CLIENT_INTEREST_MODE_DISABLED || row.interestPercent <= 0
+                ? '<span class="client-interest-policy-badge is-disabled" title="Este cliente tem uma configuração individual sem cobrança de juros."><span aria-hidden="true">⊘</span> Sem juros</span>'
+                : `<span class="client-interest-policy-badge" title="Taxa individual de ${formatOverdueInterestPercent(row.interestPercent)}. Os juros gerais são ignorados para este cliente."><span aria-hidden="true">★</span> Juros ${formatOverdueInterestPercent(row.interestPercent)}</span>`;
+        }
+
         if (isOverdue) {
             const interestDetails = interestCents > 0
-                ? ` · juros ${formatOverdueInterestPercent(manager.getOverdueInterestPercent())}`
+                ? ` · juros ${formatOverdueInterestPercent(row.interestPercent)}`
                 : '';
             const overdueMsg = row.overdueMessage || 'Nunca realizou pagamento';
             const overdueTitle = interestCents > 0
-                ? `${overdueMsg}. Juros: R$ ${formatCurrency(interestCents / 100)} (${formatOverdueInterestPercent(manager.getOverdueInterestPercent())}).`
+                ? `${overdueMsg}. Juros: R$ ${formatCurrency(interestCents / 100)} (${formatOverdueInterestPercent(row.interestPercent)}${row.interestSource === 'individual' ? ' individual' : ''}).`
                 : overdueMsg;
             overdueIndicator = `<span class="overdue-indicator" title="${overdueTitle}">⚠️ ${overdueMsg}${interestDetails}</span>`;
         }
@@ -2451,7 +2623,7 @@ function renderClientsList(clientRows) {
         return `
             <div class="client-item ${hasNotes ? 'has-notes' : ''} ${client.archived ? 'archived' : ''}" data-client-id="${sanitizeHTML(client.id)}">
                 <div class="client-info">
-                    <div class="client-name">${sanitizeHTML(client.name)} ${noteIndicator} ${archivedIndicator}</div>
+                    <div class="client-name">${sanitizeHTML(client.name)} ${noteIndicator} ${individualInterestBadge} ${archivedIndicator}</div>
                     ${overdueIndicator ? `<div class="client-overdue-msg">${overdueIndicator}</div>` : ''}
                     <div class="client-sales">${salesCount} venda${salesCount !== 1 ? 's' : ''} fiada${salesCount !== 1 ? 's' : ''}</div>
                 </div>
@@ -2565,26 +2737,22 @@ function getLatestUnpricedSaleId(client) {
     return unpricedSales[0].id;
 }
 
-function openClientModal(clientId, options = {}) {
+function renderClientModalDebt(clientId) {
     const client = manager.clients[clientId];
-    if (!client) return;
+    const modalDebtContainer = document.querySelector('.modal-debt');
+    if (!client || !modalDebtContainer) return;
 
-    manager.currentClientId = clientId;
     const debt = manager.getClientDebt(clientId);
     const interestCents = manager.getClientInterestCents(clientId);
+    const interestSettings = manager.getOverdueInterestSettings(clientId);
     const interestNote = interestCents > 0
-        ? `<span class="modal-debt-note">Inclui juros de ${formatOverdueInterestPercent(manager.getOverdueInterestPercent())} por atraso</span>`
+        ? `<span class="modal-debt-note">Inclui juros ${interestSettings.source === 'individual' ? 'individuais ' : ''}de ${formatOverdueInterestPercent(interestSettings.percent)} por atraso</span>`
         : '';
     const isCredit = debt < 0;
     const isPaid = debt === 0;
 
-    // Usar textContent para prevenir XSS
-    document.getElementById('modalClientName').textContent = client.name;
-    const modalDebtContainer = document.querySelector('.modal-debt');
-    
-    // Remover classes anteriores
     modalDebtContainer.classList.remove('has-credit', 'is-paid');
-    
+
     if (isPaid) {
         modalDebtContainer.classList.add('is-paid');
         modalDebtContainer.innerHTML = '<strong>R$ <span id="modalDebt">0,00</span></strong>';
@@ -2594,6 +2762,17 @@ function openClientModal(clientId, options = {}) {
     } else {
         modalDebtContainer.innerHTML = `<strong>R$ <span id="modalDebt">${formatCurrency(debt)}</span></strong>${interestNote}`;
     }
+}
+
+function openClientModal(clientId, options = {}) {
+    const client = manager.clients[clientId];
+    if (!client) return;
+
+    manager.currentClientId = clientId;
+    renderClientModalDebt(clientId);
+
+    // Usar textContent para prevenir XSS
+    document.getElementById('modalClientName').textContent = client.name;
     
     if (editClientNameInput) {
         editClientNameInput.value = client.name;
@@ -2712,7 +2891,8 @@ function openClientModal(clientId, options = {}) {
         }
     }
 
-    setClientModalScreen('sale');
+    syncClientInterestSettingsForm(clientId);
+    setClientModalScreen(options.screen || 'sale');
     setClientModalProductSearchActive(false);
 
     modal.style.display = 'block';
@@ -2749,6 +2929,9 @@ function closeClientModal() {
     if (editNameForm) {
         editNameForm.style.display = 'none';
         editNameForm.reset();
+    }
+    if (clientInterestSettingsForm) {
+        clientInterestSettingsForm.reset();
     }
     setClientModalScreen('sale');
     const nameSection = document.querySelector('.client-name-section');
@@ -3362,6 +3545,72 @@ if (clientScreenTabSettings) {
         setClientModalScreen('settings');
     });
 }
+
+clientInterestModeInput?.addEventListener('change', () => {
+    if (clientInterestModeInput.value === CLIENT_INTEREST_MODE_CUSTOM) {
+        const currentPercent = parseOverdueInterestPercent(clientInterestPercentInput?.value);
+        if (!Number.isFinite(currentPercent) || currentPercent <= 0) {
+            const globalPercent = manager.getOverdueInterestPercent();
+            clientInterestPercentInput.value = globalPercent > 0 ? String(globalPercent) : '';
+        }
+    }
+
+    updateClientInterestFormPresentation();
+    if (!clientInterestPercentInput?.disabled) {
+        clientInterestPercentInput.focus();
+        clientInterestPercentInput.select();
+    }
+});
+
+clientInterestPercentInput?.addEventListener('input', updateClientInterestFormPresentation);
+
+clientInterestSettingsForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const clientId = manager.currentClientId;
+    if (!clientId || !manager.clients[clientId]) {
+        showToast('Nenhum cliente selecionado.', 'error');
+        return;
+    }
+
+    const mode = clientInterestModeInput?.value || CLIENT_INTEREST_MODE_GLOBAL;
+    const rawPercent = clientInterestPercentInput?.value || '';
+    const numericPercent = parseOverdueInterestPercent(rawPercent);
+
+    if (
+        mode === CLIENT_INTEREST_MODE_CUSTOM
+        && (!Number.isFinite(numericPercent) || numericPercent <= 0 || numericPercent > MAX_OVERDUE_INTEREST_PERCENT)
+    ) {
+        showToast(`Informe um percentual maior que 0 e até ${MAX_OVERDUE_INTEREST_PERCENT}%.`, 'error');
+        clientInterestPercentInput?.focus();
+        return;
+    }
+
+    if (!beginFormSubmission(clientInterestSettingsForm)) return;
+
+    showLoader('Salvando juros...');
+    try {
+        const effectiveSettings = await manager.setClientOverdueInterestOverride(clientId, mode, numericPercent);
+        syncClientInterestSettingsForm(clientId);
+        renderClientModalDebt(clientId);
+        updateClientsList();
+        hideLoader();
+
+        const successMessage = effectiveSettings.source === 'global'
+            ? 'Cliente configurado para usar os juros gerais.'
+            : effectiveSettings.enabled
+                ? `Juros individuais de ${formatOverdueInterestPercent(effectiveSettings.percent)} salvos.`
+                : 'Juros desativados para este cliente.';
+        showToast(successMessage, 'success');
+    } catch (error) {
+        hideLoader();
+        console.error('Erro ao salvar juros do cliente:', error);
+        showToast(getDatabaseErrorMessage(error, error.message || 'Erro ao salvar juros do cliente.'), 'error');
+        syncClientInterestSettingsForm(clientId);
+    } finally {
+        finishFormSubmission(clientInterestSettingsForm);
+    }
+});
 
 // Limpar histórico do cliente
 if (clearHistoryBtn) {

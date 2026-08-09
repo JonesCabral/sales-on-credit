@@ -8,8 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=2.1.26">
-    <link rel="stylesheet" href="client-view.css?v=2.1.29">
+    <link rel="stylesheet" href="style.css?v=2.1.31">
+    <link rel="stylesheet" href="client-view.css?v=2.1.31">
     <script>
         (function() {
             const saved = localStorage.getItem('theme');
@@ -139,6 +139,8 @@
         const DEFAULT_OVERDUE_INTEREST_PERCENT = 0;
         const MIN_OVERDUE_INTEREST_PERCENT = 0;
         const MAX_OVERDUE_INTEREST_PERCENT = 100;
+        const CLIENT_INTEREST_MODE_CUSTOM = 'custom';
+        const CLIENT_INTEREST_MODE_DISABLED = 'disabled';
         const DEFAULT_OVERDUE_RESET_PAYMENT_PERCENT = 20;
         const MIN_OVERDUE_RESET_PAYMENT_PERCENT = 0;
         const MAX_OVERDUE_RESET_PAYMENT_PERCENT = 100;
@@ -250,6 +252,39 @@
                 minimumFractionDigits: Number.isInteger(safePercent) ? 0 : 2,
                 maximumFractionDigits: 2
             })}%`;
+        }
+
+        function normalizeClientOverdueInterestOverride(value) {
+            if (!value || typeof value !== 'object') return null;
+
+            if (value.mode === CLIENT_INTEREST_MODE_DISABLED) {
+                return {
+                    enabled: false,
+                    percent: 0,
+                    source: 'individual'
+                };
+            }
+
+            if (value.mode !== CLIENT_INTEREST_MODE_CUSTOM) return null;
+
+            const percent = normalizeOverdueInterestPercent(value.percent);
+            return {
+                enabled: percent > 0,
+                percent,
+                source: 'individual'
+            };
+        }
+
+        function getEffectiveOverdueInterestSettings(clientData, settings) {
+            const clientOverride = normalizeClientOverdueInterestOverride(clientData?.overdueInterestOverride);
+            if (clientOverride) return clientOverride;
+
+            const generalInterest = settings?.overdueInterest || {};
+            return {
+                enabled: generalInterest.enabled === true,
+                percent: normalizeOverdueInterestPercent(generalInterest.percent),
+                source: 'global'
+            };
         }
 
         function formatOverdueResetPaymentPercent(percent) {
@@ -369,7 +404,7 @@
             return { firstSaleDate, lastPaymentDate };
         }
 
-        function calculateDebtDetails(sales, settings) {
+        function calculateDebtDetails(sales, settings, clientData = null) {
             const baseDebtCents = calculateBaseDebtCents(sales);
             const principalDebtCents = calculatePrincipalDebtCents(sales);
             const resetPaymentPercent = normalizeOverdueResetPaymentPercent(settings?.overdueResetPaymentPercent);
@@ -378,7 +413,7 @@
             const daysSinceRef = getDaysSinceReferenceDate(referenceDate, baseDebtCents);
             const overdueDays = normalizeOverdueAlertDays(settings?.overdueAlertDays);
             const isOverdue = baseDebtCents > 0 && daysSinceRef >= overdueDays;
-            const interestSettings = settings?.overdueInterest || {};
+            const interestSettings = getEffectiveOverdueInterestSettings(clientData, settings);
             const interestPercent = normalizeOverdueInterestPercent(interestSettings.percent);
             const interestEnabled = interestSettings.enabled === true && interestPercent > 0;
             const interestBaseCents = Math.min(Math.max(0, principalDebtCents), baseDebtCents);
@@ -645,7 +680,7 @@
             }
 
             const sales = clientData.sales || [];
-            const debtDetails = calculateDebtDetails(sales, currentSettings);
+            const debtDetails = calculateDebtDetails(sales, currentSettings, clientData);
             const debt = debtDetails.totalDebt;
             const isCredit = debt < 0;
             const isPaid = debt === 0;

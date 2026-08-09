@@ -1739,6 +1739,31 @@ input:focus, select:focus, textarea:focus {
     cursor: help;
 }
 
+.client-interest-policy-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-left: 0.45rem;
+    padding: 0.16rem 0.48rem;
+    border: 1px solid rgba(37, 99, 235, 0.3);
+    border-radius: 999px;
+    background: rgba(37, 99, 235, 0.09);
+    color: var(--primary-color);
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 800;
+    line-height: 1.2;
+    vertical-align: middle;
+    white-space: nowrap;
+    cursor: help;
+}
+
+.client-interest-policy-badge.is-disabled {
+    border-color: rgba(100, 116, 139, 0.35);
+    background: rgba(100, 116, 139, 0.1);
+    color: var(--text-secondary);
+}
+
 .client-info {
     flex: 1;
 }
@@ -2825,6 +2850,34 @@ input:focus, select:focus, textarea:focus {
 #clientScreenSettings .modal-actions {
     border-top: none;
     border-radius: 0;
+}
+
+.client-interest-settings-section .settings-form {
+    min-height: auto;
+}
+
+.client-interest-mode-field {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.client-interest-mode-field label,
+.client-interest-percent-field label {
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+.client-interest-mode-field select {
+    width: 100%;
+    min-height: 44px;
+}
+
+.client-interest-mode-explanation {
+    min-height: 1.25rem;
+    margin: -0.35rem 0 0;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.45;
 }
 
 #clientScreenSettings .btn-settings-danger {
@@ -4437,6 +4490,18 @@ input:focus, select:focus, textarea:focus {
 [data-theme="dark"] .client-overdue-msg,
 [data-theme="dark"] .client-interest-value {
     color: #fbbf24;
+}
+
+[data-theme="dark"] .client-interest-policy-badge {
+    border-color: rgba(96, 165, 250, 0.45);
+    background: rgba(59, 130, 246, 0.16);
+    color: #bfdbfe;
+}
+
+[data-theme="dark"] .client-interest-policy-badge.is-disabled {
+    border-color: rgba(148, 163, 184, 0.35);
+    background: rgba(100, 116, 139, 0.18);
+    color: #cbd5e1;
 }
 
 [data-theme="dark"] .client-item.archived {

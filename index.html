@@ -29,7 +29,7 @@
         .spinner { width: 60px; height: 60px; margin: 0 auto 20px; border: 5px solid rgba(255,255,255,0.2); border-top: 5px solid white; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
-    <link rel="stylesheet" href="style.css?v=2.1.26">
+    <link rel="stylesheet" href="style.css?v=2.1.31">
     <script>
         // Registrar Service Worker para PWA
         if ('serviceWorker' in navigator) {
@@ -45,7 +45,7 @@
         }
         
         // Controle de versão
-        const CURRENT_VERSION = '2.1.14';
+        const CURRENT_VERSION = '2.1.31';
         localStorage.setItem('appVersion', CURRENT_VERSION);
 
         // Theme: apply saved preference or system preference immediately to avoid flash
@@ -320,7 +320,36 @@
                     <div id="clientScreenSettings" class="client-modal-screen" role="tabpanel" aria-labelledby="clientScreenTabSettings" hidden>
                         <div class="modal-section">
                             <h3>Configurações do Cliente</h3>
-                            <p class="settings-hint">Gerencie as ações administrativas deste cliente.</p>
+                            <p class="settings-hint">Defina os juros deste cliente e gerencie as ações administrativas.</p>
+                        </div>
+                        <div class="modal-section client-interest-settings-section">
+                            <form id="clientInterestSettingsForm" class="settings-form settings-form-interest">
+                                <div class="settings-form-header">
+                                    <div>
+                                        <h3>Juros por atraso deste cliente</h3>
+                                        <p class="settings-hint" id="clientInterestSettingsHint">
+                                            A taxa individual substitui completamente os juros gerais. O prazo de vencimento e o pagamento mínimo continuam seguindo as configurações gerais.
+                                        </p>
+                                    </div>
+                                    <span id="clientInterestCurrentValue" class="settings-current-value" aria-live="polite">Atual: regra geral</span>
+                                </div>
+
+                                <div class="client-interest-mode-field">
+                                    <label for="clientInterestModeInput">Regra de juros</label>
+                                    <select id="clientInterestModeInput" aria-describedby="clientInterestSettingsHint clientInterestModeExplanation">
+                                        <option value="global">Usar configuração geral</option>
+                                        <option value="custom">Usar taxa individual</option>
+                                        <option value="disabled">Não cobrar juros deste cliente</option>
+                                    </select>
+                                </div>
+
+                                <div class="settings-inline-field client-interest-percent-field">
+                                    <label for="clientInterestPercentInput">Percentual individual</label>
+                                    <input type="number" id="clientInterestPercentInput" min="0.01" max="100" step="0.01" value="0" inputmode="decimal" aria-describedby="clientInterestModeExplanation" disabled>
+                                    <button id="saveClientInterestSettings" type="submit" class="btn btn-primary">Salvar juros</button>
+                                </div>
+                                <p id="clientInterestModeExplanation" class="client-interest-mode-explanation"></p>
+                            </form>
                         </div>
                         <div class="modal-actions">
                             <button id="archiveClient" class="btn btn-secondary">📦 Arquivar Cliente</button>
@@ -378,7 +407,7 @@
     </div>
 
     <!-- Firebase SDK -->
-    <script type="module" src="app.js?v=2.1.26"></script>
+    <script type="module" src="app.js?v=2.1.31"></script>
 
     <!-- Indicador Offline -->
     <div id="offlineBanner" class="offline-banner" role="alert" aria-live="assertive" style="display: none;">

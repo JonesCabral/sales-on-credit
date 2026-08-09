@@ -310,8 +310,8 @@ function subscribeSettings(userId) {
         syncSettingsForm(settings);
         setFormDisabled(false);
         const interestMessage = currentInterestEnabled && currentInterestPercent > 0
-            ? ` Juros de ${formatOverdueInterestPercent(currentInterestPercent)} ativo para clientes atrasados.`
-            : ' Juros desativados.';
+            ? ` Juros gerais de ${formatOverdueInterestPercent(currentInterestPercent)} ativos para clientes atrasados sem taxa individual.`
+            : ' Juros gerais desativados; configurações individuais permanecem ativas.';
         const resetMessage = ` Pagamento minimo para renovar prazo: ${formatOverdueResetPaymentPercent(currentResetPaymentPercent)}.`;
         setStatus(`Alerta ativo em ${formatOverdueAlertDays(currentOverdueDays)} sem pagamento.${interestMessage}${resetMessage}`, 'success');
     }, (error) => {
@@ -406,8 +406,8 @@ interestSettingsForm?.addEventListener('submit', async (event) => {
         }));
         syncSettingsForm(savedSettings);
         const savedMessage = enabled
-            ? `Juros salvos: ${formatOverdueInterestPercent(normalizedPercent)} para clientes atrasados.`
-            : 'Juros por atraso desativados.';
+            ? `Juros gerais salvos: ${formatOverdueInterestPercent(normalizedPercent)} para clientes sem taxa individual.`
+            : 'Juros gerais desativados. Taxas individuais permanecem ativas.';
         setStatus(savedMessage, 'success');
     } catch (error) {
         console.error('Erro ao salvar juros:', error);
