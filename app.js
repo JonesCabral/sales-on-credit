@@ -24,7 +24,7 @@ const database = getDatabase(app);
 const auth = getAuth(app);
 
 // Versão da aplicação
-const APP_VERSION = '2.1.24';
+const APP_VERSION = '2.1.26';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -591,22 +591,6 @@ class SalesManager {
         return true;
     }
 
-    async updateClientDisplayName(clientId, displayName) {
-        if (!this.clients[clientId]) {
-            throw new Error('Cliente não encontrado');
-        }
-
-        const sanitizedDisplayName = ValidationUtils.validateText(displayName, {
-            maxLength: 100,
-            required: false,
-            fieldName: 'Nome para exibição'
-        });
-
-        this.clients[clientId].displayClientName = sanitizedDisplayName;
-        await this.saveClientData(clientId);
-        return true;
-    }
-
     async deleteSaleItem(clientId, saleId) {
         if (!this.clients[clientId]) {
             throw new Error('Cliente não encontrado');
@@ -879,8 +863,6 @@ const editNameForm = document.getElementById('editNameForm');
 const editClientNameInput = document.getElementById('editClientName');
 const editNameBtn = document.getElementById('editNameBtn');
 const cancelEditNameBtn = document.getElementById('cancelEditName');
-const clientDisplayNameForm = document.getElementById('clientDisplayNameForm');
-const clientDisplayNameInput = document.getElementById('clientDisplayNameInput');
 const confirmModal = document.getElementById('confirmModal');
 const confirmTitle = document.getElementById('confirmTitle');
 const confirmMessage = document.getElementById('confirmMessage');
@@ -2504,6 +2486,8 @@ function shareClientHistory(clientId) {
     const debt = manager.getClientDebt(clientId);
     const isCredit = debt < 0;
     const isPaid = debt === 0;
+    const firstName = String(client.name || '').trim().split(/\s+/)[0];
+    const greeting = firstName ? `Olá, ${firstName}! 😊` : 'Olá! 😊';
 
     // Gerar link para a página do cliente
     const baseUrl = window.location.origin + window.location.pathname.replace('index.html', '');
@@ -2512,11 +2496,11 @@ function shareClientHistory(clientId) {
     // Mensagem para compartilhar (educada e breve)
     let message = '';
     if (isPaid) {
-        message = `Olá! 😊\n\nSua conta está em dia! Obrigado pela confiança.\n\n🔗 Acompanhe seu histórico:\n${clientUrl}`;
+        message = `${greeting}\n\nSua conta está em dia! Obrigado pela confiança.\n\n🔗 Acompanhe seu histórico:\n${clientUrl}`;
     } else if (isCredit) {
-        message = `Olá! 😊\n\nVocê tem um crédito a favor.\n\n🔗 Veja os detalhes:\n${clientUrl}`;
+        message = `${greeting}\n\nVocê tem um crédito a favor.\n\n🔗 Veja os detalhes:\n${clientUrl}`;
     } else {
-        message = `Olá! 😊\nVocê tem um saldo pendente. Quando puder, ficarei grato se conseguir regularizar.\n\n🔗 Veja sua conta detalhada:\n${clientUrl}\n\nObrigado pela compreensão!`;
+        message = `${greeting}\n\nVocê tem um saldo pendente. Quando puder, ficarei grato se conseguir regularizar.\n\n🔗 Veja sua conta detalhada:\n${clientUrl}\n\nObrigado pela compreensão!`;
     }
 
     // Tentar usar Web Share API
@@ -2613,9 +2597,6 @@ function openClientModal(clientId, options = {}) {
     
     if (editClientNameInput) {
         editClientNameInput.value = client.name;
-    }
-    if (clientDisplayNameInput) {
-        clientDisplayNameInput.value = client.displayClientName || '';
     }
 
     // Histórico de vendas
@@ -3406,32 +3387,6 @@ if (clearHistoryBtn) {
                     showToast(getDatabaseErrorMessage(error, 'Erro ao limpar histórico. Tente novamente.'), 'error');
                 }
             }
-        }
-    });
-}
-
-// Salvar nome de exibição do cliente para client-view
-if (clientDisplayNameForm) {
-    clientDisplayNameForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        if (!manager.currentClientId) {
-            showToast('Nenhum cliente selecionado.', 'error');
-            return;
-        }
-
-        const displayName = (clientDisplayNameInput?.value || '').trim();
-
-        showLoader('Salvando configuração...');
-        try {
-            await manager.updateClientDisplayName(manager.currentClientId, displayName);
-            hideLoader();
-            showToast(displayName ? 'Nome para exibição salvo com sucesso!' : 'Nome para exibição removido.', 'success');
-            openClientModal(manager.currentClientId);
-        } catch (error) {
-            hideLoader();
-            console.error('Erro ao salvar nome para exibição:', error);
-            showToast(getDatabaseErrorMessage(error, error.message || 'Erro ao salvar nome para exibição.'), 'error');
         }
     });
 }

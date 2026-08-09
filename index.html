@@ -29,7 +29,7 @@
         .spinner { width: 60px; height: 60px; margin: 0 auto 20px; border: 5px solid rgba(255,255,255,0.2); border-top: 5px solid white; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
-    <link rel="stylesheet" href="style.css?v=2.1.24">
+    <link rel="stylesheet" href="style.css?v=2.1.26">
     <script>
         // Registrar Service Worker para PWA
         if ('serviceWorker' in navigator) {
@@ -321,12 +321,6 @@
                         <div class="modal-section">
                             <h3>Configurações do Cliente</h3>
                             <p class="settings-hint">Gerencie as ações administrativas deste cliente.</p>
-                            <form id="clientDisplayNameForm" class="client-display-name-form">
-                                <label for="clientDisplayNameInput">Nome do cliente para exibição no link</label>
-                                <input type="text" id="clientDisplayNameInput" placeholder="Ex.: Maria Silva" maxlength="100" autocomplete="off">
-                                <p class="settings-hint">Se ficar vazio, o nome do cliente não aparece no client-view.</p>
-                                <button type="submit" class="btn btn-primary">Salvar nome para exibição</button>
-                            </form>
                         </div>
                         <div class="modal-actions">
                             <button id="archiveClient" class="btn btn-secondary">📦 Arquivar Cliente</button>
@@ -384,7 +378,7 @@
     </div>
 
     <!-- Firebase SDK -->
-    <script type="module" src="app.js?v=2.1.24"></script>
+    <script type="module" src="app.js?v=2.1.26"></script>
 
     <!-- Indicador Offline -->
     <div id="offlineBanner" class="offline-banner" role="alert" aria-live="assertive" style="display: none;">

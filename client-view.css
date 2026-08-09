@@ -9,51 +9,6 @@
     max-width: 760px;
 }
 
-.client-view-page .client-name-card {
-    display: none;
-    text-align: center;
-}
-
-.client-view-page .client-name-label {
-    font-size: 0.82rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text-secondary);
-    margin-bottom: 0.45rem;
-}
-
-.client-view-page .client-name-value {
-    font-size: 1.15rem;
-    font-weight: 800;
-    color: var(--text-primary);
-    overflow-wrap: break-word;
-    word-break: break-word;
-}
-
-.client-view-page .client-friendly-message {
-    margin-top: 0.75rem;
-    padding: 0.75rem 0.9rem;
-    border-radius: 12px;
-    border: 1.5px solid var(--border-color);
-    background: rgba(15, 118, 110, 0.06);
-    color: var(--text-secondary);
-    font-weight: 600;
-    line-height: 1.45;
-    overflow-wrap: anywhere;
-}
-
-.client-view-page .client-name-emphasis {
-    color: var(--text-primary);
-    font-weight: 900;
-}
-
-.client-view-page .client-signature {
-    font-weight: 800;
-    color: var(--text-secondary);
-    white-space: nowrap;
-}
-
 .client-view-page .footer {
     text-align: center;
     padding: 2rem 1rem;
@@ -674,11 +629,6 @@
 [data-theme="dark"] .client-view-page .transaction-type.interest {
     background: rgba(251, 191, 36, 0.12);
     border-color: rgba(251, 191, 36, 0.24);
-}
-
-[data-theme="dark"] .client-view-page .client-friendly-message {
-    background: rgba(45, 212, 191, 0.12);
-    border-color: #2a3c55;
 }
 
 [data-theme="dark"] .client-view-page .interest-deadline {
