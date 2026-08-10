@@ -1,5 +1,5 @@
 // Importar Firebase
-import { getDatabase, get, ref, set, update, remove, onValue } from 'firebase/database';
+import { getDatabase, get, ref, update, onValue } from 'firebase/database';
 import { getAuth, signOut, onAuthStateChanged } from 'firebase/auth';
 import { firebaseApp } from './firebase.js';
 
@@ -22,7 +22,7 @@ async function openBarcodeScanner(options) {
 }
 
 // Versão da aplicação
-const APP_VERSION = '2.3.4';
+const APP_VERSION = '2.4.0';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -439,19 +439,36 @@ class SalesManager {
 
         const previousSales = Array.isArray(previousClient.sales) ? previousClient.sales : [];
         const currentSales = Array.isArray(client.sales) ? client.sales : [];
+        const clientNameChanged = String(previousClient.name || '') !== String(client.name || '');
 
-        if (currentSales.length === 0 && previousSales.length > 0) {
+        const clearingSales = currentSales.length === 0 && previousSales.length > 0;
+        if (clearingSales) {
             updates[`${clientPath}/sales`] = null;
-        } else {
-            const largestSalesLength = Math.max(previousSales.length, currentSales.length);
-            for (let index = 0; index < largestSalesLength; index += 1) {
-                const previousItem = previousSales[index];
-                const currentItem = currentSales[index];
-                if (!serializableValuesMatch(previousItem, currentItem)) {
-                    updates[`${clientPath}/sales/${index}`] = currentItem === undefined ? null : currentItem;
-                }
+        }
+
+        const largestSalesLength = Math.max(previousSales.length, currentSales.length);
+        for (let index = 0; index < largestSalesLength; index += 1) {
+            const previousItem = previousSales[index];
+            const currentItem = currentSales[index];
+            const transactionChanged = !serializableValuesMatch(previousItem, currentItem);
+            if (!clearingSales && transactionChanged) {
+                updates[`${clientPath}/sales/${index}`] = currentItem === undefined ? null : currentItem;
             }
         }
+
+        const previousSalesById = new Map(previousSales.filter((item) => item?.id).map((item) => [item.id, item]));
+        const currentSalesById = new Map(currentSales.filter((item) => item?.id).map((item) => [item.id, item]));
+        previousSalesById.forEach((previousItem, saleId) => {
+            if (!currentSalesById.has(saleId)) {
+                updates[`users/${this.userId}/activities/${this.getActivityKey(clientId, previousItem.id)}`] = null;
+            }
+        });
+        currentSalesById.forEach((currentItem, saleId) => {
+            const previousItem = previousSalesById.get(saleId);
+            if (clientNameChanged || !serializableValuesMatch(previousItem, currentItem)) {
+                updates[`users/${this.userId}/activities/${this.getActivityKey(clientId, currentItem.id)}`] = this.buildActivityRecord(clientId, currentItem);
+            }
+        });
 
         if (!serializableValuesMatch(previousClient.publicSummary, summary)) {
             updates[`${clientPath}/publicSummary`] = summary;
@@ -516,16 +533,21 @@ class SalesManager {
         return syncPromise;
     }
 
-    async removeClientData(clientId) {
+    async removeClientData(clientId, salesToRemove = []) {
         if (!this.userId) {
             if (IS_DEV) console.error('Erro: userId nÃ£o definido');
             throw new Error('UsuÃ¡rio nÃ£o autenticado');
         }
 
-        await update(ref(database), {
+        const updates = {
             [`users/${this.userId}/clients/${clientId}`]: null,
             [`users/${this.userId}/clientSummaries/${clientId}`]: null
+        };
+        salesToRemove.forEach((saleItem) => {
+            if (!saleItem?.id) return;
+            updates[`users/${this.userId}/activities/${this.getActivityKey(clientId, saleItem.id)}`] = null;
         });
+        await update(ref(database), updates);
         delete this.clients[clientId];
         delete this.clientSummaries[clientId];
         delete this.persistedClients[clientId];
@@ -632,60 +654,31 @@ class SalesManager {
         return `${clientId}_${saleId}`;
     }
 
-    async upsertActivity(clientId, saleItem) {
-        if (!this.userId || !saleItem?.id) return;
+    buildActivityRecord(clientId, saleItem) {
         const client = this.clients[clientId];
-        if (!client) return;
-
-        const key = this.getActivityKey(clientId, saleItem.id);
+        if (!client || !saleItem?.id) return null;
         const timestamp = new Date(saleItem.date || new Date().toISOString()).getTime();
-
-        try {
-            await set(ref(database, `users/${this.userId}/activities/${key}`), {
-                id: saleItem.id,
-                clientId,
-                clientName: client.name || 'Cliente',
-                type: saleItem.type,
-                amount: getSaleAmount(saleItem),
-                amountCents: getSaleAmountCents(saleItem),
-                description: saleItem.description || '',
-                isNote: Boolean(saleItem.isNote) || (saleItem.type === TRANSACTION_TYPE_SALE && getSaleAmountCents(saleItem) === 0),
-                hasUnpricedItems: saleHasUnpricedProducts(saleItem),
-                items: Array.isArray(saleItem.items) ? saleItem.items : [],
-                interestPaidCents: Number.isFinite(Number(saleItem.interestPaidCents)) ? Math.round(Number(saleItem.interestPaidCents)) : 0,
-                principalPaidCents: Number.isFinite(Number(saleItem.principalPaidCents)) ? Math.round(Number(saleItem.principalPaidCents)) : 0,
-                settlesPreviouslyAppliedInterest: saleItem.settlesPreviouslyAppliedInterest === true,
-                relatedInterestId: saleItem.relatedInterestId || null,
-                relatedPaymentId: saleItem.relatedPaymentId || null,
-                automaticInterest: saleItem.automaticInterest === true,
-                date: saleItem.date || new Date().toISOString(),
-                timestamp: Number.isFinite(timestamp) ? timestamp : Date.now(),
-                editedAt: saleItem.editedAt || null
-            });
-        } catch (error) {
-            console.warn('Falha ao atualizar índice de atividades:', error?.code || error?.message || error);
-        }
-    }
-
-    async removeActivity(clientId, saleId) {
-        if (!this.userId || !saleId) return;
-        const key = this.getActivityKey(clientId, saleId);
-        try {
-            await remove(ref(database, `users/${this.userId}/activities/${key}`));
-        } catch (error) {
-            console.warn('Falha ao remover item do índice de atividades:', error?.code || error?.message || error);
-        }
-    }
-
-    async syncClientActivities(clientId) {
-        const client = this.clients[clientId];
-        if (!client || !Array.isArray(client.sales) || client.sales.length === 0) return;
-
-        try {
-            await Promise.all(client.sales.map((saleItem) => this.upsertActivity(clientId, saleItem)));
-        } catch (error) {
-            console.warn('Falha ao sincronizar índice de atividades do cliente:', error?.code || error?.message || error);
-        }
+        return {
+            id: saleItem.id,
+            clientId,
+            clientName: client.name || 'Cliente',
+            type: saleItem.type,
+            amount: getSaleAmount(saleItem),
+            amountCents: getSaleAmountCents(saleItem),
+            description: saleItem.description || '',
+            isNote: Boolean(saleItem.isNote) || (saleItem.type === TRANSACTION_TYPE_SALE && getSaleAmountCents(saleItem) === 0),
+            hasUnpricedItems: saleHasUnpricedProducts(saleItem),
+            items: Array.isArray(saleItem.items) ? saleItem.items : [],
+            interestPaidCents: Number.isFinite(Number(saleItem.interestPaidCents)) ? Math.round(Number(saleItem.interestPaidCents)) : 0,
+            principalPaidCents: Number.isFinite(Number(saleItem.principalPaidCents)) ? Math.round(Number(saleItem.principalPaidCents)) : 0,
+            settlesPreviouslyAppliedInterest: saleItem.settlesPreviouslyAppliedInterest === true,
+            relatedInterestId: saleItem.relatedInterestId || null,
+            relatedPaymentId: saleItem.relatedPaymentId || null,
+            automaticInterest: saleItem.automaticInterest === true,
+            date: saleItem.date || new Date().toISOString(),
+            timestamp: Number.isFinite(timestamp) ? timestamp : Date.now(),
+            editedAt: saleItem.editedAt || null
+        };
     }
 
     async addClient(name) {
@@ -765,7 +758,6 @@ class SalesManager {
 
         this.clients[clientId].sales.push(saleItem);
         await this.saveClientData(clientId);
-        await this.upsertActivity(clientId, saleItem);
         return true;
     }
 
@@ -829,7 +821,6 @@ class SalesManager {
 
         this.clients[clientId].sales.push(...itemsToSave);
         await this.saveClientData(clientId);
-        await Promise.all(itemsToSave.map((item) => this.upsertActivity(clientId, item)));
         return {
             success: true,
             interestCents: pendingInterestCents
@@ -842,26 +833,14 @@ class SalesManager {
             : [];
 
         delete this.clients[clientId];
-        await this.removeClientData(clientId);
-
-        if (salesToRemove.length > 0) {
-            await Promise.all(salesToRemove.map((saleItem) => this.removeActivity(clientId, saleItem.id)));
-        }
+        await this.removeClientData(clientId, salesToRemove);
     }
 
     async clearClientHistory(clientId) {
         if (!this.clients[clientId]) throw new Error('Cliente não encontrado');
 
-        const salesToRemove = Array.isArray(this.clients[clientId].sales)
-            ? [...this.clients[clientId].sales]
-            : [];
-
         this.clients[clientId].sales = [];
         await this.saveClientData(clientId);
-
-        if (salesToRemove.length > 0) {
-            await Promise.all(salesToRemove.map((saleItem) => this.removeActivity(clientId, saleItem.id)));
-        }
 
         return true;
     }
@@ -889,7 +868,6 @@ class SalesManager {
         }
         this.clients[clientId].name = name;
         await this.saveClientData(clientId);
-        await this.syncClientActivities(clientId);
         return true;
     }
 
@@ -942,7 +920,6 @@ class SalesManager {
             throw new Error('Juros automaticos devem ser excluidos junto com o pagamento relacionado.');
         }
 
-        const removedItems = [];
         if (paymentHasInterestSplit(sale)) {
             const relatedInterestIndex = findRelatedInterestIndex(this.clients[clientId].sales, sale, saleIndex);
             if (relatedInterestIndex === -1) {
@@ -951,18 +928,12 @@ class SalesManager {
 
             const indexesToRemove = [saleIndex, relatedInterestIndex].sort((a, b) => b - a);
             indexesToRemove.forEach((index) => {
-                const [removedItem] = this.clients[clientId].sales.splice(index, 1);
-                if (removedItem) removedItems.push(removedItem);
+                this.clients[clientId].sales.splice(index, 1);
             });
         } else {
-            const [removedSale] = this.clients[clientId].sales.splice(saleIndex, 1);
-            if (removedSale) removedItems.push(removedSale);
+            this.clients[clientId].sales.splice(saleIndex, 1);
         }
         await this.saveClientData(clientId);
-
-        if (removedItems.length > 0) {
-            await Promise.all(removedItems.map((item) => this.removeActivity(clientId, item.id)));
-        }
 
         return true;
     }
@@ -1039,7 +1010,6 @@ class SalesManager {
         sale.editedAt = new Date().toISOString();
         
         await this.saveClientData(clientId);
-        await this.upsertActivity(clientId, sale);
         return true;
     }
 

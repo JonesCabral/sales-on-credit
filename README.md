@@ -28,4 +28,17 @@ npm install
 npm run build
 ```
 
+Para validar as regras financeiras e de paginação do Histórico Geral:
+
+```powershell
+npm test
+npm run check
+```
+
+## Histórico Geral 2.4
+
+A página `history.html` oferece filtros por período, cliente e tipo, ordenação, totais em centavos, paginação do histórico completo, exportação CSV e impressão/PDF. Os filtros são preservados na URL e cada movimentação permite abrir diretamente o histórico do cliente.
+
+O índice `users/{uid}/activities` é atualizado na mesma operação multiponto que salva o cliente. Ao abrir o Histórico Geral, uma reconciliação em segundo plano também corrige registros legados ausentes ou desatualizados.
+
 Na primeira abertura autenticada da versão 2.3.0, a aplicação cria `users/{uid}/clientSummaries` a partir dos clientes existentes. Depois da migração, a home acompanha apenas essa coleção leve e busca o histórico completo de um cliente quando necessário.

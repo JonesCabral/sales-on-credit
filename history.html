@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"></noscript>
-    <link rel="stylesheet" href="history.min.css?v=2.3.4">
+    <link rel="stylesheet" href="history.min.css?v=2.4.0">
     <script>
         (function() {
             const saved = localStorage.getItem('theme');
@@ -30,7 +30,7 @@
                     <span class="header-logo">📈</span>
                     <div>
                         <h1>Histórico Geral</h1>
-                        <p class="subtitle">Vendas, recebimentos e anotações recentes</p>
+                        <p class="subtitle">Consulte, filtre e exporte todas as movimentações</p>
                     </div>
                 </div>
                 <div class="history-toolbar">
@@ -45,7 +45,7 @@
         </header>
 
         <div id="historyMenuOverlay" class="app-menu-overlay" hidden></div>
-        <aside id="historyMenu" class="app-menu" aria-hidden="true">
+        <aside id="historyMenu" class="app-menu" aria-hidden="true" inert>
             <div class="app-menu-header">
                 <h3>Menu</h3>
                 <button id="historyMenuClose" class="btn-menu-close" title="Fechar menu" aria-label="Fechar menu">✕</button>
@@ -54,7 +54,7 @@
                 <a href="index.html" class="app-menu-link">🏠 Painel principal</a>
                 <a href="clients.html" class="app-menu-link">👤 Adicionar cliente</a>
                 <a href="products.html" class="app-menu-link">🛒 Produtos</a>
-                <a href="history.html" class="app-menu-link">📈 Histórico geral</a>
+                <a href="history.html" class="app-menu-link" aria-current="page">📈 Histórico geral</a>
                 <a href="settings.html" class="app-menu-link">⚙️ Configurações</a>
             </nav>
         </aside>
@@ -64,40 +64,98 @@
                 <div class="section-header history-controls-header">
                     <div>
                         <h2 id="historyFiltersTitle">Filtros</h2>
-                        <p class="section-subtitle">Encontre movimentações por cliente, descrição ou tipo.</p>
+                        <p class="section-subtitle">Encontre movimentações por período, cliente, descrição ou tipo.</p>
                     </div>
                     <button id="clearHistoryFilters" class="btn-filter-clear" type="button" hidden>Limpar filtros</button>
                 </div>
 
-                <div class="history-filters-grid">
+                <div class="history-primary-controls">
                     <div class="history-search-wrapper">
                         <label for="historySearch">Buscar no histórico</label>
-                        <input type="search" id="historySearch" placeholder="Cliente ou descrição..." aria-label="Buscar por cliente ou descrição" autocomplete="off">
+                        <input type="search" id="historySearch" placeholder="Cliente, descrição, valor..." aria-label="Buscar por cliente, descrição ou valor" autocomplete="off">
                     </div>
 
-                    <div class="history-selects-wrapper">
-                        <label for="activityType">Tipo</label>
-                        <select id="activityType">
-                            <option value="all">Todas</option>
-                            <option value="sale">Vendas</option>
-                            <option value="interest">Juros</option>
-                            <option value="payment">Recebimentos</option>
-                            <option value="note">Anotações</option>
-                        </select>
-                    </div>
-
-                    <div class="history-selects-wrapper">
-                        <label for="activityLimit">Exibir</label>
-                        <select id="activityLimit">
-                            <option value="15" selected>15 itens</option>
-                            <option value="30">30 itens</option>
-                            <option value="50">50 itens</option>
-                            <option value="100">100 itens</option>
-                        </select>
-                    </div>
+                    <button id="historyFiltersToggle" class="btn history-filters-toggle" type="button" aria-expanded="false" aria-controls="historyFiltersPanel">
+                        <span aria-hidden="true">⚙️</span> Mais filtros
+                    </button>
                 </div>
 
-                <div class="history-stats" aria-label="Resumo das movimentações exibidas">
+                <div id="historyFiltersPanel" class="history-filters-panel">
+                    <fieldset class="history-period-fieldset">
+                        <legend>Período</legend>
+                        <div class="history-period-options" role="group" aria-label="Selecionar período">
+                            <button type="button" class="history-period-button" data-history-period="all" aria-pressed="true">Tudo</button>
+                            <button type="button" class="history-period-button" data-history-period="today" aria-pressed="false">Hoje</button>
+                            <button type="button" class="history-period-button" data-history-period="7d" aria-pressed="false">7 dias</button>
+                            <button type="button" class="history-period-button" data-history-period="30d" aria-pressed="false">30 dias</button>
+                            <button type="button" class="history-period-button" data-history-period="month" aria-pressed="false">Este mês</button>
+                            <button type="button" class="history-period-button" data-history-period="custom" aria-pressed="false">Personalizado</button>
+                        </div>
+                    </fieldset>
+
+                    <div id="historyCustomPeriod" class="history-custom-period" hidden>
+                        <div class="history-date-wrapper">
+                            <label for="historyDateFrom">Data inicial</label>
+                            <input type="date" id="historyDateFrom">
+                        </div>
+                        <div class="history-date-wrapper">
+                            <label for="historyDateTo">Data final</label>
+                            <input type="date" id="historyDateTo">
+                        </div>
+                    </div>
+
+                    <div class="history-filters-grid">
+                        <div class="history-selects-wrapper history-client-filter">
+                            <label for="activityClient">Cliente</label>
+                            <select id="activityClient">
+                                <option value="all">Todos os clientes</option>
+                            </select>
+                        </div>
+
+                        <div class="history-selects-wrapper">
+                            <label for="activityType">Tipo</label>
+                            <select id="activityType">
+                                <option value="all">Todas</option>
+                                <option value="sale">Vendas</option>
+                                <option value="interest">Juros</option>
+                                <option value="payment">Recebimentos</option>
+                                <option value="note">Anotações</option>
+                            </select>
+                        </div>
+
+                        <div class="history-selects-wrapper">
+                            <label for="activitySort">Ordenar por</label>
+                            <select id="activitySort">
+                                <option value="newest">Mais recentes</option>
+                                <option value="oldest">Mais antigas</option>
+                                <option value="amount">Maior valor</option>
+                                <option value="client">Nome do cliente</option>
+                            </select>
+                        </div>
+
+                        <div class="history-selects-wrapper">
+                            <label for="activityLimit">Exibir</label>
+                            <select id="activityLimit">
+                                <option value="15" selected>15 itens</option>
+                                <option value="30">30 itens</option>
+                                <option value="50">50 itens</option>
+                                <option value="100">100 itens</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <label class="history-archived-toggle" for="historyIncludeArchived">
+                        <input type="checkbox" id="historyIncludeArchived" checked>
+                        <span>Incluir clientes arquivados</span>
+                    </label>
+                </div>
+
+                <div class="history-actions" aria-label="Ações do histórico">
+                    <button id="exportHistoryCsv" class="btn btn-secondary history-action-button" type="button">⬇️ Exportar CSV</button>
+                    <button id="printHistory" class="btn btn-secondary history-action-button" type="button">🖨️ Imprimir / PDF</button>
+                </div>
+
+                <div class="history-stats" aria-label="Totais das movimentações filtradas">
                     <div class="history-stat history-stat-sale">
                         <span>Vendas</span>
                         <strong id="historySalesTotal">R$ 0,00</strong>
@@ -114,23 +172,38 @@
                         <span>Anotações</span>
                         <strong id="historyNotesCount">0</strong>
                     </div>
+                    <div class="history-stat history-stat-balance">
+                        <span>Saldo do período</span>
+                        <strong id="historyBalanceTotal">R$ 0,00</strong>
+                    </div>
                 </div>
 
-                <div id="historyMeta" class="history-meta" aria-live="polite">Carregando movimentações...</div>
+                <p id="historyTotalsScope" class="history-totals-scope">Totais dos resultados filtrados.</p>
+
+                <div class="history-status-row">
+                    <div id="historyMeta" class="history-meta" role="status" aria-live="polite">Carregando movimentações...</div>
+                    <button id="retryHistoryLoad" class="btn-filter-clear" type="button" hidden>Tentar novamente</button>
+                </div>
             </section>
 
             <section class="card activity-card" aria-labelledby="historyActivityTitle">
                 <div class="section-header activity-header">
-                    <h2 id="historyActivityTitle">Movimentações Recentes</h2>
+                    <h2 id="historyActivityTitle">Movimentações</h2>
                     <span id="activitySummary" class="activity-summary">Carregando...</span>
                 </div>
-                <div id="activityList" class="activity-list">
-                    <p class="empty-message">Carregando dados...</p>
+                <div id="activityList" class="activity-list" aria-busy="true">
+                    <div class="history-skeleton" aria-label="Carregando movimentações">
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>
+                <div id="historyPagination" class="history-pagination" hidden>
+                    <button id="loadMoreHistory" class="btn btn-secondary" type="button">Carregar movimentações anteriores</button>
+                    <button id="loadAllHistory" class="btn-filter-clear" type="button">Carregar todo o histórico</button>
                 </div>
             </section>
         </main>
     </div>
 
-    <script type="module" src="history.min.js?v=2.3.4"></script>
+    <script type="module" src="history.min.js?v=2.4.0"></script>
 </body>
 </html>
