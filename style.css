@@ -3593,6 +3593,14 @@ input:focus, select:focus, textarea:focus {
         justify-content: center;
     }
 
+    .user-info .btn-menu-toggle,
+    .history-page .history-toolbar .btn-menu-toggle,
+    .settings-page .settings-toolbar .btn-menu-toggle,
+    .products-page .products-toolbar .btn-menu-toggle,
+    .clients-page .clients-toolbar .btn-menu-toggle {
+        margin-right: auto;
+    }
+
     .history-page .history-toolbar .btn-secondary,
     .settings-page .settings-toolbar .btn-secondary,
     .products-page .products-toolbar .btn-secondary,
