@@ -2415,6 +2415,71 @@ input:focus, select:focus, textarea:focus {
     min-width: 180px;
 }
 
+.client-sale-toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.85rem 0.95rem;
+    border: 1px dashed var(--border-color);
+    border-radius: 10px;
+    background: var(--background);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.client-sale-toggle:has(input:checked) {
+    border-color: rgba(37, 99, 235, 0.55);
+    background: rgba(37, 99, 235, 0.08);
+}
+
+.client-sale-toggle input {
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    margin-top: 0.1rem;
+    accent-color: var(--primary-color);
+}
+
+.client-sale-toggle span {
+    display: grid;
+    gap: 0.15rem;
+}
+
+.client-sale-toggle strong {
+    font-size: 0.92rem;
+}
+
+.client-sale-toggle small,
+.optional-label {
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.initial-sale-fields {
+    padding: 1rem;
+    border: 1px solid rgba(37, 99, 235, 0.28);
+    border-radius: 12px;
+    background: rgba(37, 99, 235, 0.05);
+}
+
+.initial-sale-fields[hidden] {
+    display: none;
+}
+
+.initial-sale-grid {
+    display: grid;
+    grid-template-columns: minmax(180px, 0.65fr) minmax(0, 1.35fr);
+    gap: 0.9rem;
+    align-items: end;
+}
+
+.initial-sale-grid textarea {
+    min-height: 48px;
+    resize: vertical;
+}
+
 .client-status {
     margin: 0;
     padding: 0.75rem 0.9rem;
@@ -2502,6 +2567,12 @@ input:focus, select:focus, textarea:focus {
     font-weight: 600;
 }
 
+.client-directory-side {
+    display: grid;
+    gap: 0.65rem;
+    justify-items: end;
+}
+
 .client-directory-balance {
     display: grid;
     gap: 0.15rem;
@@ -2530,6 +2601,21 @@ input:focus, select:focus, textarea:focus {
 .client-directory-balance.has-credit strong,
 .client-directory-balance.is-paid strong {
     color: var(--success-color);
+}
+
+.client-directory-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+}
+
+.client-directory-action {
+    min-height: 36px;
+    padding: 0.45rem 0.7rem;
+    font-size: 0.78rem;
+    text-decoration: none;
+    white-space: nowrap;
 }
 
 .settings-card .section-header {
@@ -3026,6 +3112,7 @@ input:focus, select:focus, textarea:focus {
     .products-controls,
     .product-item,
     .client-form-grid,
+    .initial-sale-grid,
     .client-directory-item {
         grid-template-columns: 1fr;
     }
@@ -3037,6 +3124,19 @@ input:focus, select:focus, textarea:focus {
     .client-directory-balance {
         min-width: 0;
         text-align: left;
+    }
+
+    .client-directory-side {
+        justify-items: stretch;
+    }
+
+    .client-directory-actions {
+        justify-content: flex-start;
+    }
+
+    .client-directory-action {
+        flex: 1 1 120px;
+        text-align: center;
     }
 
     .product-field-barcode {
@@ -5303,6 +5403,16 @@ textarea:focus {
 
 [data-theme="dark"] .client-directory-item:hover {
     border-color: #3c5a7e;
+}
+
+[data-theme="dark"] .client-sale-toggle,
+[data-theme="dark"] .initial-sale-fields {
+    background: #0f1a2d;
+}
+
+[data-theme="dark"] .client-sale-toggle:has(input:checked) {
+    border-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.14);
 }
 
 [data-theme="dark"] .history-limit {

@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"></noscript>
-    <link rel="stylesheet" href="clients.min.css?v=2.3.1">
+    <link rel="stylesheet" href="clients.min.css?v=2.3.2">
     <script>
         (function() {
             const saved = localStorage.getItem('theme');
@@ -65,7 +65,7 @@
                 <div class="section-header">
                     <div>
                         <h2 id="clientFormTitle">Adicionar cliente</h2>
-                        <p class="section-subtitle">O cliente será cadastrado com saldo zerado. Você poderá registrar uma venda quando quiser.</p>
+                        <p class="section-subtitle">Cadastre somente o cliente ou registre a primeira venda no mesmo momento.</p>
                     </div>
                 </div>
 
@@ -76,6 +76,27 @@
                             <input type="text" id="clientName" placeholder="Ex.: Maria da Silva" minlength="2" maxlength="100" autocomplete="off" required>
                         </div>
                         <button id="saveClientBtn" type="submit" class="btn btn-primary">Adicionar cliente</button>
+                    </div>
+
+                    <label class="client-sale-toggle" for="addInitialSale">
+                        <input type="checkbox" id="addInitialSale">
+                        <span>
+                            <strong>Registrar a primeira venda agora</strong>
+                            <small>Ative para cadastrar o cliente já com uma venda fiada.</small>
+                        </span>
+                    </label>
+
+                    <div id="initialSaleFields" class="initial-sale-fields" hidden>
+                        <div class="initial-sale-grid">
+                            <div class="client-field">
+                                <label for="initialSaleAmount">Valor da primeira venda</label>
+                                <input type="text" id="initialSaleAmount" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off">
+                            </div>
+                            <div class="client-field">
+                                <label for="initialSaleDescription">Descrição <span class="optional-label">(opcional)</span></label>
+                                <textarea id="initialSaleDescription" rows="2" maxlength="500" placeholder="Ex.: Compra inicial"></textarea>
+                            </div>
+                        </div>
                     </div>
                     <p id="clientsStatus" class="client-status" data-status="neutral" aria-live="polite">Informe o nome para adicionar um novo cliente.</p>
                 </form>
@@ -104,6 +125,6 @@
         <span class="toast-message">Cliente adicionado com sucesso!</span>
     </div>
 
-    <script type="module" src="clients.min.js?v=2.3.1"></script>
+    <script type="module" src="clients.min.js?v=2.3.2"></script>
 </body>
 </html>

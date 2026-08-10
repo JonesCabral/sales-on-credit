@@ -22,7 +22,7 @@ async function openBarcodeScanner(options) {
 }
 
 // Versão da aplicação
-const APP_VERSION = '2.3.1';
+const APP_VERSION = '2.3.2';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -286,6 +286,7 @@ class SalesManager {
                 this.clientSummaries = savedSummaries;
                 safeLog('Resumos de clientes carregados do Firebase', _meta);
                 updateClientsList();
+                await openRequestedClientFromUrl();
                 if (!this.dataLoaded) {
                     this.dataLoaded = true;
                     hideLoadingScreen();
@@ -344,6 +345,7 @@ class SalesManager {
             this.clientSummaries = summaries;
             updateClientsList();
             await update(ref(database), updates);
+            await openRequestedClientFromUrl();
         })().finally(() => {
             this.summaryMigrationPromise = null;
         });
@@ -3017,6 +3019,42 @@ function renderClientsList(clientRows) {
                 hideLoader();
             }
         });
+    }
+}
+
+let requestedClientFromUrlHandled = false;
+
+async function openRequestedClientFromUrl() {
+    if (requestedClientFromUrlHandled) return;
+
+    const url = new URL(window.location.href);
+    const clientId = url.searchParams.get('client');
+    if (!clientId) return;
+
+    requestedClientFromUrlHandled = true;
+    const requestedScreen = url.searchParams.get('screen');
+    const screen = ['sale', 'payment', 'history', 'settings'].includes(requestedScreen)
+        ? requestedScreen
+        : 'sale';
+
+    url.searchParams.delete('client');
+    url.searchParams.delete('screen');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+
+    if (!manager.getClientPreview(clientId)) {
+        showToast('Cliente não encontrado.', 'error');
+        return;
+    }
+
+    showLoader('Carregando cliente...');
+    try {
+        await manager.ensureClientLoaded(clientId);
+        openClientModal(clientId, { screen });
+    } catch (error) {
+        console.error('Erro ao abrir cliente solicitado:', error);
+        showToast(getDatabaseErrorMessage(error, 'Erro ao abrir cliente.'), 'error');
+    } finally {
+        hideLoader();
     }
 }
 
