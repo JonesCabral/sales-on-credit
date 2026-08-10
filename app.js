@@ -1194,9 +1194,6 @@ const logoutBtn = document.getElementById('logoutBtn');
 const userEmailSpan = document.getElementById('userEmail');
 
 // Elementos DOM - App
-const addSaleForm = document.getElementById('addSaleForm');
-const clientSearch = document.getElementById('clientSearch');
-const clientSuggestions = document.getElementById('clientSuggestions');
 const searchClients = document.getElementById('searchClients');
 const paymentForm = document.getElementById('paymentForm');
 const modalAddSaleForm = document.getElementById('modalAddSaleForm');
@@ -1205,13 +1202,6 @@ const modalSaleDescriptionInput = document.getElementById('modalSaleDescription'
 const modalSaleProductSearchInput = document.getElementById('modalSaleProductSearch');
 const modalSaleProductSuggestions = document.getElementById('modalSaleProductSuggestions');
 const modalSaleItemsList = document.getElementById('modalSaleItemsList');
-const justNoteProductCheckbox = document.getElementById('justNoteProduct');
-const saleAmountInput = document.getElementById('saleAmount');
-const saleDescriptionInput = document.getElementById('saleDescription');
-const saleProductSearchInput = document.getElementById('saleProductSearch');
-const saleProductSuggestions = document.getElementById('saleProductSuggestions');
-const saleItemsList = document.getElementById('saleItemsList');
-const scanSaleProductButton = document.getElementById('scanSaleProduct');
 const scanModalSaleProductButton = document.getElementById('scanModalSaleProduct');
 const clientNameInput = document.getElementById('clientNameInput');
 const modal = document.getElementById('clientModal');
@@ -1270,38 +1260,6 @@ let savedProducts = {};
 const saleDraftItems = new WeakMap();
 const autosaveTimers = new WeakMap();
 const AUTOSAVE_DELAY_MS = 1800;
-const SALE_DESCRIPTION_DRAFT_KEY = 'salesOnCredit:addSaleDescriptionDraft';
-
-function loadSaleDescriptionDraft() {
-    if (!saleDescriptionInput) return;
-
-    try {
-        const savedDraft = localStorage.getItem(SALE_DESCRIPTION_DRAFT_KEY);
-        if (savedDraft !== null) {
-            saleDescriptionInput.value = savedDraft;
-        }
-    } catch (error) {
-        safeLog('Não foi possível carregar rascunho da descrição:', error);
-    }
-}
-
-function saveSaleDescriptionDraft() {
-    if (!saleDescriptionInput) return;
-
-    try {
-        localStorage.setItem(SALE_DESCRIPTION_DRAFT_KEY, saleDescriptionInput.value || '');
-    } catch (error) {
-        safeLog('Não foi possível salvar rascunho da descrição:', error);
-    }
-}
-
-function clearSaleDescriptionDraft() {
-    try {
-        localStorage.removeItem(SALE_DESCRIPTION_DRAFT_KEY);
-    } catch (error) {
-        safeLog('Não foi possível limpar rascunho da descrição:', error);
-    }
-}
 
 function setMenuOpen(isOpen) {
     if (!appMenu || !appMenuOverlay || !menuToggleBtn) return;
@@ -1350,22 +1308,11 @@ function syncSettingsUI() {
 }
 
 initializeAppMenu();
-loadSaleDescriptionDraft();
 syncSettingsUI();
-setupProductPicker(saleProductSearchInput, saleAmountInput, saleProductSuggestions, saleItemsList);
 setupProductPicker(modalSaleProductSearchInput, modalSaleAmountInput, modalSaleProductSuggestions, modalSaleItemsList);
-setupProductCameraScanner(scanSaleProductButton, saleProductSearchInput, saleAmountInput, saleProductSuggestions, saleItemsList);
 setupProductCameraScanner(scanModalSaleProductButton, modalSaleProductSearchInput, modalSaleAmountInput, modalSaleProductSuggestions, modalSaleItemsList);
 setupClientModalProductSearchCompaction();
 
-if (saleDescriptionInput) {
-    saleDescriptionInput.addEventListener('input', saveSaleDescriptionDraft);
-}
-
-addSaleForm?.addEventListener('reset', () => {
-    clearSaleDraftItems(saleProductSearchInput, saleItemsList, saleAmountInput);
-    clearFormAutosaveState(addSaleForm);
-});
 modalAddSaleForm?.addEventListener('reset', () => {
     clearSaleDraftItems(modalSaleProductSearchInput, modalSaleItemsList, modalSaleAmountInput);
     clearFormAutosaveState(modalAddSaleForm);
@@ -1373,11 +1320,11 @@ modalAddSaleForm?.addEventListener('reset', () => {
 paymentForm?.addEventListener('reset', () => clearFormAutosaveState(paymentForm));
 
 // Aplicar máscara de moeda em todos os campos de valor
-[saleAmountInput, modalSaleAmountInput, editSaleAmount, document.getElementById('paymentAmount')].forEach(input => {
+[modalSaleAmountInput, editSaleAmount, document.getElementById('paymentAmount')].forEach(input => {
     if (input) currencyMask(input);
 });
 
-[saleAmountInput, modalSaleAmountInput].forEach((input) => {
+[modalSaleAmountInput].forEach((input) => {
     input?.addEventListener('input', () => {
         if (input.readOnly && input.dataset.autoSaleTotal === 'true') return;
         delete input.dataset.autoSaleTotal;
@@ -2025,45 +1972,12 @@ function scheduleFormAutosave(form, getSignature, isReady) {
     }, AUTOSAVE_DELAY_MS));
 }
 
-function scheduleMainSaleAutosave() {
-    scheduleFormAutosave(addSaleForm, getMainSaleAutosaveSignature, isMainSaleAutosaveReady);
-}
-
 function scheduleModalSaleAutosave() {
     scheduleFormAutosave(modalAddSaleForm, getModalSaleAutosaveSignature, isModalSaleAutosaveReady);
 }
 
 function schedulePaymentAutosave() {
     scheduleFormAutosave(paymentForm, getPaymentAutosaveSignature, isPaymentAutosaveReady);
-}
-
-function scheduleSaleAutosaveForAmountInput(amountInput) {
-    if (amountInput === saleAmountInput) scheduleMainSaleAutosave();
-    if (amountInput === modalSaleAmountInput) scheduleModalSaleAutosave();
-}
-
-function isMainSaleAutosaveReady() {
-    const clientName = (clientSearch?.value || '').trim();
-    if (clientName.length < 2 || clientName.length > 100) return false;
-    if ((saleProductSearchInput?.value || '').trim()) return false;
-
-    const items = getSaleDraftItems(saleProductSearchInput);
-    const description = (saleDescriptionInput?.value || '').trim();
-    const amountCents = getSaleAutosaveAmountCents(saleAmountInput, items);
-
-    return amountCents > 0 || items.length > 0 || description.length > 0;
-}
-
-function getMainSaleAutosaveSignature() {
-    if (!isMainSaleAutosaveReady()) return '';
-    const items = getSaleDraftItems(saleProductSearchInput);
-    return [
-        (selectedClientId || '').trim(),
-        (clientSearch?.value || '').trim().toLowerCase(),
-        getSaleAutosaveAmountCents(saleAmountInput, items),
-        (saleDescriptionInput?.value || '').trim(),
-        getSaleItemsSignature(items)
-    ].join('|');
 }
 
 function isModalSaleAutosaveReady() {
@@ -2419,11 +2333,6 @@ function appendSelectedProduct(searchInput, amountInput, product, quantity = 1) 
     const productTotalCents = unitPriceCents * safeQuantity;
 
     if (!productName) return false;
-
-    if (amountInput === saleAmountInput && justNoteProductCheckbox?.checked) {
-        justNoteProductCheckbox.checked = false;
-        justNoteProductCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
-    }
 
     const nextItems = [
         ...getSaleDraftItems(searchInput),
@@ -3583,24 +3492,6 @@ if (unpricedNotesAlert) {
     });
 }
 
-// Checkbox "apenas anotar produto" - desabilitar campo de valor
-if (justNoteProductCheckbox && saleAmountInput && saleDescriptionInput) {
-    justNoteProductCheckbox.addEventListener('change', (e) => {
-        if (e.target.checked) {
-            saleAmountInput.disabled = true;
-            saleAmountInput.required = false;
-            saleAmountInput.value = '';
-            saleDescriptionInput.placeholder = 'Observação da venda (opcional)';
-            saleDescriptionInput.required = true;
-        } else {
-            saleAmountInput.disabled = false;
-            saleAmountInput.required = true;
-            saleDescriptionInput.placeholder = 'Observação da venda (opcional)';
-            saleDescriptionInput.required = false;
-        }
-    });
-}
-
 // Busca de clientes na lista
 if (searchClients) {
     const filterDebtOnlyCheckbox = document.getElementById('filterDebtOnly');
@@ -3658,190 +3549,6 @@ if (searchClients) {
 
     updateSearchFilterInteractivity();
 }
-
-let selectedClientId = null;
-
-// Busca de clientes com autocomplete
-if (clientSearch) {
-    clientSearch.addEventListener('input', debounce((e) => {
-        const searchTerm = e.target.value.trim().toLowerCase();
-        selectedClientId = null;
-        
-        if (searchTerm.length === 0) {
-            clientSuggestions.classList.remove('show');
-            return;
-        }
-        
-        const clients = manager.getClientPreviews();
-        const matches = clients.filter(client => 
-            client.name.toLowerCase().includes(searchTerm)
-        );
-        
-        if (matches.length === 0) {
-            // Nenhum cliente encontrado - sugerir criar novo
-            clientSuggestions.innerHTML = `
-                <div class="suggestion-item new-client" data-action="new">
-                    <div>➕ Criar novo cliente: "${sanitizeHTML(e.target.value.trim())}"</div>
-                </div>
-            `;
-        } else {
-            // Mostrar clientes encontrados
-            clientSuggestions.innerHTML = matches
-                .sort((a, b) => a.name.localeCompare(b.name))
-                .map(client => {
-                    const debt = manager.getClientDebt(client.id);
-                    const debtText = debt > 0
-                        ? `R$ ${formatCurrency(debt)}`
-                        : debt < 0
-                            ? `R$ -${formatCurrency(Math.abs(debt))}`
-                            : 'R$ 0,00';
-                    return `
-                        <div class="suggestion-item" data-client-id="${client.id}">
-                            <div>${sanitizeHTML(client.name)}</div>
-                            <div class="client-debt-preview ${debt > 0 ? 'has-debt' : ''}">${debtText}</div>
-                        </div>
-                    `;
-                }).join('') + `
-                <div class="suggestion-item new-client" data-action="new">
-                    <div>➕ Criar novo cliente: "${sanitizeHTML(e.target.value.trim())}"</div>
-                </div>
-            `;
-        }
-        
-        clientSuggestions.classList.add('show');
-        
-        // Event listeners para sugestões
-        document.querySelectorAll('.suggestion-item').forEach(item => {
-            item.addEventListener('click', () => {
-                if (item.dataset.action === 'new') {
-                    selectedClientId = '__new__';
-                    clientSearch.value = e.target.value.trim();
-                } else {
-                    selectedClientId = item.dataset.clientId;
-                    const client = manager.getClientPreview(selectedClientId);
-                    clientSearch.value = client.name;
-                }
-                clientSuggestions.classList.remove('show');
-            });
-        });
-    }, 200));
-    
-    // Fechar sugestões ao clicar fora
-    document.addEventListener('click', (e) => {
-        if (!clientSearch.contains(e.target) && !clientSuggestions.contains(e.target)) {
-            clientSuggestions.classList.remove('show');
-        }
-    });
-}
-
-// Registrar venda
-addSaleForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const clientName = clientSearch.value.trim();
-    const amount = document.getElementById('saleAmount').value;
-    const description = document.getElementById('saleDescription').value.trim();
-    const hasAmount = (amount || '').trim() !== '';
-    const saleItems = getSaleDraftItems(saleProductSearchInput);
-    const isJustNote = (justNoteProductCheckbox?.checked || false) || !hasAmount;
-    
-    // Validar nome do cliente
-    if (!clientName) {
-        showToast('Por favor, digite o nome do cliente.', 'error');
-        clientSearch.focus();
-        return;
-    }
-    
-    if (clientName.length < 2) {
-        showToast('O nome do cliente deve ter pelo menos 2 caracteres.', 'error');
-        clientSearch.focus();
-        return;
-    }
-    
-    if (clientName.length > 100) {
-        showToast('O nome do cliente não pode ter mais de 100 caracteres.', 'error');
-        clientSearch.focus();
-        return;
-    }
-    
-    let numericAmount = 0;
-    
-    // Se for apenas anotação, valor é 0 e descrição obrigatória
-    if (isJustNote) {
-        numericAmount = 0;
-        if (!description && saleItems.length === 0) {
-            showToast('Adicione um produto ou informe uma observação.', 'error');
-            (saleProductSearchInput || document.getElementById('saleDescription')).focus();
-            return;
-        }
-    } else {
-        // Validar valor da venda
-        numericAmount = parseCurrency(amount);
-        if (isNaN(numericAmount)) {
-            showToast('O valor da venda deve ser um número válido.', 'error');
-            document.getElementById('saleAmount').focus();
-            return;
-        }
-        
-        if (numericAmount <= 0) {
-            showToast('O valor da venda deve ser maior que zero.', 'error');
-            document.getElementById('saleAmount').focus();
-            return;
-        }
-        
-        if (numericAmount > 1000000) {
-            showToast('O valor da venda não pode ser maior que R$ 1.000.000,00.', 'error');
-            document.getElementById('saleAmount').focus();
-            return;
-        }
-    }
-
-    const saleItemsTotalCents = getSaleItemsTotalCents(saleItems);
-    if (!isJustNote && saleItemsTotalCents > 0) {
-        numericAmount = centsToAmount(saleItemsTotalCents);
-        document.getElementById('saleAmount').value = numberToCurrencyInput(numericAmount);
-    }
-
-    if (!beginFormSubmission(addSaleForm)) return;
-    showLoader('Salvando...');
-    try {
-        let clientId;
-        
-        if (selectedClientId === '__new__' || !selectedClientId) {
-            // Verificar se já existe cliente com esse nome
-            const existingClient = manager.getClientPreviews().find(
-                c => c.name.toLowerCase() === clientName.toLowerCase()
-            );
-            
-            if (existingClient) {
-                clientId = existingClient.id;
-            } else {
-                // Criar novo cliente
-                clientId = await manager.addClient(clientName);
-            }
-        } else {
-            // Cliente selecionado da lista
-            clientId = selectedClientId;
-        }
-        
-        // Adicionar venda
-        await manager.ensureClientLoaded(clientId);
-        await manager.addSale(clientId, numericAmount, description, saleItems);
-        hideLoader();
-        showToast('Venda registrada com sucesso!', 'success');
-        addSaleForm.reset();
-        clearSaleDraftItems(saleProductSearchInput, saleItemsList, saleAmountInput);
-        clearFormAutosaveState(addSaleForm);
-        hideProductSuggestions(saleProductSuggestions);
-        clearSaleDescriptionDraft();
-        selectedClientId = null;
-        clientSuggestions.classList.remove('show');
-    } catch (error) {
-        hideLoader();
-        finishFormSubmission(addSaleForm);
-        if (IS_DEV) console.error('Erro ao registrar venda:', error);
-        showToast(getDatabaseErrorMessage(error, 'Erro ao registrar venda. Tente novamente.'), 'error');
-    }
-});
 
 paymentForm.addEventListener('submit', async (e) => {
     e.preventDefault();

@@ -37,38 +37,6 @@
         </aside>
 
         <main>
-            <!-- Formulário para registrar venda -->
-            <section class="card" id="registerSaleSection">
-                <details class="collapsible-form">
-                <summary class="collapsible-summary"><h2>Registrar Venda Fiada</h2></summary>
-                <form id="addSaleForm">
-                    <div class="autocomplete-wrapper">
-                        <input
-                            type="text"
-                            id="clientSearch"
-                            placeholder="Digite o nome do cliente ou adicione novo"
-                            autocomplete="off"
-                            required>
-                        <div id="clientSuggestions" class="suggestions-dropdown"></div>
-                    </div>
-                    <input type="text" id="saleAmount" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off">
-                    <div class="product-picker-wrapper">
-                        <div class="product-search-row">
-                            <input type="text" id="saleProductSearch" placeholder="Buscar nome ou ler codigo de barras" autocomplete="off">
-                            <button id="scanSaleProduct" class="btn-camera-scan" type="button" aria-label="Ler produto pela camera" title="Ler codigo de barras pela camera">
-                                <span aria-hidden="true">&#128247;</span>
-                                <span>Ler</span>
-                            </button>
-                        </div>
-                        <div id="saleProductSuggestions" class="suggestions-dropdown product-suggestions-dropdown"></div>
-                    </div>
-                    <div id="saleItemsList" class="sale-items-list" aria-live="polite"></div>
-                    <textarea id="saleDescription" placeholder="Observação da venda (opcional)" rows="2"></textarea>
-                    <button type="submit" class="btn btn-primary">+ Registrar Venda</button>
-                </form>
-                </details>
-            </section>
-
             <!-- Aviso de Anotações Pendentes -->
             <div id="unpricedNotesAlert" class="alert-banner clickable-alert" style="display: none;" title="Clique para ver os clientes com anotações">
                 <div class="alert-icon">📝</div>

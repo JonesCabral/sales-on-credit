@@ -3556,11 +3556,6 @@ input:focus, select:focus, textarea:focus {
         padding: 0.875rem 1.25rem;
     }
 
-    /* Collapsible form */
-    .collapsible-summary h2 {
-        font-size: 1.1rem;
-    }
-
     /* Back to top */
     .back-to-top {
         bottom: max(1.25rem, env(safe-area-inset-bottom));
@@ -4186,45 +4181,6 @@ input:focus, select:focus, textarea:focus {
     border-color: var(--text-secondary);
 }
 
-/* Collapsible Form */
-.collapsible-form {
-    border: none;
-}
-
-.collapsible-form > summary {
-    list-style: none;
-    cursor: pointer;
-    user-select: none;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.collapsible-form > summary::-webkit-details-marker {
-    display: none;
-}
-
-.collapsible-form > summary::before {
-    content: '▶';
-    display: inline-block;
-    font-size: 0.75rem;
-    transition: transform var(--transition-fast);
-    color: var(--text-secondary);
-}
-
-.collapsible-form[open] > summary::before {
-    transform: rotate(90deg);
-}
-
-.collapsible-form > summary h2 {
-    margin: 0;
-    display: inline;
-}
-
-.collapsible-form > form {
-    margin-top: 1rem;
-}
-
 /* Fieldset for filters */
 .filter-fieldset {
     border: 1px solid var(--border-color);
@@ -4754,14 +4710,6 @@ main {
 .modal-content h2,
 .modal-content h3 {
     letter-spacing: -0.02em;
-}
-
-.collapsible-summary {
-    padding: 0.25rem 0;
-}
-
-.collapsible-form > summary::before {
-    color: var(--primary-color);
 }
 
 form {
