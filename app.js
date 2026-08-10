@@ -22,7 +22,7 @@ async function openBarcodeScanner(options) {
 }
 
 // Versão da aplicação
-const APP_VERSION = '2.3.2';
+const APP_VERSION = '2.3.3';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -1255,6 +1255,11 @@ const appMenuOverlay = document.getElementById('appMenuOverlay');
 const menuToggleBtn = document.getElementById('menuToggle');
 const menuCloseBtn = document.getElementById('menuClose');
 const overdueFilterText = document.getElementById('overdueFilterText');
+const filtersAccordion = document.getElementById('clientsFilters');
+const filtersToggle = document.getElementById('filtersToggle');
+const filtersPanel = document.getElementById('filtersPanel');
+const filtersActiveSummary = document.getElementById('filtersActiveSummary');
+const CLIENT_FILTER_IDS = ['filterDebtOnly', 'filterUnpriced', 'filterOverdue', 'filterArchived'];
 let currentEditingSaleId = null;
 let alertDismissed = false;
 let productsUnsubscribe = null;
@@ -2675,7 +2680,6 @@ function syncClientInterestSettingsForm(clientId = manager.currentClientId) {
 function updateSearchFilterInteractivity() {
     const searchInput = document.getElementById('searchClients');
     const clientsSection = document.getElementById('clientsSection');
-    const filterIds = ['filterDebtOnly', 'filterUnpriced', 'filterOverdue', 'filterArchived'];
     const hasSearchTerm = (searchInput?.value || '').trim().length > 0;
     const isSearchFocused = document.activeElement === searchInput;
     const isSearchActive = hasSearchTerm || isSearchFocused;
@@ -2683,11 +2687,40 @@ function updateSearchFilterInteractivity() {
     clientsSection?.classList.toggle('is-searching', isSearchActive);
     document.body.classList.toggle('client-search-active', isSearchActive);
 
-    filterIds.forEach((id) => {
+    CLIENT_FILTER_IDS.forEach((id) => {
         const checkbox = document.getElementById(id);
         if (checkbox) {
             checkbox.disabled = hasSearchTerm;
         }
+    });
+}
+
+function updateFiltersAccordionSummary() {
+    const activeCount = CLIENT_FILTER_IDS.reduce((total, id) => {
+        return total + (document.getElementById(id)?.checked ? 1 : 0);
+    }, 0);
+
+    if (filtersActiveSummary) {
+        filtersActiveSummary.textContent = activeCount === 0
+            ? 'Nenhum ativo'
+            : `${activeCount} filtro${activeCount === 1 ? '' : 's'} ativo${activeCount === 1 ? '' : 's'}`;
+    }
+    filtersAccordion?.classList.toggle('has-active-filters', activeCount > 0);
+}
+
+function setFiltersAccordionExpanded(expanded) {
+    if (!filtersAccordion || !filtersToggle || !filtersPanel) return;
+    filtersAccordion.classList.toggle('is-expanded', expanded);
+    filtersToggle.setAttribute('aria-expanded', String(expanded));
+    filtersPanel.hidden = !expanded;
+}
+
+function initializeFiltersAccordion() {
+    if (!filtersToggle || !filtersPanel) return;
+    setFiltersAccordionExpanded(false);
+    updateFiltersAccordionSummary();
+    filtersToggle.addEventListener('click', () => {
+        setFiltersAccordionExpanded(filtersToggle.getAttribute('aria-expanded') !== 'true');
     });
 }
 
@@ -2722,15 +2755,18 @@ function scrollModalSaleDescriptionIntoView() {
 }
 
 function applyExclusiveClientFilter(changedCheckbox) {
-    if (!changedCheckbox?.checked) return;
+    if (!changedCheckbox?.checked) {
+        updateFiltersAccordionSummary();
+        return;
+    }
 
-    const filterIds = ['filterDebtOnly', 'filterUnpriced', 'filterOverdue', 'filterArchived'];
-    filterIds.forEach((id) => {
+    CLIENT_FILTER_IDS.forEach((id) => {
         const checkbox = document.getElementById(id);
         if (checkbox && checkbox !== changedCheckbox) {
             checkbox.checked = false;
         }
     });
+    updateFiltersAccordionSummary();
 }
 
 function getClientListModelFromSummary(summary, now = new Date()) {
@@ -3531,6 +3567,8 @@ if (unpricedNotesAlert) {
 }
 
 // Busca de clientes na lista
+initializeFiltersAccordion();
+
 if (searchClients) {
     const filterDebtOnlyCheckbox = document.getElementById('filterDebtOnly');
     const filterArchivedCheckbox = document.getElementById('filterArchived');

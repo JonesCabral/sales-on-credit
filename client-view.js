@@ -1,4 +1,4 @@
-const APP_VERSION = '2.3.2';
+const APP_VERSION = '2.3.3';
 const PAGE_SIZE = 30;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_OVERDUE_ALERT_DAYS = 60;

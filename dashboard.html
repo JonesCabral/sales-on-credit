@@ -72,27 +72,33 @@
                         autocomplete="off"
                         class="search-input"
                         aria-label="Buscar cliente por nome">
-                    <fieldset class="filter-fieldset">
-                        <legend class="filter-legend">Filtros</legend>
-                        <div class="filter-checkbox-container">
-                        <label class="filter-checkbox-label">
-                            <input type="checkbox" id="filterDebtOnly">
-                            <span>💰 Apenas com dívidas</span>
-                        </label>
-                        <label class="filter-checkbox-label">
-                            <input type="checkbox" id="filterUnpriced">
-                            <span>📝 Com produtos sem preço</span>
-                        </label>
-                        <label class="filter-checkbox-label">
-                            <input type="checkbox" id="filterOverdue">
-                            <span id="overdueFilterText">⚠️ Pagamento atrasado</span>
-                        </label>
-                        <label class="filter-checkbox-label">
-                            <input type="checkbox" id="filterArchived">
-                            <span>📦 Somente arquivados</span>
-                        </label>
+                    <div class="filter-fieldset filter-accordion" id="clientsFilters">
+                        <button id="filtersToggle" class="filter-accordion-toggle" type="button" aria-expanded="false" aria-controls="filtersPanel">
+                            <span class="filter-accordion-title">Filtros</span>
+                            <span id="filtersActiveSummary" class="filter-active-summary" aria-live="polite">Nenhum ativo</span>
+                            <span class="filter-accordion-chevron" aria-hidden="true">⌄</span>
+                        </button>
+                        <div id="filtersPanel" class="filter-accordion-panel" role="group" aria-label="Filtros de clientes" hidden>
+                            <div class="filter-checkbox-container">
+                                <label class="filter-checkbox-label">
+                                    <input type="checkbox" id="filterDebtOnly">
+                                    <span>💰 Apenas com dívidas</span>
+                                </label>
+                                <label class="filter-checkbox-label">
+                                    <input type="checkbox" id="filterUnpriced">
+                                    <span>📝 Com produtos sem preço</span>
+                                </label>
+                                <label class="filter-checkbox-label">
+                                    <input type="checkbox" id="filterOverdue">
+                                    <span id="overdueFilterText">⚠️ Pagamento atrasado</span>
+                                </label>
+                                <label class="filter-checkbox-label">
+                                    <input type="checkbox" id="filterArchived">
+                                    <span>📦 Somente arquivados</span>
+                                </label>
+                            </div>
                         </div>
-                    </fieldset>
+                    </div>
                 </div>
                 <div id="clientsCount" class="clients-count" style="display: none;"></div>
                 <div id="clientsListDiv" class="clients-list">

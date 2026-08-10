@@ -1,9 +1,9 @@
-const CACHE_NAME = 'vivi-variedades-v2.3.2';
+const CACHE_NAME = 'vivi-variedades-v2.3.3';
 const APP_SHELL = [
     './',
     './index.html',
-    './shell.min.css?v=2.3.2',
-    './auth-bootstrap.min.js?v=2.3.2',
+    './shell.min.css?v=2.3.3',
+    './auth-bootstrap.min.js?v=2.3.3',
     './manifest.json'
 ];
 

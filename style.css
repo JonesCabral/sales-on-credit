@@ -4505,8 +4505,9 @@ input:focus, select:focus, textarea:focus {
 .filter-fieldset {
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    padding: 0.5rem 0.75rem 0.75rem;
+    padding: 0;
     margin: 0;
+    overflow: hidden;
 }
 
 .filter-legend {
@@ -4516,6 +4517,77 @@ input:focus, select:focus, textarea:focus {
     padding: 0 0.5rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+}
+
+.filter-accordion-toggle {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 0.65rem;
+    align-items: center;
+    width: 100%;
+    min-height: 46px;
+    padding: 0.65rem 0.8rem;
+    border: 0;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+}
+
+.filter-accordion-toggle:hover {
+    background: rgba(37, 99, 235, 0.06);
+}
+
+.filter-accordion-toggle:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.24);
+    outline-offset: -3px;
+}
+
+.filter-accordion-title {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.filter-active-summary {
+    padding: 0.18rem 0.55rem;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    color: var(--text-secondary);
+    background: var(--card-bg);
+    font-size: 0.74rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.filter-accordion.has-active-filters .filter-active-summary {
+    border-color: rgba(37, 99, 235, 0.38);
+    color: var(--primary-dark);
+    background: rgba(37, 99, 235, 0.09);
+}
+
+.filter-accordion-chevron {
+    color: var(--text-secondary);
+    font-size: 1.15rem;
+    line-height: 1;
+    transition: transform var(--transition-fast);
+}
+
+.filter-accordion.is-expanded .filter-accordion-chevron {
+    transform: rotate(180deg);
+}
+
+.filter-accordion-panel {
+    padding: 0.2rem 0.8rem 0.8rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.filter-accordion-panel[hidden] {
+    display: none;
 }
 
 /* Back to top button */
@@ -5439,6 +5511,25 @@ textarea:focus {
 [data-theme="dark"] textarea,
 [data-theme="dark"] select {
     background: #0e1728;
+}
+
+[data-theme="dark"] .filter-accordion-toggle:hover {
+    background: #14253d;
+}
+
+[data-theme="dark"] .filter-active-summary {
+    background: #111f34;
+    border-color: #2a3c55;
+}
+
+[data-theme="dark"] .filter-accordion.has-active-filters .filter-active-summary {
+    color: #bfdbfe;
+    background: rgba(59, 130, 246, 0.18);
+    border-color: #3b82f6;
+}
+
+[data-theme="dark"] .filter-accordion-panel {
+    border-top-color: #2a3c55;
 }
 
 [data-theme="dark"] .modal-actions {
