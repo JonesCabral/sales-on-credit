@@ -4571,10 +4571,31 @@ input:focus, select:focus, textarea:focus {
 }
 
 .filter-accordion-chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
     color: var(--text-secondary);
-    font-size: 1.15rem;
-    line-height: 1;
-    transition: transform var(--transition-fast);
+    background: var(--card-bg);
+    transition: transform var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.filter-accordion-chevron::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: translateY(-2px) rotate(45deg);
+}
+
+.filter-accordion-toggle:hover .filter-accordion-chevron {
+    border-color: rgba(37, 99, 235, 0.45);
+    color: var(--primary-color);
+    background: rgba(37, 99, 235, 0.08);
 }
 
 .filter-accordion.is-expanded .filter-accordion-chevron {
@@ -5520,6 +5541,17 @@ textarea:focus {
 [data-theme="dark"] .filter-active-summary {
     background: #111f34;
     border-color: #2a3c55;
+}
+
+[data-theme="dark"] .filter-accordion-chevron {
+    background: #111f34;
+    border-color: #2a3c55;
+}
+
+[data-theme="dark"] .filter-accordion-toggle:hover .filter-accordion-chevron {
+    color: #bfdbfe;
+    border-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.18);
 }
 
 [data-theme="dark"] .filter-accordion.has-active-filters .filter-active-summary {

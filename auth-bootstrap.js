@@ -1,7 +1,7 @@
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
 import { firebaseApp } from './firebase.js';
 
-const APP_VERSION = '2.3.3';
+const APP_VERSION = '2.3.4';
 const DASHBOARD_APP_URL = `./app.min.js?v=${APP_VERSION}`;
 const auth = getAuth(firebaseApp);
 const loginScreen = document.getElementById('loginScreen');
@@ -25,7 +25,7 @@ function loadDashboardStyles() {
     return new Promise((resolve, reject) => {
         const stylesheet = document.createElement('link');
         stylesheet.rel = 'stylesheet';
-        stylesheet.href = './home.min.css?v=2.3.3';
+        stylesheet.href = './home.min.css?v=2.3.4';
         stylesheet.dataset.dashboardStyles = 'true';
         stylesheet.addEventListener('load', resolve, { once: true });
         stylesheet.addEventListener('error', () => reject(new Error('Falha ao carregar os estilos do painel.')), { once: true });
@@ -48,7 +48,7 @@ async function hydrateDashboard() {
     const mount = document.getElementById('dashboardMount');
     if (!mount) throw new Error('Ponto de montagem da aplicação não encontrado.');
 
-    const response = await fetch('./dashboard.html?v=2.3.3');
+    const response = await fetch('./dashboard.html?v=2.3.4');
     if (!response.ok) throw new Error(`Falha ao carregar a interface (${response.status}).`);
     const markup = await response.text();
     const fragment = document.createRange().createContextualFragment(markup);
