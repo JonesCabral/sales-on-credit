@@ -42,7 +42,6 @@ const productsMenu = document.getElementById('productsMenu');
 const productsMenuOverlay = document.getElementById('productsMenuOverlay');
 const productsMenuToggle = document.getElementById('productsMenuToggle');
 const productsMenuClose = document.getElementById('productsMenuClose');
-const productsMenuThemeShortcut = document.getElementById('productsMenuThemeShortcut');
 
 let currentUserId = null;
 let productsUnsubscribe = null;
@@ -389,7 +388,6 @@ function setupThemeToggle() {
         localStorage.setItem('theme', newTheme);
     };
     themeToggle?.addEventListener('click', toggleTheme);
-    productsMenuThemeShortcut?.addEventListener('click', toggleTheme);
 }
 
 function setProductsMenuOpen(isOpen) {

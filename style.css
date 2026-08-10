@@ -408,14 +408,6 @@ header {
     color: var(--primary-dark);
 }
 
-.app-menu-link-button {
-    text-align: left;
-    width: 100%;
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 1rem;
-}
-
 header h1 {
     font-size: 1.6rem;
     margin-bottom: 0.15rem;

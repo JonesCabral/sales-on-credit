@@ -35,7 +35,6 @@ const settingsMenu = document.getElementById('settingsMenu');
 const settingsMenuOverlay = document.getElementById('settingsMenuOverlay');
 const settingsMenuToggle = document.getElementById('settingsMenuToggle');
 const settingsMenuClose = document.getElementById('settingsMenuClose');
-const settingsMenuThemeShortcut = document.getElementById('settingsMenuThemeShortcut');
 
 let currentUserId = null;
 let settingsUnsubscribe = null;
@@ -244,7 +243,6 @@ function setupThemeToggle() {
     };
 
     themeToggle?.addEventListener('click', toggleTheme);
-    settingsMenuThemeShortcut?.addEventListener('click', toggleTheme);
 }
 
 function setSettingsMenuOpen(isOpen) {

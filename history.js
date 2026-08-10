@@ -46,7 +46,6 @@ const historyMenu = document.getElementById('historyMenu');
 const historyMenuOverlay = document.getElementById('historyMenuOverlay');
 const historyMenuToggle = document.getElementById('historyMenuToggle');
 const historyMenuClose = document.getElementById('historyMenuClose');
-const historyMenuThemeShortcut = document.getElementById('historyMenuThemeShortcut');
 
 let allActivities = [];
 let activitiesUnsubscribe = null;
@@ -528,9 +527,6 @@ function setupThemeToggle() {
         themeToggle.addEventListener('click', toggleTheme);
     }
 
-    if (historyMenuThemeShortcut) {
-        historyMenuThemeShortcut.addEventListener('click', toggleTheme);
-    }
 }
 
 function setHistoryMenuOpen(isOpen) {

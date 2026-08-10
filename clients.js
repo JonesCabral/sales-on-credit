@@ -32,7 +32,6 @@ const clientsMenu = document.getElementById('clientsMenu');
 const clientsMenuOverlay = document.getElementById('clientsMenuOverlay');
 const clientsMenuToggle = document.getElementById('clientsMenuToggle');
 const clientsMenuClose = document.getElementById('clientsMenuClose');
-const clientsMenuThemeShortcut = document.getElementById('clientsMenuThemeShortcut');
 
 let currentUserId = null;
 let clientSummaries = {};
@@ -354,7 +353,6 @@ function setupThemeToggle() {
         localStorage.setItem('theme', nextTheme);
     };
     themeToggle?.addEventListener('click', toggleTheme);
-    clientsMenuThemeShortcut?.addEventListener('click', toggleTheme);
 }
 
 function setClientsMenuOpen(isOpen) {

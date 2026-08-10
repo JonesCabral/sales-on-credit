@@ -59,10 +59,6 @@ const APP_VERSION = '2.3.4';
             themeToggle.addEventListener('click', toggleTheme);
         }
 
-        const menuThemeShortcut = document.getElementById('menuThemeShortcut');
-        if (menuThemeShortcut) {
-            menuThemeShortcut.addEventListener('click', toggleTheme);
-        }
     };
 
     if (document.readyState === 'loading') {
