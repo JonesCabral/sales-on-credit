@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="theme-color" content="#0f766e">
+    <title>Adicionar cliente - Vivi Variedades</title>
+    <link rel="manifest" href="./manifest.json">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"></noscript>
+    <link rel="stylesheet" href="clients.min.css?v=2.3.1">
+    <script>
+        (function() {
+            const saved = localStorage.getItem('theme');
+            if (saved) {
+                document.documentElement.setAttribute('data-theme', saved);
+            } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+    </script>
+</head>
+<body class="clients-page">
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="header-brand">
+                    <span class="header-logo" aria-hidden="true">&#128101;</span>
+                    <div>
+                        <h1>Clientes</h1>
+                        <p class="subtitle">Cadastre clientes sem precisar registrar uma venda</p>
+                    </div>
+                </div>
+                <div class="clients-toolbar">
+                    <button id="clientsMenuToggle" class="btn-menu-toggle" title="Abrir menu" aria-label="Abrir menu" aria-expanded="false" aria-controls="clientsMenu">&#9776;</button>
+                    <button id="themeToggle" class="btn-theme-toggle" title="Alternar tema claro/escuro" aria-label="Alternar tema">
+                        <span class="theme-icon-light">&#9728;&#65039;</span>
+                        <span class="theme-icon-dark">&#127769;</span>
+                    </button>
+                    <a href="index.html" class="btn btn-secondary">&larr; Voltar ao painel</a>
+                </div>
+            </div>
+        </header>
+
+        <div id="clientsMenuOverlay" class="app-menu-overlay" hidden></div>
+        <aside id="clientsMenu" class="app-menu" aria-hidden="true">
+            <div class="app-menu-header">
+                <h3>Menu</h3>
+                <button id="clientsMenuClose" class="btn-menu-close" title="Fechar menu" aria-label="Fechar menu">&times;</button>
+            </div>
+            <nav class="app-menu-links" aria-label="Navegação principal">
+                <a href="index.html" class="app-menu-link">&#127968; Painel principal</a>
+                <a href="clients.html" class="app-menu-link" aria-current="page">&#128100; Adicionar cliente</a>
+                <a href="products.html" class="app-menu-link">&#128722; Produtos</a>
+                <a href="history.html" class="app-menu-link">&#128200; Histórico geral</a>
+                <a href="settings.html" class="app-menu-link">&#9881;&#65039; Configurações</a>
+                <button id="clientsMenuThemeShortcut" class="app-menu-link app-menu-link-button" type="button">&#127765; Alternar tema</button>
+            </nav>
+        </aside>
+
+        <main>
+            <section class="card client-form-card" aria-labelledby="clientFormTitle">
+                <div class="section-header">
+                    <div>
+                        <h2 id="clientFormTitle">Adicionar cliente</h2>
+                        <p class="section-subtitle">O cliente será cadastrado com saldo zerado. Você poderá registrar uma venda quando quiser.</p>
+                    </div>
+                </div>
+
+                <form id="clientForm" class="client-form">
+                    <div class="client-form-grid">
+                        <div class="client-field">
+                            <label for="clientName">Nome do cliente</label>
+                            <input type="text" id="clientName" placeholder="Ex.: Maria da Silva" minlength="2" maxlength="100" autocomplete="off" required>
+                        </div>
+                        <button id="saveClientBtn" type="submit" class="btn btn-primary">Adicionar cliente</button>
+                    </div>
+                    <p id="clientsStatus" class="client-status" data-status="neutral" aria-live="polite">Informe o nome para adicionar um novo cliente.</p>
+                </form>
+            </section>
+
+            <section class="card client-directory-card" aria-labelledby="clientsListTitle">
+                <div class="section-header client-directory-header">
+                    <div>
+                        <h2 id="clientsListTitle">Clientes cadastrados</h2>
+                        <p class="section-subtitle">Os novos clientes aparecem aqui mesmo sem vendas ou dívidas.</p>
+                    </div>
+                    <span id="clientsCount" class="activity-summary">0 clientes</span>
+                </div>
+                <div class="client-directory-controls">
+                    <input type="search" id="clientsSearch" class="search-input" placeholder="Buscar cliente por nome..." autocomplete="off" aria-label="Buscar cliente por nome">
+                </div>
+                <div id="clientsList" class="client-directory-list" aria-live="polite">
+                    <p class="empty-message">Carregando clientes...</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite">
+        <span class="toast-icon" aria-hidden="true">&check;</span>
+        <span class="toast-message">Cliente adicionado com sucesso!</span>
+    </div>
+
+    <script type="module" src="clients.min.js?v=2.3.1"></script>
+</body>
+</html>

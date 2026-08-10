@@ -22,7 +22,7 @@ async function openBarcodeScanner(options) {
 }
 
 // Versão da aplicação
-const APP_VERSION = '2.3.0';
+const APP_VERSION = '2.3.1';
 
 // Verificar e sincronizar versão
 (function checkVersion() {

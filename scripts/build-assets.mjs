@@ -9,6 +9,7 @@ const cssPages = [
         safelist: { standard: ['hidden', 'loaded', 'loading', 'login-error'] }
     },
     { output: 'home.min.css', content: ['dashboard.html', 'app.js', 'barcode-scanner.js'] },
+    { output: 'clients.min.css', content: ['clients.html', 'clients.js'] },
     { output: 'history.min.css', content: ['history.html', 'history.js'] },
     { output: 'products.min.css', content: ['products.html', 'products.js', 'barcode-scanner.js'] },
     { output: 'settings.min.css', content: ['settings.html', 'settings.js'] }
@@ -59,6 +60,7 @@ async function buildJavaScript() {
         entryPoints: [
             'auth-bootstrap.js',
             'app.js',
+            'clients.js',
             'history.js',
             'products.js',
             'settings.js',
