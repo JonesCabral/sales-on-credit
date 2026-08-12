@@ -28,7 +28,7 @@ async function openBarcodeScanner(options) {
 }
 
 // Versão da aplicação
-const APP_VERSION = '2.4.1';
+const APP_VERSION = '2.4.2';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -229,11 +229,15 @@ class SalesManager {
         this.settingsLoaded = false;
         this.persistedClients = {};
         this.salesKeyedById = {};
+        this.clientWatchers = {};
+        this.pendingClientWrites = {};
+        this.deferredClientSnapshots = {};
         this.publicSummarySyncPromise = null;
         this.summaryMigrationPromise = null;
     }
 
     setUser(userId) {
+        this.releaseClientCaches({ force: true });
         this.userId = userId;
         this.dataLoaded = false;
         this.settingsLoaded = false;
@@ -362,6 +366,10 @@ class SalesManager {
             this.clientSummaries = summaries;
             updateClientsList();
             await update(ref(database), updates);
+            // A migracao le todos os clientes de uma vez; os caches resultantes
+            // nao tem listener, entao envelheceriam em silencio. A lista passa a
+            // ler de `clientSummaries`, que e ao vivo.
+            this.releaseClientCaches();
             await openRequestedClientFromUrl();
         })().finally(() => {
             this.summaryMigrationPromise = null;
@@ -378,26 +386,162 @@ class SalesManager {
         return this.clients[clientId] || this.clientSummaries[clientId] || null;
     }
 
+    /**
+     * Carrega o cliente completo e passa a acompanha-lo ao vivo enquanto ele
+     * estiver em uso. Antes o cache ficava congelado no primeiro `get()`:
+     * `clientSummaries` tinha listener e se atualizava quando outra sessao
+     * gravava, mas `clients/{id}/sales` nao, entao o cache velho continuava
+     * sendo exibido e - pior - regravado por cima do resumo correto.
+     */
     async ensureClientLoaded(clientId) {
-        const loadedClient = this.clients[clientId];
-        if (loadedClient && Array.isArray(loadedClient.sales)) return loadedClient;
-
         if (!this.userId || !clientId) throw new Error('Cliente não encontrado');
+
+        const loadedClient = this.clients[clientId];
+        if (loadedClient && Array.isArray(loadedClient.sales) && this.isClientWatched(clientId)) {
+            return loadedClient;
+        }
 
         const snapshot = await get(ref(database, `users/${this.userId}/clients/${clientId}`));
         const savedClient = snapshot.val();
         if (!savedClient) throw new Error('Cliente não encontrado');
 
-        const client = { ...savedClient, id: savedClient.id || clientId };
-        this.salesKeyedById[clientId] = isTransactionMapKeyedById(savedClient.sales);
-        client.sales = normalizeSalesList(savedClient.sales);
-        this.clients[clientId] = client;
-        this.persistedClients[clientId] = cloneSerializable(client);
+        const client = this.applyClientSnapshot(clientId, savedClient);
+        this.watchClient(clientId);
 
         // Este e o unico momento em que temos as transacoes reais em maos:
         // aproveita para corrigir resumos que tenham ficado defasados.
         this.reconcileClientSummaries(clientId);
         return client;
+    }
+
+    isClientWatched(clientId) {
+        return typeof this.clientWatchers[clientId] === 'function';
+    }
+
+    /**
+     * Escreve um snapshot de `clients/{id}` no cache preservando a identidade
+     * do objeto: varias telas guardam `manager.clients[id]` numa variavel local,
+     * alteram e so entao gravam - trocar o objeto perderia essa alteracao.
+     */
+    applyClientSnapshot(clientId, savedClient) {
+        const client = this.clients[clientId] || {};
+        const nextClient = { ...savedClient, id: savedClient.id || clientId };
+        nextClient.sales = normalizeSalesList(savedClient.sales);
+
+        Object.keys(client).forEach((key) => {
+            if (!Object.prototype.hasOwnProperty.call(nextClient, key)) delete client[key];
+        });
+        Object.assign(client, nextClient);
+
+        this.salesKeyedById[clientId] = isTransactionMapKeyedById(savedClient.sales);
+        this.clients[clientId] = client;
+        this.persistedClients[clientId] = cloneSerializable(client);
+        return client;
+    }
+
+    /**
+     * Mantem `clients/{id}` sincronizado enquanto o cliente esta aberto, do
+     * mesmo jeito que `clientSummaries` ja era acompanhado.
+     */
+    watchClient(clientId) {
+        if (!this.userId || !clientId || this.isClientWatched(clientId)) return;
+
+        const watchedUserId = this.userId;
+        const clientRef = ref(database, `users/${watchedUserId}/clients/${clientId}`);
+        const unsubscribe = onValue(clientRef, (snapshot) => {
+            if (this.userId !== watchedUserId) return;
+            this.handleClientSnapshot(clientId, snapshot.val());
+        }, (error) => {
+            console.warn('Falha ao acompanhar cliente:', error?.code || error?.message || error);
+        });
+
+        this.clientWatchers[clientId] = unsubscribe;
+    }
+
+    handleClientSnapshot(clientId, savedClient) {
+        // Durante uma gravacao nossa o snapshot chega com o estado otimista
+        // local; guardamos o ultimo e reaplicamos quando a escrita terminar,
+        // para nao desfazer a edicao em andamento nem perder o que veio de fora.
+        if (this.pendingClientWrites[clientId] > 0) {
+            this.deferredClientSnapshots[clientId] = savedClient;
+            return;
+        }
+        delete this.deferredClientSnapshots[clientId];
+
+        if (!savedClient) {
+            this.handleWatchedClientRemoved(clientId);
+            return;
+        }
+
+        const previousSignature = JSON.stringify(this.persistedClients[clientId]);
+        this.applyClientSnapshot(clientId, savedClient);
+        if (previousSignature === JSON.stringify(this.persistedClients[clientId])) return;
+
+        safeLog('Cliente atualizado em outra sessão:', clientId);
+        this.reconcileClientSummaries(clientId);
+        refreshOpenClientModal(clientId);
+    }
+
+    flushDeferredClientSnapshot(clientId) {
+        if (!Object.prototype.hasOwnProperty.call(this.deferredClientSnapshots, clientId)) return;
+        if (!this.isClientWatched(clientId)) {
+            delete this.deferredClientSnapshots[clientId];
+            return;
+        }
+        this.handleClientSnapshot(clientId, this.deferredClientSnapshots[clientId]);
+    }
+
+    handleWatchedClientRemoved(clientId) {
+        const wasOpen = this.currentClientId === clientId;
+        this.forgetClient(clientId);
+        delete this.clientSummaries[clientId];
+        updateClientsList();
+        if (wasOpen) {
+            closeClientModal();
+            showToast('Este cliente foi removido em outra sessão.', 'error');
+        }
+    }
+
+    unwatchClient(clientId) {
+        const unsubscribe = this.clientWatchers[clientId];
+        if (typeof unsubscribe === 'function') unsubscribe();
+        delete this.clientWatchers[clientId];
+    }
+
+    forgetClient(clientId) {
+        this.unwatchClient(clientId);
+        delete this.clients[clientId];
+        delete this.persistedClients[clientId];
+        delete this.salesKeyedById[clientId];
+        delete this.pendingClientWrites[clientId];
+        delete this.deferredClientSnapshots[clientId];
+    }
+
+    /**
+     * Descarta os clientes completos que ninguem esta mais acompanhando. Sem
+     * listener o cache so envelhece, e todas as consultas de saldo leem dele
+     * antes de `clientSummaries` (que e ao vivo) - era assim que lista, modal e
+     * client-view voltavam a divergir depois de uma edicao em outra sessao.
+     */
+    releaseClientCaches({ except = null, force = false } = {}) {
+        Object.keys(this.clients).forEach((clientId) => {
+            if (clientId === except) return;
+            if (!force && this.pendingClientWrites[clientId] > 0) return;
+            this.forgetClient(clientId);
+        });
+    }
+
+    beginClientWrite(clientId) {
+        this.pendingClientWrites[clientId] = (this.pendingClientWrites[clientId] || 0) + 1;
+    }
+
+    endClientWrite(clientId) {
+        const pending = (this.pendingClientWrites[clientId] || 1) - 1;
+        if (pending > 0) {
+            this.pendingClientWrites[clientId] = pending;
+        } else {
+            delete this.pendingClientWrites[clientId];
+        }
     }
 
     /**
@@ -409,6 +553,10 @@ class SalesManager {
     reconcileClientSummaries(clientId) {
         const client = this.clients[clientId];
         if (!client || !this.userId || !this.settingsLoaded) return false;
+        // So regrava a partir de um cache acompanhado ao vivo: um cache antigo
+        // sobrescreveria com dados velhos o resumo que outra sessao acabou de
+        // gravar corretamente.
+        if (!this.isClientWatched(clientId)) return false;
 
         const publicSummary = buildPublicClientSummary(client, this.settings);
         const listSummary = buildClientListSummary(client, this.settings);
@@ -446,6 +594,7 @@ class SalesManager {
             this.settingsUnsubscribe();
             this.settingsUnsubscribe = null;
         }
+        this.releaseClientCaches({ force: true });
         this.userId = null;
         this.dataLoaded = false;
         this.settingsLoaded = false;
@@ -454,6 +603,8 @@ class SalesManager {
         this.settings = getDefaultSettings();
         this.persistedClients = {};
         this.salesKeyedById = {};
+        this.pendingClientWrites = {};
+        this.deferredClientSnapshots = {};
         this.publicSummarySyncPromise = null;
         this.summaryMigrationPromise = null;
         syncSettingsUI();
@@ -548,12 +699,23 @@ class SalesManager {
         }
 
         if (Object.keys(updates).length > 0) {
-            await update(ref(database), updates);
+            this.beginClientWrite(clientId);
+            try {
+                await update(ref(database), updates);
+            } catch (error) {
+                this.endClientWrite(clientId);
+                this.flushDeferredClientSnapshot(clientId);
+                throw error;
+            }
+            this.endClientWrite(clientId);
         }
         this.salesKeyedById[clientId] = true;
         client.sales = currentSales;
         this.clientSummaries[clientId] = cloneSerializable(listSummary);
         this.persistedClients[clientId] = cloneSerializable(client);
+        // O snapshot represado ja traz a nossa gravacao mesclada com o que
+        // chegou de outra sessao durante ela.
+        this.flushDeferredClientSnapshot(clientId);
     }
 
     syncAllPublicSummaries() {
@@ -566,6 +728,9 @@ class SalesManager {
             const summariesToApply = [];
 
             Object.entries(this.clients).forEach(([clientId, client]) => {
+                // Mesma regra do reconcile: nunca regravar resumo a partir de
+                // um cache que ninguem esta acompanhando.
+                if (!this.isClientWatched(clientId)) return;
                 const summary = buildPublicClientSummary(client, this.settings);
                 const listSummary = buildClientListSummary(client, this.settings);
                 const publicSummaryChanged = !summariesMatch(client.publicSummary, summary);
@@ -619,10 +784,8 @@ class SalesManager {
             updates[`users/${this.userId}/activities/${this.getActivityKey(clientId, saleItem.id)}`] = null;
         });
         await update(ref(database), updates);
-        delete this.clients[clientId];
+        this.forgetClient(clientId);
         delete this.clientSummaries[clientId];
-        delete this.persistedClients[clientId];
-        delete this.salesKeyedById[clientId];
     }
 
     getOverdueAlertDays() {
@@ -780,6 +943,7 @@ class SalesManager {
         this.salesKeyedById[id] = true;
         safeLog('Adicionando cliente:', sanitizedName);
         await this.saveClientData(id);
+        this.watchClient(id);
         return id;
     }
 
@@ -900,7 +1064,7 @@ class SalesManager {
             ? [...this.clients[clientId].sales]
             : [];
 
-        delete this.clients[clientId];
+        this.forgetClient(clientId);
         await this.removeClientData(clientId, salesToRemove);
     }
 
@@ -3198,22 +3362,45 @@ function renderClientModalDebt(clientId) {
     }
 }
 
-function openClientModal(clientId, options = {}) {
+/**
+ * Redesenha o que depende das vendas quando o cliente muda em outra sessao.
+ * Nao reabre o modal para nao roubar o foco nem descartar o que o usuario
+ * estiver digitando nos formularios.
+ */
+function refreshOpenClientModal(clientId) {
+    if (!modal || modal.style.display !== 'block') return;
+    if (manager.currentClientId !== clientId) return;
+
     const client = manager.clients[clientId];
     if (!client) return;
 
-    manager.currentClientId = clientId;
+    const modalClientName = document.getElementById('modalClientName');
+    if (modalClientName) modalClientName.textContent = client.name;
     renderClientModalDebt(clientId);
+    renderClientSalesHistory(client);
+    syncArchiveClientButton(client);
+}
 
-    // Usar textContent para prevenir XSS
-    document.getElementById('modalClientName').textContent = client.name;
-    
-    if (editClientNameInput) {
-        editClientNameInput.value = client.name;
+// Atualizar texto do botão de arquivar baseado no estado
+function syncArchiveClientButton(client) {
+    if (!archiveClientBtn) return;
+
+    if (client.archived) {
+        archiveClientBtn.innerHTML = '📂 Desarquivar Cliente';
+        archiveClientBtn.classList.remove('btn-secondary');
+        archiveClientBtn.classList.add('btn-success');
+    } else {
+        archiveClientBtn.innerHTML = '📦 Arquivar Cliente';
+        archiveClientBtn.classList.remove('btn-success');
+        archiveClientBtn.classList.add('btn-secondary');
     }
+}
 
-    // Histórico de vendas
+// Histórico de vendas
+function renderClientSalesHistory(client) {
     const salesHistory = document.getElementById('salesHistory');
+    if (!salesHistory) return;
+
     const sales = client.sales || [];
     if (sales.length === 0) {
         salesHistory.innerHTML = '<p class="empty-message">Nenhuma venda registrada.</p>';
@@ -3311,19 +3498,24 @@ function openClientModal(clientId, options = {}) {
             });
         }
     }
-    
-    // Atualizar texto do botão de arquivar baseado no estado
-    if (archiveClientBtn) {
-        if (client.archived) {
-            archiveClientBtn.innerHTML = '📂 Desarquivar Cliente';
-            archiveClientBtn.classList.remove('btn-secondary');
-            archiveClientBtn.classList.add('btn-success');
-        } else {
-            archiveClientBtn.innerHTML = '📦 Arquivar Cliente';
-            archiveClientBtn.classList.remove('btn-success');
-            archiveClientBtn.classList.add('btn-secondary');
-        }
+}
+
+function openClientModal(clientId, options = {}) {
+    const client = manager.clients[clientId];
+    if (!client) return;
+
+    manager.currentClientId = clientId;
+    renderClientModalDebt(clientId);
+
+    // Usar textContent para prevenir XSS
+    document.getElementById('modalClientName').textContent = client.name;
+
+    if (editClientNameInput) {
+        editClientNameInput.value = client.name;
     }
+
+    renderClientSalesHistory(client);
+    syncArchiveClientButton(client);
 
     syncClientWhatsappNameForm(clientId);
     syncClientInterestSettingsForm(clientId);
@@ -3376,6 +3568,9 @@ function closeClientModal() {
     if (nameSection) {
         nameSection.style.display = 'flex';
     }
+    // Sem o modal aberto ninguem acompanha o cliente: solta o listener e o
+    // cache para que lista e resumos voltem a sair de `clientSummaries`.
+    manager.releaseClientCaches();
 }
 
 // Abrir modal de edição de venda
