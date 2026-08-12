@@ -9,6 +9,10 @@ import {
     summariesMatch,
     toTransactionList
 } from './debt-domain.js';
+import {
+    descriptionLineHasPrice,
+    resolveUnpricedItemsFlag
+} from './history-domain.js';
 
 // Configuração do Firebase
 // IMPORTANTE: Para produção, mova as configurações para variáveis de ambiente
@@ -29,7 +33,7 @@ async function openBarcodeScanner(options) {
 }
 
 // Versão da aplicação
-const APP_VERSION = '2.4.2';
+const APP_VERSION = '2.4.3';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -898,7 +902,7 @@ class SalesManager {
             amountCents: getSaleAmountCents(saleItem),
             description: saleItem.description || '',
             isNote: Boolean(saleItem.isNote) || (saleItem.type === TRANSACTION_TYPE_SALE && getSaleAmountCents(saleItem) === 0),
-            hasUnpricedItems: saleHasUnpricedProducts(saleItem),
+            hasUnpricedItems: resolveUnpricedItemsFlag(saleItem),
             items: Array.isArray(saleItem.items) ? saleItem.items : [],
             interestPaidCents: Number.isFinite(Number(saleItem.interestPaidCents)) ? Math.round(Number(saleItem.interestPaidCents)) : 0,
             principalPaidCents: Number.isFinite(Number(saleItem.principalPaidCents)) ? Math.round(Number(saleItem.principalPaidCents)) : 0,
@@ -985,9 +989,10 @@ class SalesManager {
             items: normalizedItems,
             type: TRANSACTION_TYPE_SALE,
             isNote: amountCents === 0,
-            hasUnpricedItems: amountCents === 0 || saleItemsHaveUnpricedProducts(normalizedItems) || hasMixedPricedAndUnpricedLines(sanitizedDescription),
+            hasUnpricedItems: false,
             date: new Date().toISOString()
         };
+        saleItem.hasUnpricedItems = resolveUnpricedItemsFlag(saleItem);
 
         this.clients[clientId].sales.push(saleItem);
         await this.saveClientData(clientId);
@@ -1237,17 +1242,21 @@ class SalesManager {
         const amountCents = currencyToCents(numericAmount);
         sale.amount = numericAmount;
         sale.amountCents = amountCents;
+        // `editedAt` entra antes de derivar o flag: a regra de produtos sem preco
+        // descarta a heuristica de descricao apos uma edicao explicita, e o
+        // registro de atividade (gravado depois) ja enxerga a venda editada. Se
+        // marcassemos a edicao no fim, venda e atividade sairiam divergentes.
+        sale.editedAt = new Date().toISOString();
         if (sale.type === TRANSACTION_TYPE_SALE) {
             sale.description = sanitizedDescription;
             sale.isNote = amountCents === 0;
-            sale.hasUnpricedItems = amountCents === 0 || saleItemsHaveUnpricedProducts(sale.items) || hasMixedPricedAndUnpricedLines(sanitizedDescription);
+            sale.hasUnpricedItems = resolveUnpricedItemsFlag(sale);
         } else if (sale.type === TRANSACTION_TYPE_PAYMENT) {
             const previousInterestPaidCents = Math.max(0, Math.round(Number(sale.interestPaidCents) || 0));
             sale.interestPaidCents = Math.min(amountCents, previousInterestPaidCents);
             sale.principalPaidCents = Math.max(0, amountCents - sale.interestPaidCents);
         }
-        sale.editedAt = new Date().toISOString();
-        
+
         await this.saveClientData(clientId);
         return true;
     }
@@ -1324,7 +1333,7 @@ class SalesManager {
         }
         if (!this.clients[clientId]) return false;
         if (!this.clients[clientId].sales) return false;
-        return this.clients[clientId].sales.some(s => saleHasUnpricedProducts(s));
+        return this.clients[clientId].sales.some(s => resolveUnpricedItemsFlag(s));
     }
 
     getClientsWithUnpricedNotes() {
@@ -1630,12 +1639,6 @@ function getProductDescriptionLines(description) {
         .filter(Boolean);
 }
 
-function descriptionLineHasPrice(line) {
-    const text = String(line || '');
-    return /(?:^|[\s=])R\$\s*\d{1,3}(?:\.\d{3})*(?:,\d{2})?(?:\s|$)/i.test(text)
-        || /=\s*\d{1,3}(?:\.\d{3})*(?:,\d{2})?(?:\s|$)/.test(text);
-}
-
 function hasUnpricedProductLine(description) {
     const lines = getProductDescriptionLines(description);
     return lines.length > 0 && lines.some((line) => !descriptionLineHasPrice(line));
@@ -1643,18 +1646,6 @@ function hasUnpricedProductLine(description) {
 
 function hasPricedProductLine(description) {
     return getProductDescriptionLines(description).some((line) => descriptionLineHasPrice(line));
-}
-
-function hasMixedPricedAndUnpricedLines(description) {
-    return hasPricedProductLine(description) && hasUnpricedProductLine(description);
-}
-
-function saleHasUnpricedProducts(sale) {
-    if (!sale || sale.type !== TRANSACTION_TYPE_SALE) return false;
-    return Boolean(sale.isNote)
-        || getSaleAmountCents(sale) === 0
-        || saleItemsHaveUnpricedProducts(sale.items)
-        || (!sale.editedAt && hasMixedPricedAndUnpricedLines(sale.description));
 }
 
 // Debounce utility: atrasa execução até parar de digitar
@@ -1999,7 +1990,7 @@ function buildClientListSummary(client, settings) {
         archivedAt: client?.archivedAt || null,
         createdAt: client?.createdAt || null,
         salesCount: sales.filter((item) => item?.type === TRANSACTION_TYPE_SALE).length,
-        hasUnpricedNotes: sales.some((item) => saleHasUnpricedProducts(item)),
+        hasUnpricedNotes: sales.some((item) => resolveUnpricedItemsFlag(item)),
         referenceType: lastPaymentDate ? 'payment' : firstSaleDate ? 'first-sale' : null
     };
 }
@@ -2032,10 +2023,6 @@ function findRelatedInterestIndex(sales, paymentItem, paymentIndex = -1) {
     }
 
     return -1;
-}
-
-function saleItemsHaveUnpricedProducts(items) {
-    return Array.isArray(items) && items.some((item) => item && item.priced === false);
 }
 
 function normalizeSaleItems(items) {
@@ -3328,7 +3315,7 @@ function fallbackCopyToClipboard(text) {
 function getLatestUnpricedSaleId(client) {
     if (!client || !Array.isArray(client.sales)) return null;
 
-    const unpricedSales = client.sales.filter((sale) => saleHasUnpricedProducts(sale));
+    const unpricedSales = client.sales.filter((sale) => resolveUnpricedItemsFlag(sale));
 
     if (unpricedSales.length === 0) return null;
 
@@ -3408,8 +3395,8 @@ function renderClientSalesHistory(client) {
     } else {
         // Ordenar: anotações sem valor primeiro, depois por data (mais recente primeiro)
         const sortedSales = [...sales].sort((a, b) => {
-            const aIsNote = saleHasUnpricedProducts(a);
-            const bIsNote = saleHasUnpricedProducts(b);
+            const aIsNote = resolveUnpricedItemsFlag(a);
+            const bIsNote = resolveUnpricedItemsFlag(b);
             
             // Anotações sem valor sempre no topo
             if (aIsNote && !bIsNote) return -1;
@@ -3420,7 +3407,7 @@ function renderClientSalesHistory(client) {
         });
 
         salesHistory.innerHTML = sortedSales.map(sale => {
-            const isNote = saleHasUnpricedProducts(sale);
+            const isNote = resolveUnpricedItemsFlag(sale);
             const isPayment = sale.type === TRANSACTION_TYPE_PAYMENT;
             const isInterest = sale.type === TRANSACTION_TYPE_INTEREST;
             const canEditItem = !isInterest && !paymentHasInterestSplit(sale);

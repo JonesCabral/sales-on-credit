@@ -16,7 +16,7 @@ import {
     amountToCents,
     calculateActivityTotals,
     compareFirebaseActivityOrder,
-    hasMixedPricedAndUnpricedLines
+    resolveUnpricedItemsFlag
 } from './history-domain.js';
 
 const database = getDatabase(firebaseApp);
@@ -279,7 +279,7 @@ function normalizeActivityEntry(activity, key = '') {
             ? 'interest'
             : 'sale';
 
-    return {
+    const entry = {
         key: String(key || activity?.key || activity?.id || `${timestamp}`),
         id: activity?.id || '',
         clientId: activity?.clientId || '',
@@ -289,6 +289,10 @@ function normalizeActivityEntry(activity, key = '') {
         description: activity?.description || '',
         isNote: Boolean(activity?.isNote) || (type === 'sale' && amountCents === 0),
         hasUnpricedItems: activity?.hasUnpricedItems === true,
+        // `items` precisa sobreviver a normalizacao: e um dos sinais da regra de
+        // produtos sem preco, e sem ele a tela derivaria um valor diferente do
+        // que foi gravado no indice de atividades.
+        items: Array.isArray(activity?.items) ? activity.items : [],
         date,
         timestamp,
         editedAt: activity?.editedAt || null,
@@ -296,6 +300,11 @@ function normalizeActivityEntry(activity, key = '') {
         relatedInterestId: activity?.relatedInterestId || null,
         relatedPaymentId: activity?.relatedPaymentId || null
     };
+
+    // Resolvido sobre a entrada ja normalizada (o `type` acima e coagido), para
+    // que registros legados com flag desatualizado se corrijam na leitura.
+    entry.hasUnpricedItems = resolveUnpricedItemsFlag(entry);
+    return entry;
 }
 
 function snapshotToActivities(snapshot) {
@@ -697,7 +706,7 @@ function buildActivityRecord(clientId, clientName, saleItem) {
         amountCents,
         description: saleItem.description || '',
         isNote: Boolean(saleItem.isNote) || (saleItem.type === 'sale' && amountCents === 0),
-        hasUnpricedItems: saleItem.hasUnpricedItems === true || (saleItem.type === 'sale' && hasMixedPricedAndUnpricedLines(saleItem.description)),
+        hasUnpricedItems: resolveUnpricedItemsFlag(saleItem),
         items: Array.isArray(saleItem.items) ? saleItem.items : [],
         interestPaidCents: Number.isFinite(Number(saleItem.interestPaidCents)) ? Math.round(Number(saleItem.interestPaidCents)) : 0,
         principalPaidCents: Number.isFinite(Number(saleItem.principalPaidCents)) ? Math.round(Number(saleItem.principalPaidCents)) : 0,

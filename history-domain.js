@@ -19,12 +19,35 @@ export function hasMixedPricedAndUnpricedLines(description) {
     return hasPriced && hasUnpriced;
 }
 
-export function activityHasUnpricedProducts(item) {
+export function saleItemsHaveUnpricedProducts(items) {
+    return Array.isArray(items) && items.some((item) => item && item.priced === false);
+}
+
+/**
+ * Regra unica de "venda com produtos sem preco". Todo mundo que grava o campo
+ * `hasUnpricedItems` (app, clientes, indice de atividades) e todo mundo que le
+ * o campo passa por aqui, senao cada tela deriva um valor diferente e o
+ * reconcile do historico fica regravando o registro em ping-pong.
+ *
+ * A funcao e idempotente: alimentar o resultado de volta em `hasUnpricedItems`
+ * devolve o mesmo valor, entao gravar e reprocessar nunca muda a resposta.
+ *
+ * Sinais fortes (valem sempre): anotacao, venda sem valor, item marcado como
+ * `priced: false`. Sinais heuristicos (só antes de uma edicao explicita): o
+ * proprio flag gravado e a descricao com linhas precificadas e pendentes
+ * misturadas. Uma edicao manual informa o total real, logo supera a heuristica.
+ */
+export function resolveUnpricedItemsFlag(item) {
     if (!item || item.type !== 'sale') return false;
-    return item.hasUnpricedItems === true
-        || item.isNote === true
-        || amountToCents(item) === 0
-        || (!item.editedAt && hasMixedPricedAndUnpricedLines(item.description));
+    if (item.isNote === true) return true;
+    if (amountToCents(item) === 0) return true;
+    if (saleItemsHaveUnpricedProducts(item.items)) return true;
+    if (item.editedAt) return false;
+    return item.hasUnpricedItems === true || hasMixedPricedAndUnpricedLines(item.description);
+}
+
+export function activityHasUnpricedProducts(item) {
+    return resolveUnpricedItemsFlag(item);
 }
 
 export function calculateActivityTotals(activities) {

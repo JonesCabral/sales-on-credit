@@ -1,6 +1,7 @@
 import { getDatabase, ref, onValue, update, get, push } from 'firebase/database';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { firebaseApp } from './firebase.js';
+import { resolveUnpricedItemsFlag } from './history-domain.js';
 
 const database = getDatabase(firebaseApp);
 const auth = getAuth(firebaseApp);
@@ -230,7 +231,7 @@ function buildClientSummary(clientId, name, createdAt, resetPaymentPercent, init
         archivedAt: null,
         createdAt,
         salesCount: initialSale ? 1 : 0,
-        hasUnpricedNotes: false,
+        hasUnpricedNotes: resolveUnpricedItemsFlag(initialSale),
         referenceType: initialSale ? 'first-sale' : null
     };
 }
@@ -282,6 +283,12 @@ async function addClient() {
             hasUnpricedItems: false,
             date: createdAt
         } : null;
+        // Mesma regra do app e do historico: uma primeira venda com linhas
+        // precificadas e pendentes na descricao ja nasce marcada, senao o
+        // reconcile do historico corrigiria o registro logo depois.
+        if (initialSale) {
+            initialSale.hasUnpricedItems = resolveUnpricedItemsFlag(initialSale);
+        }
         const publicSummary = buildPublicClientSummary(initialSale, resetPaymentPercent);
         const client = {
             id: clientId,
@@ -308,9 +315,9 @@ async function addClient() {
                 amount: initialSale.amount,
                 amountCents: initialSale.amountCents,
                 description: initialSale.description,
-                isNote: false,
-                hasUnpricedItems: false,
-                items: [],
+                isNote: initialSale.isNote,
+                hasUnpricedItems: initialSale.hasUnpricedItems,
+                items: initialSale.items,
                 interestPaidCents: 0,
                 principalPaidCents: 0,
                 settlesPreviouslyAppliedInterest: false,
