@@ -288,7 +288,9 @@ async function addClient() {
             name,
             archived: false,
             createdAt,
-            sales: initialSale ? [initialSale] : [],
+            // Transações são gravadas com o id como chave (nunca por índice),
+            // para que remoções não desloquem as posições das demais.
+            sales: initialSale ? { [initialSale.id]: initialSale } : null,
             publicSummary
         };
         const listSummary = buildClientSummary(clientId, name, createdAt, resetPaymentPercent, initialSale);

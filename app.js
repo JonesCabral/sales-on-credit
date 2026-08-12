@@ -2,6 +2,12 @@
 import { getDatabase, get, ref, update, onValue } from 'firebase/database';
 import { getAuth, signOut, onAuthStateChanged } from 'firebase/auth';
 import { firebaseApp } from './firebase.js';
+import {
+    calculateSummaryDebt,
+    isTransactionMapKeyedById,
+    summariesMatch,
+    toTransactionList
+} from './debt-domain.js';
 
 // Configuração do Firebase
 // IMPORTANTE: Para produção, mova as configurações para variáveis de ambiente
@@ -87,7 +93,6 @@ const CLIENT_INTEREST_MODE_DISABLED = 'disabled';
 const DEFAULT_OVERDUE_RESET_PAYMENT_PERCENT = 20;
 const MIN_OVERDUE_RESET_PAYMENT_PERCENT = 0;
 const MAX_OVERDUE_RESET_PAYMENT_PERCENT = 100;
-const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const TRANSACTION_TYPE_SALE = 'sale';
 const TRANSACTION_TYPE_PAYMENT = 'payment';
 const TRANSACTION_TYPE_INTEREST = 'interest';
@@ -221,7 +226,9 @@ class SalesManager {
         this.unsubscribe = null;
         this.settingsUnsubscribe = null;
         this.dataLoaded = false;
+        this.settingsLoaded = false;
         this.persistedClients = {};
+        this.salesKeyedById = {};
         this.publicSummarySyncPromise = null;
         this.summaryMigrationPromise = null;
     }
@@ -229,9 +236,11 @@ class SalesManager {
     setUser(userId) {
         this.userId = userId;
         this.dataLoaded = false;
+        this.settingsLoaded = false;
         this.clients = {};
         this.clientSummaries = {};
         this.persistedClients = {};
+        this.salesKeyedById = {};
         this.settings = getDefaultSettings();
         syncSettingsUI();
         this.loadSettings();
@@ -252,6 +261,7 @@ class SalesManager {
             const previousSettingsSignature = JSON.stringify(this.settings);
             const savedSettings = snapshot.val() || {};
             this.settings = normalizeSettings(savedSettings);
+            this.settingsLoaded = true;
             syncSettingsUI();
             updateClientsList();
             if (this.currentClientId && modal?.style.display === 'block') {
@@ -330,12 +340,23 @@ class SalesManager {
 
             Object.entries(legacyClients).forEach(([clientId, savedClient]) => {
                 const client = { ...savedClient, id: savedClient?.id || clientId };
-                if (!Array.isArray(client.sales)) client.sales = [];
+                this.salesKeyedById[clientId] = isTransactionMapKeyedById(savedClient?.sales);
+                client.sales = normalizeSalesList(savedClient?.sales);
                 this.clients[clientId] = client;
                 this.persistedClients[clientId] = cloneSerializable(client);
-                const summary = buildClientListSummary(client, this.settings);
-                summaries[clientId] = summary;
-                updates[`users/${this.userId}/clientSummaries/${clientId}`] = summary;
+
+                const publicSummary = buildPublicClientSummary(client, this.settings);
+                const listSummary = buildClientListSummary(client, this.settings);
+                summaries[clientId] = listSummary;
+                updates[`users/${this.userId}/clientSummaries/${clientId}`] = listSummary;
+
+                // O client-view le `publicSummary`, que ate entao nao era
+                // reconstruido aqui e ficava divergente da lista.
+                if (!summariesMatch(client.publicSummary, publicSummary)) {
+                    updates[`users/${this.userId}/clients/${clientId}/publicSummary`] = publicSummary;
+                    client.publicSummary = publicSummary;
+                    this.persistedClients[clientId].publicSummary = cloneSerializable(publicSummary);
+                }
             });
 
             this.clientSummaries = summaries;
@@ -368,10 +389,51 @@ class SalesManager {
         if (!savedClient) throw new Error('Cliente não encontrado');
 
         const client = { ...savedClient, id: savedClient.id || clientId };
-        if (!Array.isArray(client.sales)) client.sales = [];
+        this.salesKeyedById[clientId] = isTransactionMapKeyedById(savedClient.sales);
+        client.sales = normalizeSalesList(savedClient.sales);
         this.clients[clientId] = client;
         this.persistedClients[clientId] = cloneSerializable(client);
+
+        // Este e o unico momento em que temos as transacoes reais em maos:
+        // aproveita para corrigir resumos que tenham ficado defasados.
+        this.reconcileClientSummaries(clientId);
         return client;
+    }
+
+    /**
+     * Recalcula os resumos desnormalizados a partir das vendas carregadas e
+     * regrava os que estiverem divergentes. Sem isso um resumo defasado fica
+     * errado para sempre, porque nada mais o recalcula ate a proxima escrita
+     * naquele cliente.
+     */
+    reconcileClientSummaries(clientId) {
+        const client = this.clients[clientId];
+        if (!client || !this.userId || !this.settingsLoaded) return false;
+
+        const publicSummary = buildPublicClientSummary(client, this.settings);
+        const listSummary = buildClientListSummary(client, this.settings);
+        const updates = {};
+
+        if (!summariesMatch(client.publicSummary, publicSummary)) {
+            updates[`users/${this.userId}/clients/${clientId}/publicSummary`] = publicSummary;
+        }
+        if (!summariesMatch(this.clientSummaries[clientId], listSummary)) {
+            updates[`users/${this.userId}/clientSummaries/${clientId}`] = listSummary;
+        }
+        if (Object.keys(updates).length === 0) return false;
+
+        safeLog('Resumo divergente corrigido para o cliente', clientId);
+        client.publicSummary = publicSummary;
+        this.clientSummaries[clientId] = cloneSerializable(listSummary);
+        if (this.persistedClients[clientId]) {
+            this.persistedClients[clientId].publicSummary = cloneSerializable(publicSummary);
+        }
+        updateClientsList();
+
+        update(ref(database), updates).catch((error) => {
+            console.warn('Falha ao corrigir resumo do cliente:', error?.code || error?.message || error);
+        });
+        return true;
     }
 
     // Método para limpar recursos
@@ -386,10 +448,12 @@ class SalesManager {
         }
         this.userId = null;
         this.dataLoaded = false;
+        this.settingsLoaded = false;
         this.clients = {};
         this.clientSummaries = {};
         this.settings = getDefaultSettings();
         this.persistedClients = {};
+        this.salesKeyedById = {};
         this.publicSummarySyncPromise = null;
         this.summaryMigrationPromise = null;
         syncSettingsUI();
@@ -437,27 +501,32 @@ class SalesManager {
             }
         });
 
-        const previousSales = Array.isArray(previousClient.sales) ? previousClient.sales : [];
-        const currentSales = Array.isArray(client.sales) ? client.sales : [];
+        const previousSales = normalizeSalesList(previousClient.sales);
+        const currentSales = normalizeSalesList(client.sales);
         const clientNameChanged = String(previousClient.name || '') !== String(client.name || '');
 
-        const clearingSales = currentSales.length === 0 && previousSales.length > 0;
-        if (clearingSales) {
-            updates[`${clientPath}/sales`] = null;
-        }
+        const previousSalesById = new Map(previousSales.map((item) => [item.id, item]));
+        const currentSalesById = new Map(currentSales.map((item) => [item.id, item]));
 
-        const largestSalesLength = Math.max(previousSales.length, currentSales.length);
-        for (let index = 0; index < largestSalesLength; index += 1) {
-            const previousItem = previousSales[index];
-            const currentItem = currentSales[index];
-            const transactionChanged = !serializableValuesMatch(previousItem, currentItem);
-            if (!clearingSales && transactionChanged) {
-                updates[`${clientPath}/sales/${index}`] = currentItem === undefined ? null : currentItem;
-            }
+        // Gravacao por id, nunca por indice: o indice se desloca quando uma
+        // transacao e removida e uma sessao com cache antigo acabava
+        // sobrescrevendo a transacao de outra sessao naquela posicao.
+        if (currentSales.length === 0) {
+            if (previousSales.length > 0) updates[`${clientPath}/sales`] = null;
+        } else if (this.salesKeyedById[clientId] === true) {
+            previousSalesById.forEach((previousItem, saleId) => {
+                if (!currentSalesById.has(saleId)) updates[`${clientPath}/sales/${saleId}`] = null;
+            });
+            currentSalesById.forEach((currentItem, saleId) => {
+                if (!serializableValuesMatch(previousSalesById.get(saleId), currentItem)) {
+                    updates[`${clientPath}/sales/${saleId}`] = currentItem;
+                }
+            });
+        } else {
+            // Formato legado (array indexado): reescreve o no inteiro uma vez
+            // para converte-lo em mapa por id.
+            updates[`${clientPath}/sales`] = buildSalesMap(currentSales);
         }
-
-        const previousSalesById = new Map(previousSales.filter((item) => item?.id).map((item) => [item.id, item]));
-        const currentSalesById = new Map(currentSales.filter((item) => item?.id).map((item) => [item.id, item]));
         previousSalesById.forEach((previousItem, saleId) => {
             if (!currentSalesById.has(saleId)) {
                 updates[`users/${this.userId}/activities/${this.getActivityKey(clientId, previousItem.id)}`] = null;
@@ -470,17 +539,19 @@ class SalesManager {
             }
         });
 
-        if (!serializableValuesMatch(previousClient.publicSummary, summary)) {
+        if (!summariesMatch(previousClient.publicSummary, summary)) {
             updates[`${clientPath}/publicSummary`] = summary;
         }
 
-        if (!serializableValuesMatch(this.clientSummaries[clientId], listSummary)) {
+        if (!summariesMatch(this.clientSummaries[clientId], listSummary)) {
             updates[`users/${this.userId}/clientSummaries/${clientId}`] = listSummary;
         }
 
         if (Object.keys(updates).length > 0) {
             await update(ref(database), updates);
         }
+        this.salesKeyedById[clientId] = true;
+        client.sales = currentSales;
         this.clientSummaries[clientId] = cloneSerializable(listSummary);
         this.persistedClients[clientId] = cloneSerializable(client);
     }
@@ -497,8 +568,8 @@ class SalesManager {
             Object.entries(this.clients).forEach(([clientId, client]) => {
                 const summary = buildPublicClientSummary(client, this.settings);
                 const listSummary = buildClientListSummary(client, this.settings);
-                const publicSummaryChanged = !serializableValuesMatch(client.publicSummary, summary);
-                const listSummaryChanged = !serializableValuesMatch(this.clientSummaries[clientId], listSummary);
+                const publicSummaryChanged = !summariesMatch(client.publicSummary, summary);
+                const listSummaryChanged = !summariesMatch(this.clientSummaries[clientId], listSummary);
                 if (!publicSummaryChanged && !listSummaryChanged) return;
 
                 if (publicSummaryChanged) {
@@ -551,6 +622,7 @@ class SalesManager {
         delete this.clients[clientId];
         delete this.clientSummaries[clientId];
         delete this.persistedClients[clientId];
+        delete this.salesKeyedById[clientId];
     }
 
     getOverdueAlertDays() {
@@ -586,11 +658,6 @@ class SalesManager {
             this.clients[clientId]?.overdueInterestOverride
             || this.clientSummaries[clientId]?.overdueInterestOverride
         );
-    }
-
-    isOverdueInterestEnabled(clientId = null) {
-        const interestSettings = this.getOverdueInterestSettings(clientId);
-        return interestSettings.enabled && interestSettings.percent > 0;
     }
 
     getOverdueInterestPercent(clientId = null) {
@@ -710,6 +777,7 @@ class SalesManager {
             createdAt: new Date().toISOString(),
             archived: false
         };
+        this.salesKeyedById[id] = true;
         safeLog('Adicionando cliente:', sanitizedName);
         await this.saveClientData(id);
         return id;
@@ -1017,26 +1085,6 @@ class SalesManager {
         return this.getClientDebtCents(clientId) / 100;
     }
 
-    getBaseClientDebtCents(clientId) {
-        if (!this.clients[clientId] && this.clientSummaries[clientId]) {
-            return Math.round(Number(this.clientSummaries[clientId].baseDebtCents) || 0);
-        }
-        if (!this.clients[clientId]) return 0;
-        if (!this.clients[clientId].sales || this.clients[clientId].sales.length === 0) return 0;
-
-        return this.clients[clientId].sales.reduce((total, item) => total + getTransactionDebtDeltaCents(item), 0);
-    }
-
-    getClientPrincipalDebtCents(clientId) {
-        if (!this.clients[clientId] && this.clientSummaries[clientId]) {
-            return Math.round(Number(this.clientSummaries[clientId].principalDebtCents) || 0);
-        }
-        if (!this.clients[clientId]) return 0;
-        if (!this.clients[clientId].sales || this.clients[clientId].sales.length === 0) return 0;
-
-        return calculateDebtComponents(this.clients[clientId].sales).principalDebtCents;
-    }
-
     getClientOutstandingInterestCents(clientId) {
         if (!this.clients[clientId] && this.clientSummaries[clientId]) {
             return Math.max(0, Math.round(Number(this.clientSummaries[clientId].outstandingInterestCents) || 0));
@@ -1047,33 +1095,36 @@ class SalesManager {
         return calculateDebtComponents(this.clients[clientId].sales).outstandingInterestCents;
     }
 
-    getClientInterestCents(clientId) {
-        if (!this.clients[clientId] && this.clientSummaries[clientId]) {
-            return getClientListModelFromSummary(this.clientSummaries[clientId]).interestCents;
+    /**
+     * Resumo do cliente para o calculo de atraso/juros: recalculado a partir
+     * das vendas quando o cliente esta carregado, senao o resumo salvo.
+     */
+    getClientDebtSummary(clientId) {
+        if (this.clients[clientId]) {
+            return buildPublicClientSummary(this.clients[clientId], this.settings);
         }
-        const debtCents = this.getBaseClientDebtCents(clientId);
-        if (debtCents <= 0) return 0;
-        if (!this.isOverdueInterestEnabled(clientId)) return 0;
-        if (!this.isOverdue(clientId)) return 0;
+        return this.clientSummaries[clientId] || null;
+    }
 
-        const sales = this.clients[clientId]?.sales || [];
-        const { firstSaleDate, lastPaymentDate } = getOverdueReferenceDates(
-            sales,
-            this.getOverdueResetPaymentPercent()
-        );
-        const overdueReferenceDate = lastPaymentDate || firstSaleDate;
-        if (hasAutomaticInterestAppliedAfterReference(sales, overdueReferenceDate)) return 0;
+    /**
+     * Todas as telas passam por calculateSummaryDebt para que card, modal e
+     * client-view nunca cheguem a resultados diferentes.
+     */
+    getClientDebtModel(clientId) {
+        const interestSettings = this.getOverdueInterestSettings(clientId);
+        return calculateSummaryDebt(this.getClientDebtSummary(clientId), {
+            overdueAlertDays: this.getOverdueAlertDays(),
+            interestEnabled: interestSettings.enabled,
+            interestPercent: interestSettings.percent
+        });
+    }
 
-        const principalDebtCents = this.getClientPrincipalDebtCents(clientId);
-        if (principalDebtCents <= 0) return 0;
-
-        const interestBaseCents = Math.min(principalDebtCents, debtCents);
-        return Math.round(interestBaseCents * (this.getOverdueInterestPercent(clientId) / 100));
+    getClientInterestCents(clientId) {
+        return this.getClientDebtModel(clientId).interestCents;
     }
 
     getClientDebtCents(clientId) {
-        const baseDebtCents = this.getBaseClientDebtCents(clientId);
-        return baseDebtCents + this.getClientInterestCents(clientId);
+        return this.getClientDebtModel(clientId).totalDebtCents;
     }
 
     getTotalDebt() {
@@ -1120,35 +1171,13 @@ class SalesManager {
         ).lastPaymentDate;
     }
 
+    // Considera atraso apenas para clientes com dívida positiva
     getDaysSinceReferencePayment(clientId) {
-        if (!this.clients[clientId] && this.clientSummaries[clientId]) {
-            return getClientListModelFromSummary(this.clientSummaries[clientId]).overdueDays;
-        }
-        // Considera atraso apenas para clientes com dívida positiva
-        const baseDebtCents = this.getBaseClientDebtCents(clientId);
-        if (baseDebtCents <= 0) return 0;
-
-        const now = new Date();
-        const client = this.clients[clientId];
-        if (!client?.sales || client.sales.length === 0) return 0;
-
-        const { firstSaleDate, lastPaymentDate } = getOverdueReferenceDates(
-            client.sales,
-            this.getOverdueResetPaymentPercent()
-        );
-
-        if (lastPaymentDate) {
-            return Math.floor((now - lastPaymentDate) / (1000 * 60 * 60 * 24));
-        }
-
-        // Nunca pagou: usa a data da primeira venda
-        if (!firstSaleDate) return 0;
-
-        return Math.floor((now - firstSaleDate) / (1000 * 60 * 60 * 24));
+        return this.getClientDebtModel(clientId).overdueDays;
     }
 
     isOverdue(clientId) {
-        return this.getDaysSinceReferencePayment(clientId) >= this.getOverdueAlertDays();
+        return this.getClientDebtModel(clientId).isOverdue;
     }
 }
 
@@ -1598,13 +1627,34 @@ function getTransactionTime(item) {
 }
 
 function getSortedTransactions(sales) {
-    return (Array.isArray(sales) ? sales : [])
+    return toTransactionList(sales)
         .map((item, index) => ({ item, index, time: getTransactionTime(item) }))
         .sort((a, b) => {
             const timeDiff = a.time - b.time;
             return timeDiff !== 0 ? timeDiff : a.index - b.index;
         })
         .map(({ item }) => item);
+}
+
+/**
+ * Normaliza o no `sales` vindo do Firebase para a lista usada em memoria.
+ * Aceita tanto o formato legado (array indexado) quanto o novo (objeto com o
+ * id da transacao como chave) e garante que todo item tenha id, que e a chave
+ * de gravacao e a chave do indice de atividades.
+ */
+function normalizeSalesList(sales) {
+    return toTransactionList(sales).map((item) => (
+        item.id ? item : { ...item, id: createTransactionId(item.type) }
+    ));
+}
+
+/** Monta o objeto gravado em `clients/{id}/sales`, indexado pelo id. */
+function buildSalesMap(sales) {
+    const salesMap = {};
+    normalizeSalesList(sales).forEach((item) => {
+        salesMap[item.id] = item;
+    });
+    return salesMap;
 }
 
 function calculateDebtComponents(sales) {
@@ -1636,19 +1686,6 @@ function calculateDebtComponents(sales) {
         principalDebtCents,
         outstandingInterestCents: Math.max(0, outstandingInterestCents)
     };
-}
-
-function hasAutomaticInterestAppliedAfterReference(sales, referenceDate) {
-    if (!referenceDate) return false;
-    const referenceTime = referenceDate instanceof Date
-        ? referenceDate.getTime()
-        : new Date(referenceDate).getTime();
-    if (!Number.isFinite(referenceTime)) return false;
-
-    return (Array.isArray(sales) ? sales : []).some((item) => (
-        isAutomaticInterestTransaction(item)
-        && getTransactionTime(item) > referenceTime
-    ));
 }
 
 function paymentMeetsOverdueResetThreshold(paymentItem, debtBeforePaymentCents, resetPercent) {
@@ -2736,32 +2773,17 @@ function applyExclusiveClientFilter(changedCheckbox) {
 }
 
 function getClientListModelFromSummary(summary, now = new Date()) {
-    const baseDebtCents = Math.round(Number(summary?.baseDebtCents) || 0);
-    const referenceDate = summary?.referenceDate ? new Date(summary.referenceDate) : null;
-    const hasValidReferenceDate = referenceDate && Number.isFinite(referenceDate.getTime());
-    const overdueDays = baseDebtCents > 0 && hasValidReferenceDate
-        ? Math.max(0, Math.floor((now - referenceDate) / DAY_IN_MS))
-        : 0;
-    const isOverdue = baseDebtCents > 0 && overdueDays >= manager.getOverdueAlertDays();
     const interestSettings = manager.getOverdueInterestSettings(summary?.id);
-    const lastAutomaticInterestDate = summary?.lastAutomaticInterestDate
-        ? new Date(summary.lastAutomaticInterestDate)
-        : null;
-    const interestAlreadyApplied = Boolean(
-        isOverdue
-        && hasValidReferenceDate
-        && lastAutomaticInterestDate
-        && Number.isFinite(lastAutomaticInterestDate.getTime())
-        && lastAutomaticInterestDate >= referenceDate
-    );
-    const principalDebtCents = Math.max(0, Math.round(Number(summary?.principalDebtCents) || 0));
-    const interestBaseCents = Math.min(principalDebtCents, baseDebtCents);
-    const interestCents = isOverdue && !interestAlreadyApplied && interestSettings.enabled && interestSettings.percent > 0
-        ? Math.round(interestBaseCents * (interestSettings.percent / 100))
-        : 0;
-    const debtCents = baseDebtCents + interestCents;
-    const lastPaymentDate = summary?.referenceType === 'payment' && hasValidReferenceDate ? referenceDate : null;
-    const firstSaleDate = summary?.referenceType === 'first-sale' && hasValidReferenceDate ? referenceDate : null;
+    const debtModel = calculateSummaryDebt(summary, {
+        overdueAlertDays: manager.getOverdueAlertDays(),
+        interestEnabled: interestSettings.enabled,
+        interestPercent: interestSettings.percent,
+        now
+    });
+    const { isOverdue, overdueDays, interestCents, referenceTime } = debtModel;
+    const referenceDate = referenceTime > 0 ? new Date(referenceTime) : null;
+    const lastPaymentDate = summary?.referenceType === 'payment' ? referenceDate : null;
+    const firstSaleDate = summary?.referenceType === 'first-sale' ? referenceDate : null;
 
     return {
         client: summary,
@@ -2769,7 +2791,7 @@ function getClientListModelFromSummary(summary, now = new Date()) {
         name: summary?.name || '',
         searchName: (summary?.name || '').toLowerCase(),
         archived: Boolean(summary?.archived),
-        debt: debtCents / 100,
+        debt: debtModel.totalDebtCents / 100,
         salesCount: Math.max(0, Math.round(Number(summary?.salesCount) || 0)),
         hasNotes: summary?.hasUnpricedNotes === true,
         isOverdue,

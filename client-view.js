@@ -1,3 +1,5 @@
+import { calculateSummaryDebt } from './debt-domain.js';
+
 const APP_VERSION = '2.4.0';
 const PAGE_SIZE = 30;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
@@ -348,32 +350,28 @@ function getEffectiveInterestSettings(summary) {
 }
 
 function calculateDebtDetails(summary) {
-    const baseDebtCents = Math.round(Number(summary?.baseDebtCents) || 0);
-    const principalDebtCents = Math.round(Number(summary?.principalDebtCents) || 0);
-    const referenceDate = summary?.referenceDate ? new Date(summary.referenceDate) : null;
-    const referenceTime = referenceDate && !Number.isNaN(referenceDate.getTime()) ? referenceDate.getTime() : 0;
-    const daysSinceRef = baseDebtCents > 0 && referenceTime > 0
-        ? Math.max(0, Math.floor((Date.now() - referenceTime) / DAY_IN_MS))
-        : 0;
     const overdueDays = normalizeOverdueAlertDays(state.settings.overdueAlertDays);
-    const isOverdue = baseDebtCents > 0 && daysSinceRef >= overdueDays;
     const interestSettings = getEffectiveInterestSettings(summary);
     const interestPercent = normalizeOverdueInterestPercent(interestSettings.percent);
     const interestEnabled = interestSettings.enabled === true && interestPercent > 0;
-    const lastAutomaticInterestTime = summary?.lastAutomaticInterestDate
-        ? new Date(summary.lastAutomaticInterestDate).getTime()
-        : 0;
-    const interestAlreadyApplied = isOverdue
-        && referenceTime > 0
-        && Number.isFinite(lastAutomaticInterestTime)
-        && lastAutomaticInterestTime > referenceTime;
-    const interestBaseCents = Math.min(Math.max(0, principalDebtCents), baseDebtCents);
-    const projectedInterestCents = interestEnabled && interestBaseCents > 0 && !interestAlreadyApplied
-        ? Math.round(interestBaseCents * (interestPercent / 100))
-        : 0;
-    const interestCents = isOverdue ? projectedInterestCents : 0;
-    const totalDebtCents = baseDebtCents + interestCents;
-    const projectedTotalDebtCents = baseDebtCents + projectedInterestCents;
+
+    // Mesmo nucleo usado pelo app: card, modal e esta tela precisam chegar
+    // sempre ao mesmo valor.
+    const debtModel = calculateSummaryDebt(summary, {
+        overdueAlertDays: overdueDays,
+        interestEnabled,
+        interestPercent
+    });
+    const {
+        baseDebtCents,
+        referenceTime,
+        isOverdue,
+        interestCents,
+        projectedInterestCents,
+        totalDebtCents,
+        projectedTotalDebtCents
+    } = debtModel;
+    const daysSinceRef = debtModel.overdueDays;
     const resetPaymentPercent = normalizeOverdueResetPaymentPercent(state.settings.overdueResetPaymentPercent);
     const minimumPaymentBaseCents = isOverdue ? totalDebtCents : baseDebtCents;
     const minimumPaymentCents = resetPaymentPercent <= 0
