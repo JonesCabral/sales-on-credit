@@ -5,6 +5,7 @@ import { firebaseApp } from './firebase.js';
 import {
     calculateSummaryDebt,
     isTransactionMapKeyedById,
+    sortTransactionsAscending,
     summariesMatch,
     toTransactionList
 } from './debt-domain.js';
@@ -1016,8 +1017,14 @@ class SalesManager {
         const pendingInterestCents = this.getClientInterestCents(clientId);
         const outstandingInterestCents = this.getClientOutstandingInterestCents(clientId);
         const itemsToSave = [];
-        const paymentId = createTransactionId(TRANSACTION_TYPE_PAYMENT);
+        // Os juros nascem antes do pagamento: os ids embutem `Date.now()` e o
+        // Firebase devolve o no ordenado por chave, entao criar o pagamento
+        // primeiro invertia o par sempre que o milissegundo virava entre as
+        // duas chamadas. A ordenacao ja nao depende disso (ver
+        // getTransactionSortAnchor), mas manter a criacao na ordem cronologica
+        // deixa a chave coerente com a leitura.
         const interestId = pendingInterestCents > 0 ? createTransactionId(TRANSACTION_TYPE_INTEREST) : null;
+        const paymentId = createTransactionId(TRANSACTION_TYPE_PAYMENT);
 
         if (pendingInterestCents > 0) {
             const interestPercent = this.getOverdueInterestPercent(clientId);
@@ -1791,13 +1798,7 @@ function getTransactionTime(item) {
 }
 
 function getSortedTransactions(sales) {
-    return toTransactionList(sales)
-        .map((item, index) => ({ item, index, time: getTransactionTime(item) }))
-        .sort((a, b) => {
-            const timeDiff = a.time - b.time;
-            return timeDiff !== 0 ? timeDiff : a.index - b.index;
-        })
-        .map(({ item }) => item);
+    return sortTransactionsAscending(sales);
 }
 
 /**

@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
     calculateSummaryDebt,
+    getTransactionSortAnchor,
     isTransactionMapKeyedById,
+    sortTransactionsAscending,
     stableStringify,
     summariesMatch,
     toTransactionList
@@ -152,6 +154,81 @@ test('lê o nó sales tanto em array legado quanto em mapa por id', () => {
     // Arrays esparsos do Firebase vêm com buracos nulos.
     assert.deepEqual(toTransactionList([null, venda]), [venda]);
     assert.deepEqual(toTransactionList(null), []);
+});
+
+// Regressão do bug em que a ordem juros × pagamento dependia de um
+// milissegundo: os dois ids embutem `Date.now()` e o Firebase devolve o nó
+// ordenado por chave, então `..._payment_x` de um milissegundo antes vinha
+// antes de `..._interest_y`. Com o par invertido o pagamento quitava o
+// principal antes de os juros existirem: `principalDebtCents` ficava menor
+// que o correto e, como a base dos juros é limitada pelo principal, os juros
+// seguintes passavam a ser calculados sobre uma base menor.
+test('juros automáticos vêm antes do pagamento mesmo com a chave invertida', () => {
+    const sameDate = daysAgo(70);
+    const juros = {
+        id: '1700000000001_interest_bbbbbb',
+        type: 'interest',
+        amountCents: 1000,
+        relatedPaymentId: '1700000000000_payment_aaaaaa',
+        automaticInterest: true,
+        date: sameDate
+    };
+    const pagamento = {
+        id: '1700000000000_payment_aaaaaa',
+        type: 'payment',
+        amountCents: 1000,
+        relatedInterestId: '1700000000001_interest_bbbbbb',
+        date: sameDate
+    };
+
+    // Ordem que o Firebase devolve quando o milissegundo virou entre os dois
+    // ids: o pagamento aparece primeiro no nó, mas precisa ser processado
+    // depois dos juros.
+    const ordenado = sortTransactionsAscending({
+        [pagamento.id]: pagamento,
+        [juros.id]: juros
+    });
+    assert.deepEqual(ordenado.map((item) => item.type), ['interest', 'payment']);
+
+    // Ordem já correta continua correta.
+    assert.deepEqual(
+        sortTransactionsAscending([juros, pagamento]).map((item) => item.type),
+        ['interest', 'payment']
+    );
+});
+
+test('ordena por data e mantém a ordem de chegada no empate sem vínculo', () => {
+    const venda = { id: 'v1', type: 'sale', amountCents: 5000, date: daysAgo(90) };
+    const outraVenda = { id: 'v2', type: 'sale', amountCents: 2000, date: daysAgo(10) };
+    const mesmoInstante = { id: 'v3', type: 'sale', amountCents: 300, date: daysAgo(10) };
+
+    assert.deepEqual(
+        sortTransactionsAscending([outraVenda, mesmoInstante, venda]).map((item) => item.id),
+        ['v1', 'v2', 'v3']
+    );
+    // Transação sem data vai para o começo, sem quebrar a ordenação.
+    assert.deepEqual(
+        sortTransactionsAscending([venda, { id: 'x1', type: 'sale' }]).map((item) => item.id),
+        ['x1', 'v1']
+    );
+    assert.deepEqual(sortTransactionsAscending(null), []);
+});
+
+test('a âncora de ordenação só desloca juros ligados a um pagamento', () => {
+    assert.deepEqual(
+        getTransactionSortAnchor({ id: 'j1', type: 'interest', relatedPaymentId: 'p1' }),
+        { id: 'p1', order: 0 }
+    );
+    // Juros lançados à mão não têm pagamento associado: ficam no lugar deles.
+    assert.deepEqual(
+        getTransactionSortAnchor({ id: 'j2', type: 'interest' }),
+        { id: 'j2', order: 1 }
+    );
+    assert.deepEqual(
+        getTransactionSortAnchor({ id: 'p1', type: 'payment', relatedInterestId: 'j1' }),
+        { id: 'p1', order: 1 }
+    );
+    assert.deepEqual(getTransactionSortAnchor(null), { id: '', order: 1 });
 });
 
 test('detecta se o nó sales já está indexado pelo id da transação', () => {

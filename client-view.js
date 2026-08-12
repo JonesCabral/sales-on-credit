@@ -1,4 +1,4 @@
-import { calculateSummaryDebt } from './debt-domain.js';
+import { calculateSummaryDebt, getTransactionSortAnchor } from './debt-domain.js';
 
 const APP_VERSION = '2.4.2';
 const PAGE_SIZE = 30;
@@ -241,21 +241,38 @@ function normalizeTransactions(sales) {
 
     return entries
         .filter(([, item]) => item && typeof item === 'object')
-        .map(([key, item], index) => ({
-            key,
-            item,
-            index,
-            time: getTransactionTime(item),
-            dateValue: String(item.date || '')
-        }))
+        .map(([key, item], index) => buildTransactionEntry(key, item, index))
         .sort(compareTransactionsAscending);
+}
+
+/**
+ * `anchorKey`/`anchorOrder` prendem os juros automaticos ao pagamento que os
+ * gerou. Os dois compartilham a mesma `date`, entao o desempate por chave
+ * podia inverte-los e fazer o pagamento quitar o principal antes de os juros
+ * entrarem no saldo (ver getTransactionSortAnchor em debt-domain.js).
+ * `key` continua sendo a chave real, usada no cursor de paginacao.
+ */
+function buildTransactionEntry(key, item, index) {
+    const anchor = getTransactionSortAnchor(item);
+    return {
+        key: String(key),
+        item,
+        index,
+        time: getTransactionTime(item),
+        dateValue: String(item.date || ''),
+        anchorKey: anchor.id || String(key),
+        anchorOrder: anchor.order
+    };
 }
 
 function compareTransactionsAscending(firstEntry, secondEntry) {
     const timeDifference = firstEntry.time - secondEntry.time;
     if (timeDifference !== 0) return timeDifference;
-    const keyDifference = String(firstEntry.key).localeCompare(String(secondEntry.key), 'pt-BR', { numeric: true });
-    return keyDifference !== 0 ? keyDifference : (firstEntry.index || 0) - (secondEntry.index || 0);
+    const keyDifference = String(firstEntry.anchorKey || firstEntry.key)
+        .localeCompare(String(secondEntry.anchorKey || secondEntry.key), 'pt-BR', { numeric: true });
+    if (keyDifference !== 0) return keyDifference;
+    const orderDifference = (firstEntry.anchorOrder || 0) - (secondEntry.anchorOrder || 0);
+    return orderDifference !== 0 ? orderDifference : (firstEntry.index || 0) - (secondEntry.index || 0);
 }
 
 function compareFirebaseKeys(firstEntry, secondEntry) {
@@ -759,13 +776,7 @@ function readSnapshotEntries(snapshot) {
     snapshot.forEach((childSnapshot) => {
         const item = childSnapshot.val();
         if (!item || typeof item !== 'object') return;
-        entries.push({
-            key: String(childSnapshot.key),
-            item,
-            time: getTransactionTime(item),
-            dateValue: String(item.date || ''),
-            index: entries.length
-        });
+        entries.push(buildTransactionEntry(childSnapshot.key, item, entries.length));
     });
     return entries;
 }

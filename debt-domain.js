@@ -1,5 +1,10 @@
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const FALLBACK_OVERDUE_ALERT_DAYS = 60;
+const TRANSACTION_TYPE_INTEREST = 'interest';
+
+/** Juros automaticos vem antes; todo o resto mantem a posicao normal. */
+const PAIRED_INTEREST_ORDER = 0;
+const DEFAULT_TRANSACTION_ORDER = 1;
 
 function toTime(value) {
     if (!value) return 0;
@@ -104,6 +109,66 @@ export function toTransactionList(sales) {
         return Object.values(sales).filter((item) => item && typeof item === 'object');
     }
     return [];
+}
+
+/**
+ * Ancora de ordenacao de uma transacao: o id que define a posicao dela entre
+ * as transacoes de mesma data, mais o desempate dentro dessa posicao.
+ *
+ * Os juros automaticos e o pagamento que os gerou sao gravados com a mesma
+ * `date`, entao o desempate caia na ordem de chegada da lista — que, depois de
+ * reler do Firebase, e a ordem lexicografica da chave. Como o id embute
+ * `Date.now()`, bastava o milissegundo virar entre a criacao dos dois ids para
+ * o par sair invertido: o pagamento quitava o principal antes de os juros
+ * existirem, `interestPaidCents` virava 0 e o `principalDebtCents` gravado
+ * ficava menor que o correto. Como `interestBaseCents` e limitado pelo
+ * principal, os juros seguintes passavam a ser calculados sobre uma base
+ * menor, sem que o saldo exibido mudasse.
+ *
+ * O vinculo `relatedPaymentId` e explicito e sobrevive a releitura, entao e
+ * ele — e nao a chave — que ancora o par: os juros assumem a posicao do
+ * pagamento e o desempate garante que venham logo antes dele.
+ */
+export function getTransactionSortAnchor(item) {
+    const isPairedInterest = item?.type === TRANSACTION_TYPE_INTEREST && Boolean(item?.relatedPaymentId);
+    return {
+        id: String((isPairedInterest ? item.relatedPaymentId : item?.id) || ''),
+        order: isPairedInterest ? PAIRED_INTEREST_ORDER : DEFAULT_TRANSACTION_ORDER
+    };
+}
+
+/**
+ * Ordena as transacoes em ordem cronologica estavel.
+ *
+ * Empate de data cai na ordem de chegada da lista, exceto pelos juros
+ * automaticos, que a ancora move para logo antes do pagamento que os gerou.
+ */
+export function sortTransactionsAscending(sales) {
+    const transactions = toTransactionList(sales);
+    const indexById = new Map();
+    transactions.forEach((item, index) => {
+        if (item?.id && !indexById.has(item.id)) indexById.set(item.id, index);
+    });
+
+    return transactions
+        .map((item, index) => {
+            const anchor = getTransactionSortAnchor(item);
+            const anchorIndex = indexById.get(anchor.id);
+            return {
+                item,
+                index,
+                time: toTime(item?.date),
+                anchorIndex: anchorIndex === undefined ? index : anchorIndex,
+                anchorOrder: anchor.order
+            };
+        })
+        .sort((first, second) => (
+            first.time - second.time
+            || first.anchorIndex - second.anchorIndex
+            || first.anchorOrder - second.anchorOrder
+            || first.index - second.index
+        ))
+        .map(({ item }) => item);
 }
 
 /** true quando o no `sales` ja esta gravado com o id da transacao como chave. */
