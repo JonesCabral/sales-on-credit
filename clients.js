@@ -1,11 +1,18 @@
 import { getDatabase, ref, onValue, update, get, push } from 'firebase/database';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { firebaseApp } from './firebase.js';
+import { calculateSummaryDebt } from './debt-domain.js';
 import { resolveUnpricedItemsFlag } from './history-domain.js';
 
 const database = getDatabase(firebaseApp);
 const auth = getAuth(firebaseApp);
 
+const DEFAULT_OVERDUE_ALERT_DAYS = 60;
+const MAX_OVERDUE_ALERT_DAYS = 3650;
+const DEFAULT_OVERDUE_INTEREST_PERCENT = 0;
+const MAX_OVERDUE_INTEREST_PERCENT = 100;
+const CLIENT_INTEREST_MODE_CUSTOM = 'custom';
+const CLIENT_INTEREST_MODE_DISABLED = 'disabled';
 const DEFAULT_OVERDUE_RESET_PAYMENT_PERCENT = 20;
 const MAX_CLIENT_NAME_LENGTH = 100;
 const MAX_SALE_DESCRIPTION_LENGTH = 500;
@@ -36,7 +43,11 @@ const clientsMenuClose = document.getElementById('clientsMenuClose');
 
 let currentUserId = null;
 let clientSummaries = {};
+let clientSettings = getDefaultSettings();
+let clientSummariesReady = false;
+let clientSettingsReady = false;
 let clientsUnsubscribe = null;
+let settingsUnsubscribe = null;
 let isSaving = false;
 
 function debounce(callback, delay) {
@@ -76,6 +87,66 @@ function parseCurrencyToCents(value) {
     const normalized = String(value || '').trim().replace(/\./g, '').replace(',', '.');
     const amount = Number.parseFloat(normalized);
     return Number.isFinite(amount) ? Math.round((amount + Number.EPSILON) * 100) : 0;
+}
+
+function getDefaultSettings() {
+    return {
+        overdueAlertDays: DEFAULT_OVERDUE_ALERT_DAYS,
+        overdueInterest: {
+            enabled: false,
+            percent: DEFAULT_OVERDUE_INTEREST_PERCENT
+        }
+    };
+}
+
+function normalizeOverdueAlertDays(value) {
+    const parsedValue = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsedValue)) return DEFAULT_OVERDUE_ALERT_DAYS;
+    return Math.min(MAX_OVERDUE_ALERT_DAYS, Math.max(1, parsedValue));
+}
+
+function normalizeOverdueInterestPercent(value) {
+    const parsedValue = typeof value === 'string'
+        ? Number.parseFloat(value.replace(',', '.'))
+        : Number.parseFloat(value);
+    if (!Number.isFinite(parsedValue)) return DEFAULT_OVERDUE_INTEREST_PERCENT;
+    const clampedValue = Math.min(MAX_OVERDUE_INTEREST_PERCENT, Math.max(0, parsedValue));
+    return Math.round(clampedValue * 100) / 100;
+}
+
+function normalizeSettings(value) {
+    const savedSettings = value && typeof value === 'object' ? value : {};
+    const savedInterest = savedSettings.overdueInterest && typeof savedSettings.overdueInterest === 'object'
+        ? savedSettings.overdueInterest
+        : {};
+    return {
+        overdueAlertDays: normalizeOverdueAlertDays(savedSettings.overdueAlertDays),
+        overdueInterest: {
+            enabled: savedInterest.enabled === true,
+            percent: normalizeOverdueInterestPercent(savedInterest.percent)
+        }
+    };
+}
+
+function getEffectiveInterestSettings(client) {
+    const override = client?.overdueInterestOverride;
+    if (override?.mode === CLIENT_INTEREST_MODE_DISABLED) {
+        return { enabled: false, percent: 0 };
+    }
+    if (override?.mode === CLIENT_INTEREST_MODE_CUSTOM) {
+        const percent = normalizeOverdueInterestPercent(override.percent);
+        return { enabled: percent > 0, percent };
+    }
+    return clientSettings.overdueInterest;
+}
+
+function getClientBalanceCents(client) {
+    const interestSettings = getEffectiveInterestSettings(client);
+    return calculateSummaryDebt(client, {
+        overdueAlertDays: clientSettings.overdueAlertDays,
+        interestEnabled: interestSettings.enabled,
+        interestPercent: interestSettings.percent
+    }).totalDebtCents;
 }
 
 function setupCurrencyMask(input) {
@@ -145,7 +216,7 @@ function setFormDisabled(disabled) {
 }
 
 function renderClients() {
-    if (!clientsList) return;
+    if (!clientsList || !clientSummariesReady || !clientSettingsReady) return;
 
     const clients = getVisibleSummaries();
     const total = Object.keys(clientSummaries || {}).filter((clientId) => clientId !== '_meta').length;
@@ -159,7 +230,9 @@ function renderClients() {
     }
 
     clientsList.innerHTML = clients.map((client) => {
-        const balanceCents = Number(client.baseDebtCents) || 0;
+        // Usa o mesmo saldo atual do painel principal, incluindo os juros de
+        // ciclos vencidos que ainda não viraram lançamento.
+        const balanceCents = getClientBalanceCents(client);
         const balanceClass = balanceCents > 0 ? 'has-debt' : balanceCents < 0 ? 'has-credit' : 'is-paid';
         const salesCount = Number(client.salesCount) || 0;
         const statusText = client.archived
@@ -194,16 +267,36 @@ function renderClients() {
 
 function subscribeClients(userId) {
     if (clientsUnsubscribe) clientsUnsubscribe();
+    if (settingsUnsubscribe) settingsUnsubscribe();
+    clientSummaries = {};
+    clientSettings = getDefaultSettings();
+    clientSummariesReady = false;
+    clientSettingsReady = false;
     clientsList.innerHTML = '<p class="empty-message">Carregando clientes...</p>';
 
     clientsUnsubscribe = onValue(ref(database, `users/${userId}/clientSummaries`), (snapshot) => {
+        if (currentUserId !== userId) return;
         clientSummaries = snapshot.val() || {};
+        clientSummariesReady = true;
         renderClients();
     }, (error) => {
         console.error('Erro ao carregar clientes:', error);
         clientSummaries = {};
+        clientSummariesReady = false;
         clientsList.innerHTML = '<p class="empty-message">Não foi possível carregar os clientes.</p>';
         setStatus('Erro ao carregar clientes. Verifique sua conexão.', 'error');
+    });
+
+    settingsUnsubscribe = onValue(ref(database, `users/${userId}/settings`), (snapshot) => {
+        if (currentUserId !== userId) return;
+        clientSettings = normalizeSettings(snapshot.val());
+        clientSettingsReady = true;
+        renderClients();
+    }, (error) => {
+        console.warn('Erro ao carregar configurações de juros:', error);
+        clientSettings = getDefaultSettings();
+        clientSettingsReady = true;
+        renderClients();
     });
 }
 
@@ -410,6 +503,8 @@ setupClientsMenu();
 onAuthStateChanged(auth, (user) => {
     if (!user) {
         if (clientsUnsubscribe) clientsUnsubscribe();
+        if (settingsUnsubscribe) settingsUnsubscribe();
+        currentUserId = null;
         window.location.href = './index.html';
         return;
     }
