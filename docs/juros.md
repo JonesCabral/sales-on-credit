@@ -4,9 +4,10 @@ Como o app decide que um cliente está atrasado, quanto de juros ele deve e
 quando esse valor vira uma linha no histórico.
 
 Toda a regra mora em [`debt-domain.js`](../debt-domain.js), numa função só —
-`calculateSummaryDebt`. O card da lista, o modal do cliente e a página pública
-do cliente chamam essa mesma função com o mesmo resumo, justamente para nunca
-mostrarem valores diferentes.
+`calculateSummaryDebt`. O card da home, o modal do cliente, a página pública do
+cliente e a página **Clientes** chamam essa mesma função com o mesmo resumo,
+prazo e configuração de juros, justamente para nunca mostrarem valores
+diferentes.
 
 ---
 
@@ -122,8 +123,9 @@ principal derruba os juros de todos os ciclos seguintes.
 Há dois estados para o mesmo valor:
 
 **Projeção** — enquanto não há pagamento, os juros são recalculados a cada
-leitura da tela. Eles já entram no saldo que aparece na lista, no modal e na
-página do cliente, mas ainda não existem como linha no histórico.
+leitura da tela. Eles já entram no saldo que aparece na home, no modal, na
+página pública do cliente e na página **Clientes**, mas ainda não existem como
+linha no histórico.
 
 **Lançamento** — no momento em que o cliente paga, os juros pendentes viram uma
 transação de tipo `interest`, com `automaticInterest: true`, a mesma data do
@@ -233,7 +235,11 @@ edição volte a tornar os juros devidos.
 
 ## 9. Onde isso aparece
 
-- **Card da lista** — `⚠️ ... · juros 10% × 3 ciclos`, com o valor no tooltip.
+- **Card da home** — `⚠️ ... · juros 10% × 3 ciclos`, com o valor no tooltip.
+- **Página Clientes** — o campo `Saldo` usa o total atual, incluindo os juros de
+  ciclos vencidos ainda não lançados. A tela acompanha tanto
+  `clientSummaries/{id}` quanto as configurações gerais e também respeita a taxa
+  individual (`custom` ou `disabled`).
 - **Modal do cliente** — o saldo e a nota *"Inclui juros de 10% × 3 ciclos por
   atraso"*.
 - **Página pública do cliente** — o bloco de prazo mostra desde quando venceu, o
@@ -257,6 +263,16 @@ Em `clientSummaries/{id}` (o resumo leve que a home acompanha):
 | `lastAutomaticInterestDate` | Até onde a cobrança automática chegou |
 | `overdueResetPaymentPercent` | O mínimo vigente quando o resumo foi montado |
 | `overdueInterestOverride` | Taxa individual do cliente, se houver |
+
+`totalDebtCents` **não é gravado** nesse resumo, porque os ciclos vencidos mudam
+com o passar do tempo. Todas as telas calculam o valor no momento da leitura:
+
+```
+totalDebtCents = baseDebtCents + interestCents
+```
+
+Por isso, exibir somente `baseDebtCents` mostra apenas o saldo já lançado e
+ignora os juros vencidos ainda projetados.
 
 Na transação de juros: `type: 'interest'`, `automaticInterest: true`,
 `relatedPaymentId`, `interestPercent` e `interestCycles`. No pagamento que a
