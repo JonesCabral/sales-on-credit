@@ -193,6 +193,18 @@ Duas sutilezas importantes:
   sistema entende que os dois ciclos daquele período já foram cobrados e não vai
   atrás do retroativo. Ele só cobra dos ciclos que fecharem daqui pra frente.
 
+### Pagamentos simultâneos
+
+O pagamento inteiro é decidido numa transação em `clients/{id}`. Se duas abas
+tentarem pagar ao mesmo tempo, o Firebase confirma uma delas e executa novamente
+o callback da outra sobre o cliente já atualizado. Nesse retry, juros, ciclos e
+a divisão entre juros/principal são recalculados. O segundo pagamento enxerga o
+lançamento automático do primeiro e não cria outra cobrança para o mesmo ciclo.
+
+Os identificadores do pagamento e dos juros são criados antes da transação e
+permanecem os mesmos durante os retries; somente o identificador de juros da
+operação vencedora chega a ser gravado.
+
 ---
 
 ## 8. Edição e exclusão
@@ -283,7 +295,9 @@ flowchart TD
 ## Testes
 
 As regras têm cobertura em
-[`scripts/debt-domain.test.mjs`](../scripts/debt-domain.test.mjs):
+[`scripts/debt-domain.test.mjs`](../scripts/debt-domain.test.mjs), e a
+serialização dos pagamentos em
+[`scripts/payment-domain.test.mjs`](../scripts/payment-domain.test.mjs):
 
 ```powershell
 npm test

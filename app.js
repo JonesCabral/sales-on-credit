@@ -1,5 +1,5 @@
 // Importar Firebase
-import { getDatabase, get, ref, update, onValue } from 'firebase/database';
+import { getDatabase, get, ref, runTransaction, update, onValue } from 'firebase/database';
 import { getAuth, signOut, onAuthStateChanged } from 'firebase/auth';
 import { firebaseApp } from './firebase.js';
 import {
@@ -14,6 +14,7 @@ import {
     descriptionLineHasPrice,
     resolveUnpricedItemsFlag
 } from './history-domain.js';
+import { createPaymentMutation } from './payment-domain.js';
 
 // Configuração do Firebase
 // IMPORTANTE: Para produção, mova as configurações para variáveis de ambiente
@@ -34,7 +35,7 @@ async function openBarcodeScanner(options) {
 }
 
 // Versão da aplicação
-const APP_VERSION = '2.4.4';
+const APP_VERSION = '2.4.5';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -1012,69 +1013,87 @@ class SalesManager {
             allowZero: false
         });
         
-        // Garantir que sales existe
-        if (!this.clients[clientId].sales) {
-            this.clients[clientId].sales = [];
-        }
-
         const paymentCents = currencyToCents(numericAmount);
-        const paymentAmount = centsToAmount(paymentCents);
         const paymentDate = new Date().toISOString();
-        // Um unico lancamento cobre todos os ciclos vencidos que ainda nao
-        // viraram juros; `interestCycles` so serve para a descricao dizer
-        // quantos ciclos aquele valor representa.
-        const debtModel = this.getClientDebtModel(clientId);
-        const pendingInterestCents = debtModel.interestCents;
-        const pendingInterestCycles = debtModel.interestCycles;
-        const outstandingInterestCents = this.getClientOutstandingInterestCents(clientId);
-        const itemsToSave = [];
-        // Os juros nascem antes do pagamento: os ids embutem `Date.now()` e o
-        // Firebase devolve o no ordenado por chave, entao criar o pagamento
-        // primeiro invertia o par sempre que o milissegundo virava entre as
-        // duas chamadas. A ordenacao ja nao depende disso (ver
-        // getTransactionSortAnchor), mas manter a criacao na ordem cronologica
-        // deixa a chave coerente com a leitura.
-        const interestId = pendingInterestCents > 0 ? createTransactionId(TRANSACTION_TYPE_INTEREST) : null;
+        // IDs ficam estaveis durante todos os retries do Firebase. O id de
+        // juros pode acabar sem uso quando outro pagamento vence a corrida.
+        const interestId = createTransactionId(TRANSACTION_TYPE_INTEREST);
         const paymentId = createTransactionId(TRANSACTION_TYPE_PAYMENT);
+        const transactionUserId = this.userId;
+        if (!transactionUserId) throw new Error('Usuário não autenticado');
+        const settingsSnapshot = cloneSerializable(this.settings);
+        const clientRef = ref(database, `users/${transactionUserId}/clients/${clientId}`);
 
-        if (pendingInterestCents > 0) {
-            const interestPercent = this.getOverdueInterestPercent(clientId);
-            itemsToSave.push({
-                id: interestId,
-                amount: centsToAmount(pendingInterestCents),
-                amountCents: pendingInterestCents,
-                description: `Juros por atraso (${formatOverdueInterestPercent(interestPercent)}${formatInterestCyclesSuffix(pendingInterestCycles)})`,
-                type: TRANSACTION_TYPE_INTEREST,
-                relatedPaymentId: paymentId,
-                automaticInterest: true,
-                date: paymentDate
+        this.beginClientWrite(clientId);
+        try {
+            const transactionResult = await runTransaction(clientRef, (savedClient) => {
+                if (!savedClient || typeof savedClient !== 'object') {
+                    return undefined;
+                }
+
+                // O override precisa vir do valor transacional, e nao do cache
+                // desta aba, pois ele tambem pode ter mudado em outro aparelho.
+                const clientOverride = normalizeClientOverdueInterestOverride(savedClient.overdueInterestOverride);
+                const globalInterest = settingsSnapshot?.overdueInterest || {};
+                const interestSettings = clientOverride || {
+                    enabled: globalInterest.enabled === true,
+                    percent: normalizeOverdueInterestPercent(globalInterest.percent)
+                };
+
+                const mutation = createPaymentMutation(savedClient, {
+                    paymentCents,
+                    paymentDate,
+                    paymentId,
+                    interestId,
+                    overdueAlertDays: normalizeOverdueAlertDays(settingsSnapshot?.overdueAlertDays),
+                    interestEnabled: interestSettings.enabled,
+                    interestPercent: interestSettings.percent,
+                    buildSummary: (client) => buildPublicClientSummary(client, settingsSnapshot),
+                    buildInterestDescription: ({ percent, cycles }) => (
+                        `Juros por atraso (${formatOverdueInterestPercent(percent)}${formatInterestCyclesSuffix(cycles)})`
+                    )
+                });
+
+                return mutation.client;
+            }, { applyLocally: false });
+
+            if (!transactionResult.committed) {
+                throw new Error('Cliente não encontrado');
+            }
+
+            const savedClient = transactionResult.snapshot.val();
+            if (!savedClient) throw new Error('Cliente não encontrado');
+            const savedSales = normalizeSalesList(savedClient.sales);
+            const committedPayment = savedSales.find((item) => item.id === paymentId);
+            const committedInterest = savedSales.find((item) => item.id === interestId) || null;
+            if (!committedPayment) throw new Error('Pagamento não confirmado');
+            const committedItems = committedInterest
+                ? [committedInterest, committedPayment]
+                : [committedPayment];
+
+            // A transacao protege o saldo e o resumo publico no proprio no do
+            // cliente. Os indices desnormalizados sao derivados do snapshot
+            // que efetivamente venceu a concorrencia.
+            const committedClient = this.applyClientSnapshot(clientId, savedClient);
+            const listSummary = buildClientListSummary(committedClient, settingsSnapshot);
+            const updates = {
+                [`users/${transactionUserId}/clientSummaries/${clientId}`]: listSummary
+            };
+            committedItems.forEach((item) => {
+                updates[`users/${transactionUserId}/activities/${this.getActivityKey(clientId, item.id)}`] = this.buildActivityRecord(clientId, item);
             });
+            await update(ref(database), updates);
+
+            this.clientSummaries[clientId] = cloneSerializable(listSummary);
+            this.salesKeyedById[clientId] = isTransactionMapKeyedById(savedClient.sales);
+            return {
+                success: true,
+                interestCents: committedInterest ? getSaleAmountCents(committedInterest) : 0
+            };
+        } finally {
+            this.endClientWrite(clientId);
+            this.flushDeferredClientSnapshot(clientId);
         }
-
-        const totalInterestDueCents = outstandingInterestCents + pendingInterestCents;
-        const interestPaidCents = Math.min(paymentCents, totalInterestDueCents);
-        const principalPaidCents = Math.max(0, paymentCents - interestPaidCents);
-        const settlesPreviouslyAppliedInterest = pendingInterestCents === 0 && interestPaidCents > 0;
-        
-        const paymentItem = {
-            id: paymentId,
-            amount: paymentAmount,
-            amountCents: paymentCents,
-            type: TRANSACTION_TYPE_PAYMENT,
-            interestPaidCents,
-            principalPaidCents,
-            settlesPreviouslyAppliedInterest,
-            relatedInterestId: interestId,
-            date: paymentDate
-        };
-        itemsToSave.push(paymentItem);
-
-        this.clients[clientId].sales.push(...itemsToSave);
-        await this.saveClientData(clientId);
-        return {
-            success: true,
-            interestCents: pendingInterestCents
-        };
     }
 
     async deleteClient(clientId) {
