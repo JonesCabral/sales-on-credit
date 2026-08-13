@@ -64,16 +64,65 @@ test('juros gravados na mesma data da referência não bloqueiam o ciclo seguint
 });
 
 test('juros lançados depois da referência não são cobrados de novo no mesmo ciclo', () => {
+    // Referência há 90 dias e juros lançados há 20 — ou seja, no dia 70, já
+    // dentro do primeiro ciclo vencido. O segundo ciclo só fecha no dia 120.
     const model = calculateSummaryDebt({
         baseDebtCents: 7420,
         principalDebtCents: 7420,
         referenceDate: daysAgo(90),
-        lastAutomaticInterestDate: daysAgo(70)
+        lastAutomaticInterestDate: daysAgo(20)
     }, interestOptions);
 
     assert.equal(model.interestAlreadyApplied, true);
     assert.equal(model.interestCents, 0);
     assert.equal(model.totalDebtCents, 7420);
+});
+
+// Sem pagamento a referência é a compra mais antiga em aberto, e a cobrança
+// não pode parar no primeiro ciclo: quem some por meio ano deve juros de
+// todos os ciclos vencidos, não de um só.
+test('sem pagamento os juros acumulam um ciclo por vez desde a compra mais antiga', () => {
+    const model = calculateSummaryDebt({
+        baseDebtCents: 7420,
+        principalDebtCents: 7420,
+        referenceDate: daysAgo(190)
+    }, interestOptions);
+
+    assert.equal(model.overdueCycles, 3);
+    assert.equal(model.interestCycles, 3);
+    assert.equal(model.cycleInterestCents, 742);
+    // Juros simples: cada ciclo cobra 10% do principal, sem compor.
+    assert.equal(model.interestCents, 2226);
+    assert.equal(model.totalDebtCents, 9646);
+});
+
+test('os ciclos já lançados são descontados dos ciclos vencidos', () => {
+    const model = calculateSummaryDebt({
+        baseDebtCents: 7420,
+        principalDebtCents: 7420,
+        referenceDate: daysAgo(190),
+        // Lançados no dia 70: cobriram só o primeiro ciclo.
+        lastAutomaticInterestDate: daysAgo(120)
+    }, interestOptions);
+
+    assert.equal(model.overdueCycles, 3);
+    assert.equal(model.interestCycles, 2);
+    assert.equal(model.interestAlreadyApplied, false);
+    assert.equal(model.interestCents, 1484);
+});
+
+test('antes do prazo a projeção mostra apenas o primeiro ciclo', () => {
+    const model = calculateSummaryDebt({
+        baseDebtCents: 7420,
+        principalDebtCents: 7420,
+        referenceDate: daysAgo(30)
+    }, interestOptions);
+
+    assert.equal(model.isOverdue, false);
+    assert.equal(model.interestCents, 0);
+    assert.equal(model.projectedInterestCycles, 1);
+    assert.equal(model.projectedInterestCents, 742);
+    assert.equal(model.projectedTotalDebtCents, 8162);
 });
 
 test('base dos juros nunca passa do saldo nem fica negativa', () => {

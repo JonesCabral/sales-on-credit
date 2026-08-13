@@ -1,6 +1,6 @@
-import { calculateSummaryDebt, getTransactionSortAnchor } from './debt-domain.js';
+import { calculateSummaryDebt, formatInterestCyclesSuffix, getTransactionSortAnchor } from './debt-domain.js';
 
-const APP_VERSION = '2.4.3';
+const APP_VERSION = '2.4.4';
 const PAGE_SIZE = 30;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_OVERDUE_ALERT_DAYS = 60;
@@ -403,7 +403,9 @@ function calculateDebtDetails(summary) {
         totalDebt: centsToAmount(totalDebtCents),
         projectedTotalDebt: centsToAmount(projectedTotalDebtCents),
         interestAmount: centsToAmount(interestCents),
+        interestCycles: debtModel.interestCycles,
         projectedInterestAmount: centsToAmount(projectedInterestCents),
+        projectedInterestCycles: debtModel.projectedInterestCycles,
         minimumPaymentAmount: centsToAmount(minimumPaymentCents),
         interestMode: interestSettings.mode,
         interestPercent,
@@ -430,6 +432,10 @@ function buildInterestDeadlineHTML(debtDetails) {
     const minimumPaymentAmountText = `R$ ${formatCurrency(debtDetails.minimumPaymentAmount)}`;
     const displayedInterestAmount = debtDetails.isOverdue ? debtDetails.interestAmount : debtDetails.projectedInterestAmount;
     const interestAmountText = `R$ ${formatCurrency(displayedInterestAmount)}`;
+    // Sem os ciclos o cliente leria "Juros de 10%" ao lado de um valor que ja
+    // e a soma de varios ciclos vencidos.
+    const displayedInterestCycles = debtDetails.isOverdue ? debtDetails.interestCycles : debtDetails.projectedInterestCycles;
+    const interestLabel = `Juros de ${formattedPercent}${formatInterestCyclesSuffix(displayedInterestCycles)}`;
     const deadlineDateText = formatDeadlineDate(debtDetails.interestDeadlineDate);
     const overdueLimit = Number(debtDetails.overdueDays);
     const paymentTitle = resetPaymentPercent <= 0
@@ -453,7 +459,7 @@ function buildInterestDeadlineHTML(debtDetails) {
             </section>
             <section class="interest-summary-section interest-summary-consequence">
                 <h2 class="interest-summary-kicker">Juros incluídos no saldo atual</h2>
-                <p class="interest-summary-row"><span>Juros de ${formattedPercent}</span><strong class="interest-summary-interest-amount">${interestAmountText}</strong></p>
+                <p class="interest-summary-row"><span>${interestLabel}</span><strong class="interest-summary-interest-amount">${interestAmountText}</strong></p>
             </section>
             <section class="interest-summary-section interest-summary-action">
                 <span class="interest-summary-kicker">Pagamento mínimo para novo prazo</span>
@@ -482,7 +488,7 @@ function buildInterestDeadlineHTML(debtDetails) {
         </section>
         <section class="interest-summary-section interest-summary-consequence">
             <h2 class="interest-summary-kicker">${missedPaymentLabel}</h2>
-            <p class="interest-summary-row"><span>Juros de ${formattedPercent}</span><strong class="interest-summary-interest-amount">+ ${interestAmountText}</strong></p>
+            <p class="interest-summary-row"><span>${interestLabel}</span><strong class="interest-summary-interest-amount">+ ${interestAmountText}</strong></p>
             <p class="interest-summary-row"><span>Novo saldo</span><strong class="interest-summary-total">R$ ${formatCurrency(debtDetails.projectedTotalDebt)}</strong></p>
         </section>`;
 }
@@ -492,6 +498,8 @@ function buildInterestRulesHTML(debtDetails) {
     const formattedInterest = formatOverdueInterestPercent(debtDetails.interestPercent);
     const displayedInterestAmount = debtDetails.isOverdue ? debtDetails.interestAmount : debtDetails.projectedInterestAmount;
     const formattedInterestAmount = `R$ ${formatCurrency(displayedInterestAmount)}`;
+    const displayedInterestCycles = debtDetails.isOverdue ? debtDetails.interestCycles : debtDetails.projectedInterestCycles;
+    const formattedInterestRate = `${formattedInterest}${formatInterestCyclesSuffix(displayedInterestCycles)}`;
     const resetPaymentPercent = normalizeOverdueResetPaymentPercent(debtDetails.resetPaymentPercent);
     const formattedResetPayment = formatOverdueResetPaymentPercent(resetPaymentPercent);
     const formattedMinimumPayment = `R$ ${formatCurrency(debtDetails.minimumPaymentAmount)}`;
@@ -507,13 +515,13 @@ function buildInterestRulesHTML(debtDetails) {
 
     if (debtDetails.isOverdue) {
         return `<ol class="interest-rules-steps">
-            <li><strong>Prazo encerrado${deadlineDateText ? ` em ${deadlineDateText}` : ''}.</strong><span>Juros: ${formattedInterestAmount} (${formattedInterest}). Saldo atual: R$ ${formatCurrency(debtDetails.totalDebt)}.</span></li>
+            <li><strong>Prazo encerrado${deadlineDateText ? ` em ${deadlineDateText}` : ''}.</strong><span>Juros: ${formattedInterestAmount} (${formattedInterestRate}). Saldo atual: R$ ${formatCurrency(debtDetails.totalDebt)}.</span></li>
             <li><strong>Para iniciar um novo prazo de ${overdueLimitText}, ${paymentRule}</strong><span>${smallerPaymentRule}</span></li>
         </ol>`;
     }
     return `<ol class="interest-rules-steps">
         <li><strong>Para renovar por mais ${overdueLimitText}, ${paymentRule}</strong><span>${deadlineDateText ? `Até ${deadlineDateText}. ` : ''}${smallerPaymentRule}</span></li>
-        <li><strong>Se não pagar o mínimo, os juros serão de ${formattedInterestAmount} (${formattedInterest}).</strong><span>Novo saldo estimado: R$ ${formatCurrency(debtDetails.projectedTotalDebt)}.</span></li>
+        <li><strong>Se não pagar o mínimo, os juros serão de ${formattedInterestAmount} (${formattedInterestRate}).</strong><span>Novo saldo estimado: R$ ${formatCurrency(debtDetails.projectedTotalDebt)}.</span></li>
     </ol>`;
 }
 

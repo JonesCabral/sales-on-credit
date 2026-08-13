@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"></noscript>
-    <link rel="stylesheet" href="settings.min.css?v=2.4.3">
+    <link rel="stylesheet" href="settings.min.css?v=2.4.4">
     <script>
         (function() {
             const saved = localStorage.getItem('theme');
@@ -94,7 +94,7 @@
                             <div>
                                 <h3>Juros por atraso</h3>
                                 <p class="settings-hint" id="interestSettingsHint">
-                                    Quando ativado, clientes em alerta de pagamento atrasado terão este percentual aplicado ao saldo devedor total. Clientes com taxa individual usam a configuração definida no próprio cadastro.
+                                    Quando ativado, clientes em alerta de pagamento atrasado terão este percentual aplicado ao saldo devedor total. Sem pagamento, o percentual é cobrado de novo a cada ciclo de atraso, contado desde a compra mais antiga. Clientes com taxa individual usam a configuração definida no próprio cadastro.
                                 </p>
                             </div>
                             <span id="interestCurrentValue" class="settings-current-value">Atual: desativado</span>
@@ -134,6 +134,6 @@
         </main>
     </div>
 
-    <script type="module" src="settings.min.js?v=2.4.3"></script>
+    <script type="module" src="settings.min.js?v=2.4.4"></script>
 </body>
 </html>

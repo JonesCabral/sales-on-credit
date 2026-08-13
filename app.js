@@ -4,6 +4,7 @@ import { getAuth, signOut, onAuthStateChanged } from 'firebase/auth';
 import { firebaseApp } from './firebase.js';
 import {
     calculateSummaryDebt,
+    formatInterestCyclesSuffix,
     isTransactionMapKeyedById,
     sortTransactionsAscending,
     summariesMatch,
@@ -33,7 +34,7 @@ async function openBarcodeScanner(options) {
 }
 
 // Versão da aplicação
-const APP_VERSION = '2.4.3';
+const APP_VERSION = '2.4.4';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -1019,7 +1020,12 @@ class SalesManager {
         const paymentCents = currencyToCents(numericAmount);
         const paymentAmount = centsToAmount(paymentCents);
         const paymentDate = new Date().toISOString();
-        const pendingInterestCents = this.getClientInterestCents(clientId);
+        // Um unico lancamento cobre todos os ciclos vencidos que ainda nao
+        // viraram juros; `interestCycles` so serve para a descricao dizer
+        // quantos ciclos aquele valor representa.
+        const debtModel = this.getClientDebtModel(clientId);
+        const pendingInterestCents = debtModel.interestCents;
+        const pendingInterestCycles = debtModel.interestCycles;
         const outstandingInterestCents = this.getClientOutstandingInterestCents(clientId);
         const itemsToSave = [];
         // Os juros nascem antes do pagamento: os ids embutem `Date.now()` e o
@@ -1037,7 +1043,7 @@ class SalesManager {
                 id: interestId,
                 amount: centsToAmount(pendingInterestCents),
                 amountCents: pendingInterestCents,
-                description: `Juros por atraso (${formatOverdueInterestPercent(interestPercent)})`,
+                description: `Juros por atraso (${formatOverdueInterestPercent(interestPercent)}${formatInterestCyclesSuffix(pendingInterestCycles)})`,
                 type: TRANSACTION_TYPE_INTEREST,
                 relatedPaymentId: paymentId,
                 automaticInterest: true,
@@ -2950,6 +2956,7 @@ function getClientListModelFromSummary(summary, now = new Date()) {
         overdueDays,
         overdueMessage: buildOverdueMessage({ lastPaymentDate, firstSaleDate, overdueDays }),
         interestCents,
+        interestCycles: debtModel.interestCycles,
         interestPercent: interestSettings.percent,
         interestSource: interestSettings.source,
         interestMode: interestSettings.mode
@@ -3139,12 +3146,13 @@ function renderClientsList(clientRows) {
         }
 
         if (isOverdue) {
+            const cyclesSuffix = formatInterestCyclesSuffix(row.interestCycles);
             const interestDetails = interestCents > 0
-                ? ` · juros ${formatOverdueInterestPercent(row.interestPercent)}`
+                ? ` · juros ${formatOverdueInterestPercent(row.interestPercent)}${cyclesSuffix}`
                 : '';
             const overdueMsg = row.overdueMessage || 'Nunca realizou pagamento';
             const overdueTitle = interestCents > 0
-                ? `${overdueMsg}. Juros: R$ ${formatCurrency(interestCents / 100)} (${formatOverdueInterestPercent(row.interestPercent)}${row.interestSource === 'individual' ? ' individual' : ''}).`
+                ? `${overdueMsg}. Juros: R$ ${formatCurrency(interestCents / 100)} (${formatOverdueInterestPercent(row.interestPercent)}${cyclesSuffix}${row.interestSource === 'individual' ? ' individual' : ''}).`
                 : overdueMsg;
             overdueIndicator = `<span class="overdue-indicator" title="${overdueTitle}">⚠️ ${overdueMsg}${interestDetails}</span>`;
         }
@@ -3329,10 +3337,11 @@ function renderClientModalDebt(clientId) {
     if (!client || !modalDebtContainer) return;
 
     const debt = manager.getClientDebt(clientId);
-    const interestCents = manager.getClientInterestCents(clientId);
+    const debtModel = manager.getClientDebtModel(clientId);
+    const interestCents = debtModel.interestCents;
     const interestSettings = manager.getOverdueInterestSettings(clientId);
     const interestNote = interestCents > 0
-        ? `<span class="modal-debt-note">Inclui juros ${interestSettings.source === 'individual' ? 'individuais ' : ''}de ${formatOverdueInterestPercent(interestSettings.percent)} por atraso</span>`
+        ? `<span class="modal-debt-note">Inclui juros ${interestSettings.source === 'individual' ? 'individuais ' : ''}de ${formatOverdueInterestPercent(interestSettings.percent)}${formatInterestCyclesSuffix(debtModel.interestCycles)} por atraso</span>`
         : '';
     const isCredit = debt < 0;
     const isPaid = debt === 0;

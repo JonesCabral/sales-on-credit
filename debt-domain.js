@@ -20,6 +20,12 @@ function toTime(value) {
  * Quem tem o cliente carregado monta o resumo na hora com
  * buildPublicClientSummary; quem so tem o resumo desnormalizado usa o que
  * esta salvo no banco.
+ *
+ * O atraso e contado em ciclos de `overdueAlertDays` a partir da data de
+ * referencia — o ultimo pagamento que renovou o prazo ou, quando nao houve
+ * pagamento nenhum, a compra mais antiga que abriu a divida. Cada ciclo
+ * fechado cobra os juros uma vez, entao quem nunca paga continua acumulando
+ * juros a cada ciclo em vez de parar na primeira cobranca.
  */
 export function calculateSummaryDebt(summary, options = {}) {
     const {
@@ -44,19 +50,31 @@ export function calculateSummaryDebt(summary, options = {}) {
         : 0;
     const isOverdue = baseDebtCents > 0 && overdueDays >= alertDays;
 
-    // Comparacao estritamente maior: os juros automaticos criados junto com um
-    // pagamento compartilham a data que vira a nova referencia, entao `>=`
-    // faria o ciclo de atraso seguinte nunca cobrar juros.
+    // Ciclos de atraso ja fechados desde a referencia: com prazo de 60 dias,
+    // 130 dias sem pagamento sao dois ciclos cobraveis.
+    const elapsedCycles = isOverdue ? Math.floor(overdueDays / alertDays) : 0;
+
+    // Quantos desses ciclos ja viraram lancamento de juros. Os juros
+    // automaticos nascem junto com um pagamento, entao a data deles diz ate
+    // onde a cobranca chegou. Comparacao estritamente maior: quando o
+    // pagamento renova o prazo, os juros compartilham a data que vira a nova
+    // referencia, e `>=` faria o ciclo seguinte nunca cobrar.
     const lastAutomaticInterestTime = toTime(summary?.lastAutomaticInterestDate);
-    const interestAlreadyApplied = isOverdue
-        && referenceTime > 0
-        && lastAutomaticInterestTime > referenceTime;
+    const chargedCycles = referenceTime > 0 && lastAutomaticInterestTime > referenceTime
+        ? Math.floor(Math.floor((lastAutomaticInterestTime - referenceTime) / DAY_IN_MS) / alertDays)
+        : 0;
+    const pendingCycles = Math.max(0, elapsedCycles - chargedCycles);
+    const interestAlreadyApplied = isOverdue && pendingCycles === 0;
 
     const interestBaseCents = Math.max(0, Math.min(principalDebtCents, baseDebtCents));
     const canChargeInterest = interestEnabled === true && percent > 0 && interestBaseCents > 0;
-    const projectedInterestCents = canChargeInterest && !interestAlreadyApplied
-        ? Math.round(interestBaseCents * (percent / 100))
-        : 0;
+    // Sempre sobre o principal: os juros de um ciclo nao entram na base do
+    // proximo, entao a cobranca e simples e nao composta.
+    const cycleInterestCents = canChargeInterest ? Math.round(interestBaseCents * (percent / 100)) : 0;
+    // Antes de estourar o prazo a projecao mostra o primeiro ciclo, que e o
+    // que sera cobrado se o cliente nao pagar.
+    const projectedInterestCycles = canChargeInterest ? (isOverdue ? pendingCycles : 1) : 0;
+    const projectedInterestCents = cycleInterestCents * projectedInterestCycles;
     const interestCents = isOverdue ? projectedInterestCents : 0;
 
     return {
@@ -64,14 +82,28 @@ export function calculateSummaryDebt(summary, options = {}) {
         principalDebtCents,
         referenceTime,
         overdueDays,
+        overdueCycles: elapsedCycles,
         isOverdue,
         interestAlreadyApplied,
         interestBaseCents,
+        cycleInterestCents,
         interestCents,
+        interestCycles: isOverdue ? projectedInterestCycles : 0,
         projectedInterestCents,
+        projectedInterestCycles,
         totalDebtCents: baseDebtCents + interestCents,
         projectedTotalDebtCents: baseDebtCents + projectedInterestCents
     };
+}
+
+/**
+ * Sufixo que explica um valor de juros acumulado por mais de um ciclo de
+ * atraso. Fica junto da regra porque card, modal, client-view e a descricao
+ * do lancamento precisam dizer a mesma coisa.
+ */
+export function formatInterestCyclesSuffix(cycles) {
+    const safeCycles = Math.max(0, Math.round(Number(cycles) || 0));
+    return safeCycles > 1 ? ` × ${safeCycles} ciclos` : '';
 }
 
 /**
