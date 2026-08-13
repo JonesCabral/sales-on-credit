@@ -14,7 +14,10 @@ import {
     descriptionLineHasPrice,
     resolveUnpricedItemsFlag
 } from './history-domain.js';
-import { createPaymentMutation } from './payment-domain.js';
+import {
+    createPaymentMutation,
+    recalculateDerivedInterestTransactions
+} from './payment-domain.js';
 
 // Configuração do Firebase
 // IMPORTANTE: Para produção, mova as configurações para variáveis de ambiente
@@ -35,7 +38,7 @@ async function openBarcodeScanner(options) {
 }
 
 // Versão da aplicação
-const APP_VERSION = '2.4.5';
+const APP_VERSION = '2.4.6';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -1048,6 +1051,9 @@ class SalesManager {
                     overdueAlertDays: normalizeOverdueAlertDays(settingsSnapshot?.overdueAlertDays),
                     interestEnabled: interestSettings.enabled,
                     interestPercent: interestSettings.percent,
+                    overdueResetPaymentPercent: normalizeOverdueResetPaymentPercent(
+                        settingsSnapshot?.overdueResetPaymentPercent
+                    ),
                     buildSummary: (client) => buildPublicClientSummary(client, settingsSnapshot),
                     buildInterestDescription: ({ percent, cycles }) => (
                         `Juros por atraso (${formatOverdueInterestPercent(percent)}${formatInterestCyclesSuffix(cycles)})`
@@ -1202,6 +1208,7 @@ class SalesManager {
         } else {
             this.clients[clientId].sales.splice(saleIndex, 1);
         }
+        this.recalculateClientDerivedInterest(clientId);
         await this.saveClientData(clientId);
 
         return true;
@@ -1282,8 +1289,44 @@ class SalesManager {
             sale.principalPaidCents = Math.max(0, amountCents - sale.interestPaidCents);
         }
 
+        this.recalculateClientDerivedInterest(clientId);
         await this.saveClientData(clientId);
         return true;
+    }
+
+    recalculateClientDerivedInterest(clientId) {
+        const client = this.clients[clientId];
+        if (!client) throw new Error('Cliente não encontrado');
+
+        const settingsSnapshot = cloneSerializable(this.settings);
+        const interestSettings = this.getOverdueInterestSettings(clientId);
+        const fallbackPolicy = {
+            enabled: interestSettings.enabled,
+            percent: interestSettings.percent,
+            overdueAlertDays: normalizeOverdueAlertDays(settingsSnapshot?.overdueAlertDays),
+            overdueResetPaymentPercent: normalizeOverdueResetPaymentPercent(
+                settingsSnapshot?.overdueResetPaymentPercent
+            )
+        };
+        const recalculatedClient = recalculateDerivedInterestTransactions(client, {
+            fallbackPolicy,
+            createInterestId: () => createTransactionId(TRANSACTION_TYPE_INTEREST),
+            isAutomaticInterest: isAutomaticInterestTransaction,
+            buildSummary: (clientBeforePayment, policy) => buildPublicClientSummary(
+                clientBeforePayment,
+                {
+                    ...settingsSnapshot,
+                    overdueAlertDays: policy.overdueAlertDays,
+                    overdueResetPaymentPercent: policy.overdueResetPaymentPercent
+                }
+            ),
+            buildInterestDescription: ({ percent, cycles }) => (
+                `Juros por atraso (${formatOverdueInterestPercent(percent)}${formatInterestCyclesSuffix(cycles)})`
+            )
+        });
+
+        client.sales = recalculatedClient.sales;
+        return client.sales;
     }
 
     getClientDebt(clientId) {

@@ -222,6 +222,13 @@ protegidos:
 Se um pagamento com juros estiver sem o vínculo, a exclusão é recusada em vez de
 deixar um lançamento órfão no histórico.
 
+Editar ou excluir uma venda ou um pagamento anterior também reprocessa, em ordem
+cronológica, todos os lançamentos automáticos posteriores. O valor dos juros e o
+rateio de cada pagamento são atualizados; quando a nova base não gera cobrança,
+a linha de juros é removida. O pagamento conserva internamente o identificador e
+a política usados no cálculo, permitindo recriar o mesmo lançamento caso outra
+edição volte a tornar os juros devidos.
+
 ---
 
 ## 9. Onde isso aparece
@@ -252,8 +259,10 @@ Em `clientSummaries/{id}` (o resumo leve que a home acompanha):
 | `overdueInterestOverride` | Taxa individual do cliente, se houver |
 
 Na transação de juros: `type: 'interest'`, `automaticInterest: true`,
-`relatedPaymentId`. No pagamento que a gerou: `relatedInterestId`,
-`interestPaidCents`, `principalPaidCents` e `settlesPreviouslyAppliedInterest`
+`relatedPaymentId`, `interestPercent` e `interestCycles`. No pagamento que a
+gerou: `relatedInterestId`, `automaticInterestId`, `automaticInterestProcessed`,
+`automaticInterestPolicy`, `interestPaidCents`, `principalPaidCents` e
+`settlesPreviouslyAppliedInterest`
 (marcado quando o pagamento só quita juros de lançamentos anteriores, sem gerar
 juros novos).
 

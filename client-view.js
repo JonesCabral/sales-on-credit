@@ -1,6 +1,6 @@
 import { calculateSummaryDebt, formatInterestCyclesSuffix, getTransactionSortAnchor } from './debt-domain.js';
 
-const APP_VERSION = '2.4.5';
+const APP_VERSION = '2.4.6';
 const PAGE_SIZE = 30;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_OVERDUE_ALERT_DAYS = 60;
