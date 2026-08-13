@@ -8,6 +8,11 @@ Já pagou alguma vez → dias desde o último pagamento
 
 Nunca pagou → dias desde a primeira venda fiada
 
+O atraso é contado em ciclos a partir dessa data, e cada ciclo vencido cobra os
+juros uma vez. A regra completa — referência, ciclos, base de cálculo,
+lançamento no pagamento e casos de borda — está em
+[docs/juros.md](docs/juros.md).
+
 ## Build dos assets da página do cliente
 
 Os arquivos legíveis são `client-base.css`, `client-view.css` e `client-view.js`.
