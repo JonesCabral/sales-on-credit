@@ -106,6 +106,26 @@ export function formatInterestCyclesSuffix(cycles) {
     return safeCycles > 1 ? ` × ${safeCycles} ciclos` : '';
 }
 
+/** Formata o tempo do aviso da mesma forma em todas as telas. */
+export function formatDaysToMonths(totalDays) {
+    const safeDays = Math.max(0, Math.floor(Number(totalDays) || 0));
+    const months = Math.floor(safeDays / 30);
+    const days = safeDays % 30;
+    if (months === 0) return `${days} dia${days !== 1 ? 's' : ''}`;
+    if (days === 0) return `${months} ${months === 1 ? 'mês' : 'meses'}`;
+    return `${months} ${months === 1 ? 'mês' : 'meses'} e ${days} dia${days !== 1 ? 's' : ''}`;
+}
+
+/**
+ * Texto da referência do atraso: o último pagamento que renovou o prazo ou,
+ * quando ainda não houve um, a primeira venda da dívida atual.
+ */
+export function buildOverdueMessage({ lastPaymentDate, firstSaleDate, overdueDays } = {}) {
+    if (lastPaymentDate) return `Último pagamento há ${formatDaysToMonths(overdueDays)}`;
+    if (firstSaleDate) return `Sem pagamento há ${formatDaysToMonths(overdueDays)}`;
+    return 'Nunca realizou pagamento';
+}
+
 /**
  * Assinatura estavel de um valor no formato em que o Firebase o devolveria.
  *

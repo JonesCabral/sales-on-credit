@@ -3,6 +3,7 @@ import { getDatabase, get, ref, runTransaction, update, onValue } from 'firebase
 import { getAuth, signOut, onAuthStateChanged } from 'firebase/auth';
 import { firebaseApp } from './firebase.js';
 import {
+    buildOverdueMessage,
     calculateSummaryDebt,
     formatInterestCyclesSuffix,
     isTransactionMapKeyedById,
@@ -38,7 +39,7 @@ async function openBarcodeScanner(options) {
 }
 
 // Versão da aplicação
-const APP_VERSION = '2.4.7';
+const APP_VERSION = '2.4.8';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -1747,21 +1748,6 @@ function formatCurrency(value) {
     return currencyFormatter.format(safeValue);
 }
 
-// Formatar dias em meses e dias
-function formatDaysToMonths(totalDays) {
-    const months = Math.floor(totalDays / 30);
-    const days = totalDays % 30;
-    if (months === 0) return `${days} dia${days !== 1 ? 's' : ''}`;
-    if (days === 0) return `${months} ${months === 1 ? 'mês' : 'meses'}`;
-    return `${months} ${months === 1 ? 'mês' : 'meses'} e ${days} dia${days !== 1 ? 's' : ''}`;
-}
-
-function buildOverdueMessage({ lastPaymentDate, firstSaleDate, overdueDays }) {
-    if (lastPaymentDate) return `\u00daltimo pagamento h\u00e1 ${formatDaysToMonths(overdueDays)}`;
-    if (firstSaleDate) return `Sem pagamento h\u00e1 ${formatDaysToMonths(overdueDays)}`;
-    return 'Nunca realizou pagamento';
-}
-
 // Máscara de moeda brasileira (R$) - formata enquanto digita
 function currencyMask(input) {
     input.addEventListener('input', (e) => {
@@ -2035,6 +2021,7 @@ function buildPublicClientSummary(client, settings) {
         outstandingInterestCents: Math.max(0, outstandingInterestCents),
         transactionCount: sales.length,
         referenceDate: referenceDate?.toISOString() || null,
+        referenceType: lastPaymentDate ? 'payment' : firstSaleDate ? 'first-sale' : null,
         lastAutomaticInterestDate: lastAutomaticInterestDate?.toISOString() || null,
         overdueResetPaymentPercent: resetPaymentPercent,
         overdueInterestOverride: interestOverride

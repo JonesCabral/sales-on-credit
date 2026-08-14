@@ -93,6 +93,25 @@
     font-weight: 600;
 }
 
+.client-view-page .payment-reference {
+    width: fit-content;
+    max-width: 100%;
+    margin: 0.8rem auto 0;
+    padding: 0.45rem 0.7rem;
+    border: 1px solid rgba(245, 158, 11, 0.42);
+    border-radius: 999px;
+    background: rgba(245, 158, 11, 0.12);
+    color: #b45309;
+    font-size: 0.88rem;
+    font-weight: 800;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.client-view-page .payment-reference[hidden] {
+    display: none;
+}
+
 .client-view-page .interest-deadline {
     display: flex;
     flex-direction: column;
@@ -756,6 +775,12 @@
 [data-theme="dark"] .client-view-page .interest-deadline {
     background: rgba(45, 212, 191, 0.08);
     border-color: rgba(45, 212, 191, 0.14);
+}
+
+[data-theme="dark"] .client-view-page .payment-reference {
+    border-color: rgba(251, 191, 36, 0.38);
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
 }
 
 [data-theme="dark"] .client-view-page .interest-summary-action {

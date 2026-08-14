@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+    buildOverdueMessage,
     calculateSummaryDebt,
+    formatDaysToMonths,
     getTransactionSortAnchor,
     isTransactionMapKeyedById,
     sortTransactionsAscending,
@@ -20,6 +22,14 @@ const interestOptions = {
     interestPercent: 10,
     now: NOW
 };
+
+test('formata e identifica a referência do aviso de atraso', () => {
+    assert.equal(formatDaysToMonths(137), '4 meses e 17 dias');
+    assert.equal(formatDaysToMonths(30), '1 mês');
+    assert.equal(buildOverdueMessage({ lastPaymentDate: daysAgo(137), overdueDays: 137 }), 'Último pagamento há 4 meses e 17 dias');
+    assert.equal(buildOverdueMessage({ firstSaleDate: daysAgo(151), overdueDays: 151 }), 'Sem pagamento há 5 meses e 1 dia');
+    assert.equal(buildOverdueMessage({ overdueDays: 90 }), 'Nunca realizou pagamento');
+});
 
 test('não considera atrasado antes do prazo configurado', () => {
     const model = calculateSummaryDebt({

@@ -1,6 +1,11 @@
-import { calculateSummaryDebt, formatInterestCyclesSuffix, getTransactionSortAnchor } from './debt-domain.js';
+import {
+    buildOverdueMessage,
+    calculateSummaryDebt,
+    formatInterestCyclesSuffix,
+    getTransactionSortAnchor
+} from './debt-domain.js';
 
-const APP_VERSION = '2.4.7';
+const APP_VERSION = '2.4.8';
 const PAGE_SIZE = 30;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_OVERDUE_ALERT_DAYS = 60;
@@ -57,6 +62,7 @@ const elements = {
     statusIcon: document.getElementById('statusIcon'),
     statusValue: document.getElementById('statusValue'),
     statusText: document.getElementById('statusText'),
+    paymentReference: document.getElementById('paymentReference'),
     interestDeadline: document.getElementById('interestDeadline'),
     interestDeadlineText: document.getElementById('interestDeadlineText'),
     interestRulesButton: document.getElementById('interestRulesButton'),
@@ -228,6 +234,9 @@ function normalizePublicSummary(value) {
         outstandingInterestCents: Math.max(0, Math.round(Number(value.outstandingInterestCents) || 0)),
         transactionCount: Math.max(0, Math.round(Number(value.transactionCount) || 0)),
         referenceDate: value.referenceDate || null,
+        referenceType: value.referenceType === 'payment' || value.referenceType === 'first-sale'
+            ? value.referenceType
+            : null,
         lastAutomaticInterestDate: value.lastAutomaticInterestDate || null,
         overdueResetPaymentPercent: normalizeOverdueResetPaymentPercent(value.overdueResetPaymentPercent),
         overdueInterestOverride: normalizeClientOverdueInterestOverride(value.overdueInterestOverride)
@@ -350,6 +359,7 @@ function buildLegacySummary(clientData) {
         outstandingInterestCents,
         transactionCount: transactions.length,
         referenceDate: referenceDate?.toISOString() || null,
+        referenceType: lastPaymentDate ? 'payment' : firstSaleDate ? 'first-sale' : null,
         lastAutomaticInterestDate: lastAutomaticInterestDate?.toISOString() || null,
         overdueResetPaymentPercent: resetPercent,
         overdueInterestOverride: clientData?.overdueInterestOverride || null
@@ -411,6 +421,7 @@ function calculateDebtDetails(summary) {
         interestPercent,
         interestEnabled,
         resetPaymentPercent,
+        referenceType: summary?.referenceType || null,
         daysSinceRef,
         daysUntilInterest: interestEnabled && baseDebtCents > 0 ? Math.max(0, overdueDays - daysSinceRef) : null,
         interestDeadlineDate,
@@ -591,6 +602,20 @@ function showContent() {
     elements.contentScreen.hidden = false;
 }
 
+function buildPaymentReferenceText(debtDetails) {
+    if (!debtDetails?.isOverdue) return '';
+    const referenceDate = state.summary?.referenceDate || null;
+    const overdueMessage = buildOverdueMessage({
+        lastPaymentDate: debtDetails.referenceType === 'payment' ? referenceDate : null,
+        firstSaleDate: debtDetails.referenceType === 'first-sale' ? referenceDate : null,
+        overdueDays: debtDetails.daysSinceRef
+    });
+    const interestDetails = debtDetails.interestAmount > 0
+        ? ` · juros ${formatOverdueInterestPercent(debtDetails.interestPercent)}${formatInterestCyclesSuffix(debtDetails.interestCycles)}`
+        : '';
+    return `⚠️ ${overdueMessage}${interestDetails}`;
+}
+
 function renderStatus(debtDetails) {
     const signature = JSON.stringify({ summary: state.summary, settings: state.settings, debtDetails });
     if (signature === state.lastStatusSignature) return;
@@ -619,6 +644,10 @@ function renderStatus(debtDetails) {
         elements.statusText.textContent = 'Total em aberto hoje.';
         elements.statusCard.classList.add('debt-status');
     }
+
+    const paymentReferenceText = !isPaid && !isCredit ? buildPaymentReferenceText(debtDetails) : '';
+    elements.paymentReference.textContent = paymentReferenceText;
+    elements.paymentReference.hidden = !paymentReferenceText;
 
     const deadlineHTML = !isPaid && !isCredit ? buildInterestDeadlineHTML(debtDetails) : '';
     elements.interestDeadlineText.innerHTML = deadlineHTML;
@@ -843,6 +872,13 @@ function summaryMatchesCurrentSettings(summary) {
         === normalizeOverdueResetPaymentPercent(state.settings.overdueResetPaymentPercent);
 }
 
+function summaryNeedsReferenceFallback(summary) {
+    return Number(summary?.baseDebtCents) > 0
+        && Boolean(summary?.referenceDate)
+        && summary?.referenceType !== 'payment'
+        && summary?.referenceType !== 'first-sale';
+}
+
 async function loadLegacyClient(forceRefresh = false) {
     if (!state.databaseApi) return;
     if (forceRefresh) state.legacyClientPromise = null;
@@ -874,7 +910,11 @@ function reconcileSummaryWithSettings() {
         state.summary = buildLegacySummary(state.legacyClientData);
         state.summarySource = 'legacy';
         state.summaryReady = true;
-    } else if (state.summarySource === 'public' && state.summary && !summaryMatchesCurrentSettings(state.summary)) {
+    } else if (
+        state.summarySource === 'public'
+        && state.summary
+        && (!summaryMatchesCurrentSettings(state.summary) || summaryNeedsReferenceFallback(state.summary))
+    ) {
         state.summaryReady = false;
         loadLegacyClient(true);
         return;
@@ -925,7 +965,7 @@ function startSummaryListener() {
         state.summary = summary;
         state.summarySource = 'public';
         state.summaryReady = true;
-        if (state.settingsReady && !summaryMatchesCurrentSettings(summary)) {
+        if (state.settingsReady && (!summaryMatchesCurrentSettings(summary) || summaryNeedsReferenceFallback(summary))) {
             state.summaryReady = false;
             loadLegacyClient(true);
             return;

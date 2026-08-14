@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
     <meta name="theme-color" content="#0f766e">
     <title>Minha Conta - Vivi Variedades</title>
-    <link rel="stylesheet" href="client-base.min.css?v=2.4.7">
-    <link rel="stylesheet" href="client-view.min.css?v=2.4.7">
+    <link rel="stylesheet" href="client-base.min.css?v=2.4.8">
+    <link rel="stylesheet" href="client-view.min.css?v=2.4.8">
     <script>
         (function() {
             const saved = localStorage.getItem('theme');
@@ -50,6 +50,7 @@
                 <div class="status-label" id="statusLabel">Saldo Atual</div>
                 <div class="status-value" id="statusValue">R$ 0,00</div>
                 <div class="status-text" id="statusText">Calculando...</div>
+                <div class="payment-reference" id="paymentReference" hidden></div>
                 <div class="interest-deadline" id="interestDeadline" hidden>
                     <div class="interest-deadline-text" id="interestDeadlineText"></div>
                     <button type="button" class="interest-rules-button" id="interestRulesButton" aria-expanded="false" aria-controls="interestRulesTooltip">
@@ -92,6 +93,6 @@
         </footer>
     </div>
 
-    <script type="module" src="client-view.min.js?v=2.4.7"></script>
+    <script type="module" src="client-view.min.js?v=2.4.8"></script>
 </body>
 </html>
