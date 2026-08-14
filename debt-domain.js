@@ -126,6 +126,14 @@ export function buildOverdueMessage({ lastPaymentDate, firstSaleDate, overdueDay
     return 'Nunca realizou pagamento';
 }
 
+/** Total de dias completos desde uma data, inclusive quando não há dívida. */
+export function calculateElapsedDays(dateValue, now = Date.now()) {
+    const dateTime = toTime(dateValue);
+    if (dateTime <= 0) return 0;
+    const nowTime = toTime(now) || Date.now();
+    return Math.max(0, Math.floor((nowTime - dateTime) / DAY_IN_MS));
+}
+
 /**
  * Assinatura estavel de um valor no formato em que o Firebase o devolveria.
  *

@@ -39,7 +39,7 @@ async function openBarcodeScanner(options) {
 }
 
 // Versão da aplicação
-const APP_VERSION = '2.4.8';
+const APP_VERSION = '2.4.9';
 
 // Verificar e sincronizar versão
 (function checkVersion() {
@@ -1967,6 +1967,8 @@ function buildPublicClientSummary(client, settings) {
     let outstandingInterestCents = 0;
     let firstSaleDate = null;
     let lastPaymentDate = null;
+    let firstSaleHistoryDate = null;
+    let lastPaymentHistoryDate = null;
     let lastAutomaticInterestDate = null;
 
     sales.forEach((item) => {
@@ -1974,6 +1976,13 @@ function buildPublicClientSummary(client, settings) {
         const itemDate = itemTime > 0 ? new Date(itemTime) : null;
         const debtBeforeTransactionCents = baseDebtCents;
         const amountCents = getSaleAmountCents(item);
+
+        if (item?.type === TRANSACTION_TYPE_SALE && itemDate && !firstSaleHistoryDate) {
+            firstSaleHistoryDate = itemDate;
+        }
+        if (item?.type === TRANSACTION_TYPE_PAYMENT && itemDate) {
+            lastPaymentHistoryDate = itemDate;
+        }
 
         if (
             item?.type === TRANSACTION_TYPE_PAYMENT
@@ -2012,6 +2021,10 @@ function buildPublicClientSummary(client, settings) {
     });
 
     const referenceDate = lastPaymentDate || firstSaleDate;
+    const referenceType = lastPaymentDate ? 'payment' : firstSaleDate ? 'first-sale' : null;
+    const paymentStatusDate = referenceDate || lastPaymentHistoryDate || firstSaleHistoryDate;
+    const paymentStatusType = referenceType
+        || (lastPaymentHistoryDate ? 'payment' : firstSaleHistoryDate ? 'first-sale' : null);
     const interestOverride = normalizeClientOverdueInterestOverride(client?.overdueInterestOverride);
 
     return {
@@ -2021,7 +2034,9 @@ function buildPublicClientSummary(client, settings) {
         outstandingInterestCents: Math.max(0, outstandingInterestCents),
         transactionCount: sales.length,
         referenceDate: referenceDate?.toISOString() || null,
-        referenceType: lastPaymentDate ? 'payment' : firstSaleDate ? 'first-sale' : null,
+        referenceType,
+        paymentStatusDate: paymentStatusDate?.toISOString() || null,
+        paymentStatusType,
         lastAutomaticInterestDate: lastAutomaticInterestDate?.toISOString() || null,
         overdueResetPaymentPercent: resetPaymentPercent,
         overdueInterestOverride: interestOverride

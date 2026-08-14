@@ -98,14 +98,20 @@
     max-width: 100%;
     margin: 0.8rem auto 0;
     padding: 0.45rem 0.7rem;
-    border: 1px solid rgba(245, 158, 11, 0.42);
+    border: 1px solid rgba(15, 118, 110, 0.25);
     border-radius: 999px;
-    background: rgba(245, 158, 11, 0.12);
-    color: #b45309;
+    background: rgba(15, 118, 110, 0.08);
+    color: var(--primary-color);
     font-size: 0.88rem;
     font-weight: 800;
     line-height: 1.35;
     overflow-wrap: anywhere;
+}
+
+.client-view-page .payment-reference.overdue {
+    border-color: rgba(245, 158, 11, 0.42);
+    background: rgba(245, 158, 11, 0.12);
+    color: #b45309;
 }
 
 .client-view-page .payment-reference[hidden] {
@@ -778,6 +784,12 @@
 }
 
 [data-theme="dark"] .client-view-page .payment-reference {
+    border-color: rgba(45, 212, 191, 0.3);
+    background: rgba(45, 212, 191, 0.1);
+    color: #5eead4;
+}
+
+[data-theme="dark"] .client-view-page .payment-reference.overdue {
     border-color: rgba(251, 191, 36, 0.38);
     background: rgba(245, 158, 11, 0.15);
     color: #fbbf24;

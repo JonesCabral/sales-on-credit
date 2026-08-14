@@ -1,11 +1,12 @@
 import {
     buildOverdueMessage,
+    calculateElapsedDays,
     calculateSummaryDebt,
     formatInterestCyclesSuffix,
     getTransactionSortAnchor
 } from './debt-domain.js';
 
-const APP_VERSION = '2.4.8';
+const APP_VERSION = '2.4.9';
 const PAGE_SIZE = 30;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_OVERDUE_ALERT_DAYS = 60;
@@ -237,6 +238,10 @@ function normalizePublicSummary(value) {
         referenceType: value.referenceType === 'payment' || value.referenceType === 'first-sale'
             ? value.referenceType
             : null,
+        paymentStatusDate: value.paymentStatusDate || null,
+        paymentStatusType: value.paymentStatusType === 'payment' || value.paymentStatusType === 'first-sale'
+            ? value.paymentStatusType
+            : null,
         lastAutomaticInterestDate: value.lastAutomaticInterestDate || null,
         overdueResetPaymentPercent: normalizeOverdueResetPaymentPercent(value.overdueResetPaymentPercent),
         overdueInterestOverride: normalizeClientOverdueInterestOverride(value.overdueInterestOverride)
@@ -311,12 +316,21 @@ function buildLegacySummary(clientData) {
     let outstandingInterestCents = 0;
     let firstSaleDate = null;
     let lastPaymentDate = null;
+    let firstSaleHistoryDate = null;
+    let lastPaymentHistoryDate = null;
     let lastAutomaticInterestDate = null;
 
     transactions.forEach(({ item, time }) => {
         const itemDate = time > 0 ? new Date(time) : null;
         const debtBeforeTransactionCents = baseDebtCents;
         const amountCents = getTransactionAmountCents(item);
+
+        if (item.type === TRANSACTION_TYPE_SALE && itemDate && !firstSaleHistoryDate) {
+            firstSaleHistoryDate = itemDate;
+        }
+        if (item.type === TRANSACTION_TYPE_PAYMENT && itemDate) {
+            lastPaymentHistoryDate = itemDate;
+        }
 
         if (
             item.type === TRANSACTION_TYPE_PAYMENT
@@ -352,6 +366,10 @@ function buildLegacySummary(clientData) {
     });
 
     const referenceDate = lastPaymentDate || firstSaleDate;
+    const referenceType = lastPaymentDate ? 'payment' : firstSaleDate ? 'first-sale' : null;
+    const paymentStatusDate = referenceDate || lastPaymentHistoryDate || firstSaleHistoryDate;
+    const paymentStatusType = referenceType
+        || (lastPaymentHistoryDate ? 'payment' : firstSaleHistoryDate ? 'first-sale' : null);
     return normalizePublicSummary({
         version: 1,
         baseDebtCents,
@@ -359,7 +377,9 @@ function buildLegacySummary(clientData) {
         outstandingInterestCents,
         transactionCount: transactions.length,
         referenceDate: referenceDate?.toISOString() || null,
-        referenceType: lastPaymentDate ? 'payment' : firstSaleDate ? 'first-sale' : null,
+        referenceType,
+        paymentStatusDate: paymentStatusDate?.toISOString() || null,
+        paymentStatusType,
         lastAutomaticInterestDate: lastAutomaticInterestDate?.toISOString() || null,
         overdueResetPaymentPercent: resetPercent,
         overdueInterestOverride: clientData?.overdueInterestOverride || null
@@ -407,6 +427,7 @@ function calculateDebtDetails(summary) {
     const interestDeadlineDate = referenceTime > 0
         ? new Date(referenceTime + overdueDays * DAY_IN_MS)
         : null;
+    const paymentStatusDate = summary?.paymentStatusDate || summary?.referenceDate || null;
 
     return {
         baseDebt: centsToAmount(baseDebtCents),
@@ -422,6 +443,9 @@ function calculateDebtDetails(summary) {
         interestEnabled,
         resetPaymentPercent,
         referenceType: summary?.referenceType || null,
+        paymentStatusDate,
+        paymentStatusType: summary?.paymentStatusType || summary?.referenceType || null,
+        paymentStatusDays: calculateElapsedDays(paymentStatusDate),
         daysSinceRef,
         daysUntilInterest: interestEnabled && baseDebtCents > 0 ? Math.max(0, overdueDays - daysSinceRef) : null,
         interestDeadlineDate,
@@ -603,17 +627,16 @@ function showContent() {
 }
 
 function buildPaymentReferenceText(debtDetails) {
-    if (!debtDetails?.isOverdue) return '';
-    const referenceDate = state.summary?.referenceDate || null;
+    const paymentStatusDate = debtDetails?.paymentStatusDate || null;
     const overdueMessage = buildOverdueMessage({
-        lastPaymentDate: debtDetails.referenceType === 'payment' ? referenceDate : null,
-        firstSaleDate: debtDetails.referenceType === 'first-sale' ? referenceDate : null,
-        overdueDays: debtDetails.daysSinceRef
+        lastPaymentDate: debtDetails?.paymentStatusType === 'payment' ? paymentStatusDate : null,
+        firstSaleDate: debtDetails?.paymentStatusType === 'first-sale' ? paymentStatusDate : null,
+        overdueDays: debtDetails?.paymentStatusDays
     });
-    const interestDetails = debtDetails.interestAmount > 0
+    const interestDetails = debtDetails?.isOverdue && debtDetails.interestAmount > 0
         ? ` · juros ${formatOverdueInterestPercent(debtDetails.interestPercent)}${formatInterestCyclesSuffix(debtDetails.interestCycles)}`
         : '';
-    return `⚠️ ${overdueMessage}${interestDetails}`;
+    return `${debtDetails?.isOverdue ? '⚠️ ' : ''}${overdueMessage}${interestDetails}`;
 }
 
 function renderStatus(debtDetails) {
@@ -645,9 +668,10 @@ function renderStatus(debtDetails) {
         elements.statusCard.classList.add('debt-status');
     }
 
-    const paymentReferenceText = !isPaid && !isCredit ? buildPaymentReferenceText(debtDetails) : '';
+    const paymentReferenceText = buildPaymentReferenceText(debtDetails);
     elements.paymentReference.textContent = paymentReferenceText;
     elements.paymentReference.hidden = !paymentReferenceText;
+    elements.paymentReference.classList.toggle('overdue', debtDetails.isOverdue);
 
     const deadlineHTML = !isPaid && !isCredit ? buildInterestDeadlineHTML(debtDetails) : '';
     elements.interestDeadlineText.innerHTML = deadlineHTML;
@@ -873,10 +897,14 @@ function summaryMatchesCurrentSettings(summary) {
 }
 
 function summaryNeedsReferenceFallback(summary) {
-    return Number(summary?.baseDebtCents) > 0
+    const missingDebtReference = Number(summary?.baseDebtCents) > 0
         && Boolean(summary?.referenceDate)
         && summary?.referenceType !== 'payment'
         && summary?.referenceType !== 'first-sale';
+    const missingPaymentStatus = Number(summary?.transactionCount) > 0
+        && (!summary?.paymentStatusDate
+            || summary?.paymentStatusType !== 'payment' && summary?.paymentStatusType !== 'first-sale');
+    return missingDebtReference || missingPaymentStatus;
 }
 
 async function loadLegacyClient(forceRefresh = false) {
